@@ -4,8 +4,8 @@
 
 use crate::preprocessor::{RomImage, RomSet};
 use sdrr_common::HwConfig;
-use sdrr_common::{CsLogic, RomType, ServeAlg, McuVariant};
 use sdrr_common::hardware::Port;
+use sdrr_common::{CsLogic, McuVariant, RomType, ServeAlg};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -147,8 +147,13 @@ impl Config {
         }
 
         // Validate status LED settings
-        if self.status_led && ((self.hw.port_status() == Port::None) || (self.hw.pin_status() == 255)) {
-            return Err("Status LED enabled but no status LED pin configured for selected hardware".to_string());
+        if self.status_led
+            && ((self.hw.port_status() == Port::None) || (self.hw.pin_status() == 255))
+        {
+            return Err(
+                "Status LED enabled but no status LED pin configured for selected hardware"
+                    .to_string(),
+            );
         }
 
         // Validate processor against family

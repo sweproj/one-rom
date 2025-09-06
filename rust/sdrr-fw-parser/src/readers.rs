@@ -54,7 +54,6 @@ impl MemoryReader {
     pub fn new(data: Vec<u8>, base_address: u32) -> Self {
         Self { data, base_address }
     }
-
 }
 
 impl Reader for MemoryReader {

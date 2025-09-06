@@ -11,8 +11,8 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use sdrr_common::args::{parse_hw_rev, parse_serve_alg, parse_mcu_variant};
-use sdrr_common::{CsLogic, HwConfig, RomType, ServeAlg, McuVariant};
+use sdrr_common::args::{parse_hw_rev, parse_mcu_variant, parse_serve_alg};
+use sdrr_common::{CsLogic, HwConfig, McuVariant, RomType, ServeAlg};
 
 use crate::config::{Config, CsConfig, RomConfig, SizeHandling};
 use crate::file::{FileSource, check_output_dir, source_image_file};
@@ -224,9 +224,7 @@ impl Args {
     /// frequency is either user-specified, or, if unspecified, the maximum
     /// frequency for the MCU variant.
     fn mcu_and_freq(&self) -> Result<(McuVariant, u32), String> {
-        let stm_variant = self
-            .stm_variant()
-            .ok_or("MCU variant must be specified")?;
+        let stm_variant = self.stm_variant().ok_or("MCU variant must be specified")?;
         let freq = self
             .freq
             .unwrap_or_else(|| stm_variant.processor().max_sysclk_mhz());

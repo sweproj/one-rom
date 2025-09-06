@@ -1,9 +1,10 @@
 [package]
 name = "sdrr-info"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 authors = ["Piers Finlayson <piers@piers.rocks>"]
-description = "Generates information from Software Defined Retro ROM (SDRR) firmware elf files"
+description = "Generates information from One ROM firmware elf files"
+repository = "https://github.com/piersfinlayson/one-rom"
 readme = "README.md"
 license = "MIT"
 keywords = ["embedded", "rom", "eeprom", "eprom", "flash"]

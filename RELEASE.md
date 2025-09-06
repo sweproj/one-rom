@@ -8,9 +8,12 @@ To update the version:
 - Update the version in [Makefile](/Makefile).
 - Update the version in [sddr-check/Cargo.toml](/rust/sdrr-check/Cargo.toml).
 - Update the version in [sddr-common/Cargo.toml](/rust/sdrr-common/Cargo.toml).
-- Update the version in [sddr-fw-parser/Cargo.toml](/rust/sdrr-fw-parser/Cargo.toml).
+- Update the version in [sddr-fw-parser/Cargo.toml](/rust/sdrr-fw-parse r/Cargo.toml).
 - Update the version in [sddr-gen/Cargo.toml](/rust/sdrr-gen/Cargo.toml).
 - Update the version in [sddr-info/Cargo.toml](/rust/sdrr-info/Cargo.toml).
+- Update the version in [lab/Cargo.toml](/rust/lab/Cargo.toml).
+- Update the version in [protocol/Cargo.toml](/rust/protocol/Cargo.toml).
+- Update the version in [database/Cargo.toml](/rust/database/Cargo.toml).
 - Update the version consts `MAX_VERSION_*` in [rust/sdrr-fw-parser/src/lib.rs](/rust/sdrr-fw-parser/src/lib.rs).
 
 ## Release Process
@@ -29,6 +32,26 @@ ci/build.sh test
 ci/build.sh ci
 ci/build.sh release v<x.y.z>
 ```
+
+Publish `onerom-database` to crates.io:
+
+```bash
+cd rust
+cargo publish --dry-run -p onerom-database
+cargo publish -p onerom-database
+```
+
+Update link to `onerom-database` in [protocol/Cargo.toml](/rust/protocol/Cargo.toml) to use the crates.io version.
+
+Publish `onerom-protocol` to crates.io:
+
+```bash
+cd rust
+cargo publish --dry-run -p onerom-protocol
+cargo publish -p onerom-protocol
+```
+
+Update links to `onerom-database` and `onerom-protocol` in [lab/Cargo.toml](/rust/lab/Cargo.toml) to use the crates.io versions.
 
 Publish the new version of `sdrr-fw-parser` to crates.io:
 

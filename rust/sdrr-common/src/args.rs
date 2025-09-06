@@ -3,7 +3,7 @@
 // MIT License
 
 use crate::hardware::{HwConfig, get_hw_config};
-use crate::sdrr_types::{ServeAlg, McuVariant};
+use crate::sdrr_types::{McuVariant, ServeAlg};
 
 pub fn parse_mcu_variant(s: &str) -> Result<McuVariant, String> {
     McuVariant::try_from_str(s)

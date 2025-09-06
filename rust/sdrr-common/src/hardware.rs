@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::sdrr_types::{RomType, McuFamily};
+use crate::sdrr_types::{McuFamily, RomType};
 
 /// Top level directory searched for hardware configuration files.
 pub const HW_CONFIG_DIRS: [&str; 2] = ["sdrr-hw-config", "../sdrr-hw-config"];
@@ -173,7 +173,7 @@ impl HwConfig {
 
         // Create pin maps for quick access
         let num_phys_addr_pins = if config.rom.pins.quantity == 24 {
-            config.mcu.family.max_valid_addr_pin()+1 // 24-pin ROMs have maximum 13 address lines + 1 CS
+            config.mcu.family.max_valid_addr_pin() + 1 // 24-pin ROMs have maximum 13 address lines + 1 CS
         } else if config.rom.pins.quantity == 28 {
             16 // 28 pin ROMs have 14 address lines + 2 CS
         } else {
@@ -188,7 +188,9 @@ impl HwConfig {
         // index phys_pin_to_addr_map to be indexed by physical pin (PCy).
         // Any pin that's unused (values 16-255) are set to None.
         config.phys_pin_to_addr_map = Vec::new();
-        config.phys_pin_to_addr_map.resize_with(num_phys_addr_pins as usize, || None);
+        config
+            .phys_pin_to_addr_map
+            .resize_with(num_phys_addr_pins as usize, || None);
         for (addr_line, &phys_pin) in config.mcu.pins.addr.iter().enumerate() {
             if phys_pin <= config.mcu.family.max_valid_addr_pin() {
                 config.phys_pin_to_addr_map[phys_pin as usize] = Some(addr_line);
@@ -325,7 +327,6 @@ fn normalize_name(name: &str) -> String {
 }
 
 fn validate_pin_number(mcu: &Mcu, pin: u8, pin_name: &str, config_name: &str) -> Result<()> {
-
     if !mcu.family.valid_pin_num(pin) && pin != 255 {
         bail!(
             "{}: invalid pin number {} for {}, must be valid or 255 if pin not exposed",
@@ -344,12 +345,23 @@ fn validate_rom_types(
     config_name: &str,
 ) -> Result<()> {
     for (rom_type, &pin) in rom_map {
-        validate_pin_number(mcu, pin, &format!("{}[{:?}]", pin_type, rom_type), config_name)?;
+        validate_pin_number(
+            mcu,
+            pin,
+            &format!("{}[{:?}]", pin_type, rom_type),
+            config_name,
+        )?;
     }
     Ok(())
 }
 
-fn validate_pin_array(mcu: &Mcu, pins: &[u8], pin_type: &str, config_name: &str, max_pins: u8) -> Result<()> {
+fn validate_pin_array(
+    mcu: &Mcu,
+    pins: &[u8],
+    pin_type: &str,
+    config_name: &str,
+    max_pins: u8,
+) -> Result<()> {
     let mut seen = HashSet::new();
     let mut num_pins = 0;
     for &pin in pins {
@@ -417,12 +429,24 @@ fn validate_config(name: &str, config: &HwConfig) -> Result<()> {
 
     // Validate values in pin arrays are within valid ranges, with minimum
     // numbers
-    validate_pin_values(&config.mcu.pins.data, "data", name, 8, config.mcu.family.max_valid_data_pin())?;
+    validate_pin_values(
+        &config.mcu.pins.data,
+        "data",
+        name,
+        8,
+        config.mcu.family.max_valid_data_pin(),
+    )?;
     match config.rom.pins.quantity {
         24 => {
             // For 24-pin ROMs, we expect address pins A0-12 to be <= 13
             // Because 14/15 used for X1/X2 and require larger RAM image
-            validate_pin_values(&config.mcu.pins.addr, "addr", name, 13, config.mcu.family.max_valid_addr_pin())?
+            validate_pin_values(
+                &config.mcu.pins.addr,
+                "addr",
+                name,
+                13,
+                config.mcu.family.max_valid_addr_pin(),
+            )?
         }
         28 => {
             // For 28-pin ROMs, need 14 address lines, and 14/15 can be
@@ -564,20 +588,32 @@ fn validate_config(name: &str, config: &HwConfig) -> Result<()> {
         .or_default()
         .push(("status", pin));
     if config.mcu.pins.sel_jumper_pull > 1 {
-        bail!("Invalid sel_jumper_pull value - set to 0 for jumper pulling sel pins down to GND, 1 for jumper pulling sel pins up.")
+        bail!(
+            "Invalid sel_jumper_pull value - set to 0 for jumper pulling sel pins down to GND, 1 for jumper pulling sel pins up."
+        )
     }
 
     // Validate X1/X2 pins are fixed at 14/15 if provided
     if let Some(x1_pin) = config.mcu.pins.x1 {
         let valid_pins = config.mcu.family.valid_x1_pins();
         if !valid_pins.contains(&x1_pin) {
-            bail!("{}: X1 pin must be within {:?}, found {}", name, valid_pins, x1_pin);
+            bail!(
+                "{}: X1 pin must be within {:?}, found {}",
+                name,
+                valid_pins,
+                x1_pin
+            );
         }
     }
     if let Some(x2_pin) = config.mcu.pins.x2 {
         let valid_pins = config.mcu.family.valid_x2_pins();
         if !valid_pins.contains(&x2_pin) {
-            bail!("{}: X2 pin must be within {:?}, found {}", name, valid_pins, x2_pin);
+            bail!(
+                "{}: X2 pin must be within {:?}, found {}",
+                name,
+                valid_pins,
+                x2_pin
+            );
         }
     }
 

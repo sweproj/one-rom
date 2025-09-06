@@ -11,8 +11,8 @@ use static_assertions::const_assert_eq;
 
 use crate::Reader;
 use crate::{MAX_VERSION_MAJOR, MAX_VERSION_MINOR, MAX_VERSION_PATCH};
-use crate::{SdrrCsState, SdrrRomType, SdrrServe, McuLine, McuStorage};
-use crate::{SdrrPins, SdrrRomInfo, SdrrRomSet, SdrrExtraInfo};
+use crate::{McuLine, McuStorage, SdrrCsState, SdrrRomType, SdrrServe};
+use crate::{SdrrExtraInfo, SdrrPins, SdrrRomInfo, SdrrRomSet};
 
 #[cfg(not(feature = "std"))]
 use alloc::{format, string::String, vec, vec::Vec};
@@ -49,7 +49,7 @@ impl SdrrRuntimeInfoHeader {
         // Rrust struct size ignored the magic bytes
         const_assert_eq!(
             core::mem::size_of::<SdrrRuntimeInfoHeader>(),
-            SdrrRuntimeInfoHeader::SDRR_RUNTIME_INFO_HEADER_SIZE-4
+            SdrrRuntimeInfoHeader::SDRR_RUNTIME_INFO_HEADER_SIZE - 4
         );
         Self::SDRR_RUNTIME_INFO_HEADER_SIZE
     }
@@ -226,7 +226,9 @@ impl SdrrRomInfoWithLogging {
 }
 
 /// Parse and validate runtime information from buffer
-pub(crate) fn parse_and_validate_runtime_info(data: &[u8]) -> Result<SdrrRuntimeInfoHeader, String> {
+pub(crate) fn parse_and_validate_runtime_info(
+    data: &[u8],
+) -> Result<SdrrRuntimeInfoHeader, String> {
     if data.len() < SdrrRuntimeInfoHeader::size() {
         return Err("Runtime info data too small".into());
     }

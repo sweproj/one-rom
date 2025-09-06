@@ -1,10 +1,10 @@
 [package]
 name = "sdrr-gen"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 authors = ["Piers Finlayson <piers@piers.rocks>"]
-description = "Software Defined Retro ROM (SDRR) firmware generator"
-repository = "https://github.com/piersfinlayson/software-defined-retro-rom"
+description = "One ROM firmware generator"
+repository = "https://github.com/piersfinlayson/one-rom"
 readme = "README.md"
 license = "MIT"
 keywords = ["embedded", "rom", "eeprom", "eprom", "flash"]

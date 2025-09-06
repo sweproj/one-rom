@@ -14,6 +14,12 @@ use alloc::{format, string::String};
 
 use crate::SdrrInfo;
 
+/// Enum used to identify the source of an information object
+pub enum Source {
+    Flash,
+    Ram,
+}
+
 /// STM32F4 product line options
 ///
 /// Relflects `stm_line_t` from `sdrr/include/config_base.h`

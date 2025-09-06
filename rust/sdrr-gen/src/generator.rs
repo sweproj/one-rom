@@ -232,10 +232,17 @@ fn generate_roms_implementation_file(
         writeln!(file, "#define ROM_SET_{}_ROM_COUNT  {}", ii, num_roms)?;
         if num_roms == 1 {
             match config.mcu_variant.family() {
-                McuFamily::Rp2350 => writeln!(file, "#define ROM_SET_{}_DATA_SIZE  ROM_IMAGE_SIZE_RP235X", ii)?,
-                McuFamily::Stm32F4 => writeln!(file, "#define ROM_SET_{}_DATA_SIZE  ROM_IMAGE_SIZE_STM32F4", ii)?,
+                McuFamily::Rp2350 => writeln!(
+                    file,
+                    "#define ROM_SET_{}_DATA_SIZE  ROM_IMAGE_SIZE_RP235X",
+                    ii
+                )?,
+                McuFamily::Stm32F4 => writeln!(
+                    file,
+                    "#define ROM_SET_{}_DATA_SIZE  ROM_IMAGE_SIZE_STM32F4",
+                    ii
+                )?,
             }
-            
         } else {
             writeln!(file, "#define ROM_SET_{}_DATA_SIZE  ROM_SET_IMAGE_SIZE", ii)?;
         }
@@ -429,7 +436,7 @@ fn generate_sdrr_config_header(filename: &Path, config: &Config) -> Result<()> {
     writeln!(file, "{}", config.mcu_variant.define_ram_size_kb())?;
     if let Some(ccm_ram_kb) = config.mcu_variant.ccm_ram_kb() {
         writeln!(file, "#define CCM_RAM_BASE 0x10000000")?;
-        writeln!(file, "#define CCM_RAM_SIZE {}", ccm_ram_kb*1024)?;
+        writeln!(file, "#define CCM_RAM_SIZE {}", ccm_ram_kb * 1024)?;
         writeln!(file, "#define CCM_RAM_SIZE_KB {}", ccm_ram_kb)?;
     }
 
@@ -686,7 +693,10 @@ fn generate_sdrr_config_implementation(
     writeln!(file, "    .rtt = &_SEGGER_RTT,")?;
     writeln!(file, "    ._post = {{")?;
     for _ in 0..31 {
-        writeln!(file, "        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,")?;
+        writeln!(
+            file,
+            "        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,"
+        )?;
     }
     writeln!(file, "        0xff, 0xff, 0xff, 0xff, ")?;
     writeln!(file, "    }},")?;
@@ -852,7 +862,10 @@ fn generate_linker_script(filename: &Path, config: &Config) -> Result<()> {
             writeln!(file, "_Ram_Rom_Image_Start = ORIGIN(RAM) + 0x10000;")?;
         }
         McuFamily::Stm32F4 => {
-            writeln!(file, "_Ram_Rom_Image_Start = ORIGIN(RAM) + _Sdrr_Runtime_Info_Size;")?;
+            writeln!(
+                file,
+                "_Ram_Rom_Image_Start = ORIGIN(RAM) + _Sdrr_Runtime_Info_Size;"
+            )?;
         }
     }
     if config.mcu_variant.ram_kb() > 72 {
@@ -883,7 +896,7 @@ fn generate_platform_ld_script(filename: &Path, config: &Config) -> Result<()> {
             writeln!(file)?;
             writeln!(file, "/* Intentionally empty */")?;
         }
-    } 
+    }
 
     Ok(())
 }

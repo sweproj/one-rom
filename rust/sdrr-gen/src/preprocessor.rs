@@ -10,7 +10,7 @@
 use crate::config::{RomInSet, SizeHandling};
 use anyhow::{Context, Result};
 use sdrr_common::hardware::HwConfig;
-use sdrr_common::{CsLogic, RomType, McuFamily};
+use sdrr_common::{CsLogic, McuFamily, RomType};
 use std::fs;
 use std::path::Path;
 
@@ -206,11 +206,17 @@ impl RomSet {
                 match hw.mcu.family {
                     McuFamily::Rp2350 => {
                         // Single ROM set: uses entire 64KB space
-                        assert!(address < 65536, "Address out of bounds for RP235X single ROM set");
+                        assert!(
+                            address < 65536,
+                            "Address out of bounds for RP235X single ROM set"
+                        );
                     }
                     McuFamily::Stm32F4 => {
                         // Single ROM set: uses entire 64KB space
-                        assert!(address < 16384, "Address out of bounds for STM32F4 single ROM set");
+                        assert!(
+                            address < 16384,
+                            "Address out of bounds for STM32F4 single ROM set"
+                        );
                     }
                 }
                 (0, address)
@@ -223,9 +229,8 @@ impl RomSet {
                     ((address >> x1_pin) & 1) | (((address >> x2_pin) & 1) << 1)
                 } else {
                     // Invert the logic if the jumpers pull to GND
-                    (!((address >> x1_pin)) & 1) | ((!((address >> x2_pin) & 1)) << 1)
-
-                };  
+                    (!(address >> x1_pin) & 1) | ((!((address >> x2_pin) & 1)) << 1)
+                };
                 let mask = !(1 << x1_pin) & !(1 << x2_pin);
                 let masked_address = address & mask;
                 let rom_index = bank % self.roms.len(); // Wrap around

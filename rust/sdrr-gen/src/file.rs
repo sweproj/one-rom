@@ -56,7 +56,10 @@ static OUT_FILES: LazyLock<HashMap<OutType, String>> = LazyLock::new(|| {
     map.insert(OutType::SdrrConfigC, SDRR_CONFIG_C_FILE.to_string());
     map.insert(OutType::GenMk, GEN_MK_FILE.to_string());
     map.insert(OutType::LinkerLd, LINKER_LD_FILE.to_string());
-    map.insert(OutType::PlatformBootBlockLd, PLATFORM_BOOT_BLOCK_LD_FILE.to_string());
+    map.insert(
+        OutType::PlatformBootBlockLd,
+        PLATFORM_BOOT_BLOCK_LD_FILE.to_string(),
+    );
     map
 });
 

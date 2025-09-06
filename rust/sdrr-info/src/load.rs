@@ -28,8 +28,8 @@ async fn load_from_binary(firmware_data: Vec<u8>) -> Result<FirmwareData> {
     }
 
     // Create reader with the firmware data
-    let reader = MemoryReader::new(firmware_data, STM32F4_FLASH_BASE);
-    let mut parser = Parser::new(reader);
+    let mut reader = MemoryReader::new(firmware_data, STM32F4_FLASH_BASE);
+    let mut parser = Parser::new(&mut reader);
 
     // Parse the firmware
     let info = parser.parse_flash().await.map_err(|e| anyhow::anyhow!(e))?;
@@ -37,7 +37,7 @@ async fn load_from_binary(firmware_data: Vec<u8>) -> Result<FirmwareData> {
     Ok(FirmwareData {
         file_type: FileType::Orc,
         file_size,
-        parser,
+        reader,
         info,
     })
 }
@@ -87,8 +87,8 @@ async fn load_from_elf(firmware_data: Vec<u8>) -> Result<FirmwareData> {
         create_synthetic_binary_from_symbol(&firmware_data, sdrr_data, rodata_section)?;
 
     // Create reader with synthetic binary
-    let reader = MemoryReader::new(synthetic_binary, STM32F4_FLASH_BASE);
-    let mut parser = Parser::new(reader);
+    let mut reader = MemoryReader::new(synthetic_binary, STM32F4_FLASH_BASE);
+    let mut parser = Parser::new(&mut reader);
 
     // Parse the firmware
     let info = parser.parse_flash().await.map_err(|e| anyhow::anyhow!(e))?;
@@ -98,7 +98,7 @@ async fn load_from_elf(firmware_data: Vec<u8>) -> Result<FirmwareData> {
     Ok(FirmwareData {
         file_type: FileType::Elf,
         file_size: firmware_data.len(),
-        parser,
+        reader,
         info,
     })
 }

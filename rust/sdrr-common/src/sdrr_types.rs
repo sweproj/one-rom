@@ -81,9 +81,9 @@ impl McuFamily {
     const MAX_STM_PIN_NUM: u8 = 15;
     const MAX_STM_DATA_PIN_NUM: u8 = 7;
     const MAX_RP2350_PIN_NUM: u8 = 29;
-    const MAX_RP2350_ADDR_CS_PIN_NUM: u8 = 15;  // First half-word
-    const MAX_RP2350_DATA_PIN_NUM: u8 = 23;     // 3rd byte
-    
+    const MAX_RP2350_ADDR_CS_PIN_NUM: u8 = 15; // First half-word
+    const MAX_RP2350_DATA_PIN_NUM: u8 = 23; // 3rd byte
+
     pub fn try_from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "f4" => Some(McuFamily::Stm32F4),
@@ -102,7 +102,7 @@ impl McuFamily {
     pub fn max_valid_addr_pin(&self) -> u8 {
         match self {
             McuFamily::Stm32F4 => Self::MAX_STM_PIN_NUM - 2, // Top two reserved for X1/X2
-            McuFamily::Rp2350 => Self::MAX_RP2350_ADDR_CS_PIN_NUM,  // Any
+            McuFamily::Rp2350 => Self::MAX_RP2350_ADDR_CS_PIN_NUM, // Any
         }
     }
 
@@ -151,14 +151,14 @@ impl McuFamily {
     pub fn valid_x1_pins(&self) -> Vec<u8> {
         match self {
             McuFamily::Stm32F4 => vec![14],
-            McuFamily::Rp2350 => vec![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            McuFamily::Rp2350 => vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
         }
     }
 
     pub fn valid_x2_pins(&self) -> Vec<u8> {
         match self {
             McuFamily::Stm32F4 => vec![15],
-            McuFamily::Rp2350 => vec![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+            McuFamily::Rp2350 => vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
         }
     }
 }
@@ -277,15 +277,15 @@ impl McuProcessor {
         if target_freq_mhz > self.max_sysclk_mhz() && !overclock {
             return None;
         }
-        
+
         const XOSC_MHZ: u32 = 12;
-        const REFDIV: u8 = 1;  // Fixed for 12MHz
-        
+        const REFDIV: u8 = 1; // Fixed for 12MHz
+
         // Try POSTDIV combinations (prefer higher PD1:PD2 ratios)
         for pd2 in 1..=7u8 {
             for pd1 in 1..=7u8 {
                 let vco_mhz = target_freq_mhz * pd1 as u32 * pd2 as u32;
-                
+
                 if vco_mhz >= self.vco_min_mhz() && vco_mhz <= self.vco_max_mhz(overclock) {
                     let fbdiv = vco_mhz / XOSC_MHZ;
                     if (16..=320).contains(&fbdiv) && (vco_mhz % XOSC_MHZ == 0) {
@@ -327,7 +327,9 @@ impl McuProcessor {
 
     // Unlike the Pico SDK's vcocalc.py we are interested in power savings over decrease in jitter.
     fn generate_rp2350_pll_defines(&self, target_freq_mhz: u32, overclock: bool) -> Option<String> {
-        if let Some((refdiv, fbdiv, postdiv1, postdiv2)) = self.calculate_rp2350_pll_12mhz(target_freq_mhz, overclock) {
+        if let Some((refdiv, fbdiv, postdiv1, postdiv2)) =
+            self.calculate_rp2350_pll_12mhz(target_freq_mhz, overclock)
+        {
             // Calculate intermediate values for comments
             const CLK_REF_MHZ: u32 = 12;
             let vco_input_mhz = CLK_REF_MHZ / refdiv as u32;

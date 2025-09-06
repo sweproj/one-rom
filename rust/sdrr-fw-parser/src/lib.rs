@@ -34,13 +34,16 @@
 #[cfg(feature = "esp32")]
 use esp_println as _;
 
+use airfrog_rpc::io::Reader;
+
 /// Maximum SDRR firmware versions supported by this version of`sdrr-fw-parser`
 pub const MAX_VERSION_MAJOR: u16 = 0;
 pub const MAX_VERSION_MINOR: u16 = 4;
-pub const MAX_VERSION_PATCH: u16 = 1;
+pub const MAX_VERSION_PATCH: u16 = 2;
 
 // lib.rs - Public API and core traits
 pub mod info;
+pub mod lab;
 mod parsing;
 pub mod readers;
 pub mod types;
@@ -48,18 +51,24 @@ pub mod types;
 // Use alloc if no-std.
 #[cfg(not(feature = "std"))]
 extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::vec;
 
 use core::fmt;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-pub use info::{Sdrr, SdrrInfo, SdrrPins, SdrrRomInfo, SdrrRomSet, SdrrRuntimeInfo, SdrrExtraInfo};
+pub use info::{Sdrr, SdrrExtraInfo, SdrrInfo, SdrrPins, SdrrRomInfo, SdrrRomSet, SdrrRuntimeInfo};
+pub use lab::{LabFlash, LabParser, LabRam, OneRomLab};
 pub use types::{
-    SdrrAddress, SdrrCsSet, SdrrCsState, SdrrLogicalAddress, SdrrRomType, SdrrServe, SdrrMcuPort,
-    McuLine, McuStorage,
+    McuLine, McuStorage, SdrrAddress, SdrrCsSet, SdrrCsState, SdrrLogicalAddress, SdrrMcuPort,
+    SdrrRomType, SdrrServe, Source,
 };
 
-use crate::parsing::{parse_and_validate_header, parse_and_validate_runtime_info, SdrrInfoHeader, SdrrRuntimeInfoHeader};
+use crate::parsing::{
+    SdrrInfoHeader, SdrrRuntimeInfoHeader, parse_and_validate_header,
+    parse_and_validate_runtime_info,
+};
 
 /// Offset from start of the firmware where the SDRR info header is located.
 ///
@@ -67,7 +76,7 @@ use crate::parsing::{parse_and_validate_header, parse_and_validate_runtime_info,
 pub const SDRR_INFO_FW_OFFSET: u32 = 0x200;
 
 /// Offset from the start of RAM where the SDRR runtime info header is located.
-/// 
+///
 /// The first 4 "magic" bytes are b"sdrr" (lower case).
 pub const SDRR_RUNTIME_INFO_FW_OFFSET: u32 = 0x0;
 
@@ -80,80 +89,6 @@ pub(crate) const STM32F4_FLASH_BASE: u32 = 0x08000000;
 
 // STM32F4 RAM base address.  Required to find offset from pointers
 pub(crate) const STM32F4_RAM_BASE: u32 = 0x20000000;
-
-/// Trait for reading firmware data from a source.
-///
-/// This trait abstracts over different ways of reading SDRR firmware data,
-/// allowing the parser to work with various sources without knowing the
-/// underlying implementation details.
-///
-/// # Implementations
-///
-/// - For PC applications: Read from in-memory buffers or memory-mapped files
-/// - For embedded devices: Read from flash via SWD, JTAG, or other debug interfaces
-/// - For bootloaders: Read directly from flash memory
-///
-/// # Address Space
-///
-/// The `read` method uses absolute addresses as they appear in the target's
-/// memory map. For STM32F4 devices, flash typically starts at `0x08000000`.
-/// The implementation is responsible for translating these addresses to
-/// whatever internal representation it uses (file offsets, SWD commands, etc.).
-///
-/// # Example
-///
-/// ```rust,no_run
-/// # struct MyReader;
-/// # impl Reader for MyReader {
-/// #     type Error = std::io::Error;
-/// #     fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Self::Error> {
-/// #         Ok(())
-/// #     }
-/// # }
-/// use sdrr_fw_parser::{Reader, SdrrInfo};
-///
-/// let mut reader = MyReader::new();
-/// let sdrr_info = SdrrInfo::from_reader(&mut reader)?;
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub trait Reader {
-    /// The error type returned by read operations.
-    ///
-    /// This allows implementations to use their own error types
-    /// (e.g., `std::io::Error` for file I/O, custom errors for SWD).
-    type Error;
-
-    /// Read bytes from the firmware at the specified absolute address.
-    ///
-    /// # Arguments
-    ///
-    /// * `addr` - The absolute address to read from (e.g., `0x08000200`)
-    /// * `buf` - Buffer to fill with the read data
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// - The address is out of bounds for the firmware
-    /// - The underlying read operation fails (I/O error, communication error, etc.)
-    /// - The requested read size would exceed firmware boundaries
-    ///
-    /// # Performance Notes
-    ///
-    /// Implementations should optimize for small reads (1-256 bytes) as the parser
-    /// typically reads headers and metadata in small chunks. For embedded implementations
-    /// reading via debug interfaces, consider implementing bulk reads and internal
-    /// buffering to reduce round-trip overhead.
-    fn read(
-        &mut self,
-        addr: u32,
-        buf: &mut [u8],
-    ) -> impl core::future::Future<Output = Result<(), Self::Error>> + Send;
-
-    /// Updates the reader's base address if it is later detected that it needs
-    /// to change.
-    fn update_base_address(&mut self, new_base: u32);
-
-}
 
 /// Parser for Software Defined Retro ROM (SDRR) firmware images.
 ///
@@ -208,13 +143,13 @@ pub trait Reader {
 /// ROM addresses and data bytes are "mangled" in the firmware for efficient
 /// real-time serving. The parser handles the translation between logical
 /// addresses/data and their physical representation in the firmware.
-pub struct Parser<R: Reader> {
-    reader: R,
+pub struct Parser<'a, R: Reader> {
+    reader: &'a mut R,
     base_flash_address: u32,
     base_ram_address: u32,
 }
 
-impl<R: Reader> Parser<R> {
+impl<'a, R: Reader> Parser<'a, R> {
     /// Create a new parser with the default STM32F4 base address (0x08000000).
     ///
     /// # Arguments
@@ -233,7 +168,7 @@ impl<R: Reader> Parser<R> {
     /// let reader = MyReader::new();
     /// let mut parser = Parser::new(reader);
     /// ```
-    pub fn new(reader: R) -> Self {
+    pub fn new(reader: &'a mut R) -> Self {
         Self {
             reader,
             base_flash_address: STM32F4_FLASH_BASE,
@@ -251,7 +186,11 @@ impl<R: Reader> Parser<R> {
     /// * `reader` - Implementation of [`Reader`] trait that provides access to firmware bytes
     /// * `base_flash_address` - Base address where flash memory begins (e.g., 0x08000000 for STM32F4)
     /// * `base_ram_address` - Base address where RAM begins (e.g., 0x20000000 for STM32F4)
-    pub fn with_base_flash_address(reader: R, base_flash_address: u32, base_ram_address: u32) -> Self {
+    pub fn with_base_flash_address(
+        reader: &'a mut R,
+        base_flash_address: u32,
+        base_ram_address: u32,
+    ) -> Self {
         Self {
             reader,
             base_flash_address,
@@ -318,10 +257,7 @@ impl<R: Reader> Parser<R> {
             }
         };
 
-        Sdrr {
-            flash,
-            ram,
-        }
+        Sdrr { flash, ram }
     }
 
     /// Parse SDRR metadata from the firmware.
@@ -410,7 +346,7 @@ impl<R: Reader> Parser<R> {
 
         // Parse extra info
         let extra_info = match parsing::read_extra_info(
-            &mut self.reader,
+            self.reader,
             header.extra_ptr,
             self.base_flash_address,
         )
@@ -425,7 +361,7 @@ impl<R: Reader> Parser<R> {
 
         // Parse ROM sets with error collection
         let rom_sets = match parsing::read_rom_sets(
-            &mut self.reader,
+            self.reader,
             header.rom_sets_ptr,
             header.rom_set_count,
             self.base_flash_address,
@@ -442,14 +378,16 @@ impl<R: Reader> Parser<R> {
 
         // Parse pins
         let pins =
-            match parsing::read_pins(&mut self.reader, header.pins_ptr, self.base_flash_address).await {
+            match parsing::read_pins(self.reader, header.pins_ptr, self.base_flash_address)
+                .await
+            {
                 Ok(p) => Some(p),
                 Err(e) => {
                     parse_errors.push(ParseError::new("Pins", e));
                     None
                 }
             };
- 
+
         Ok(SdrrInfo {
             major_version: header.major_version,
             minor_version: header.minor_version,
@@ -487,7 +425,8 @@ impl<R: Reader> Parser<R> {
             rom_set_index: runtime_info.rom_set_index,
             count_rom_access: runtime_info.count_rom_access,
             last_parsed_access_count: runtime_info.access_count,
-            account_count_address: STM32F4_RAM_BASE + SdrrRuntimeInfoHeader::access_count_offset() as u32,
+            account_count_address: STM32F4_RAM_BASE
+                + SdrrRuntimeInfoHeader::access_count_offset() as u32,
             rom_table_address: runtime_info.rom_table_ptr,
             rom_table_size: runtime_info.rom_table_size,
         })
@@ -498,32 +437,7 @@ impl<R: Reader> Parser<R> {
             return Err(format!("Invalid pointer: 0x{:08X}", ptr));
         }
 
-        // Read in chunks to find null terminator
-        let mut result = Vec::new();
-        let mut addr = ptr;
-        let mut buf = [0u8; 64];
-
-        loop {
-            let chunk_size = buf.len().min(1024 - result.len()); // Limit total size
-            self.reader
-                .read(addr, &mut buf[..chunk_size])
-                .await
-                .map_err(|_| format!("Failed to read string at 0x{ptr:08X}"))?;
-
-            if let Some(null_pos) = buf[..chunk_size].iter().position(|&b| b == 0) {
-                result.extend_from_slice(&buf[..null_pos]);
-                break;
-            }
-
-            result.extend_from_slice(&buf[..chunk_size]);
-            addr += chunk_size as u32;
-
-            if result.len() >= 1024 {
-                return Err("String too long (>1KB)".into());
-            }
-        }
-
-        String::from_utf8(result).map_err(|_| "Invalid UTF-8 string".into())
+        read_string_at_ptr(self.reader, ptr).await
     }
 }
 
@@ -579,4 +493,49 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", self.field, self.reason)
     }
+}
+
+async fn read_string_at_ptr<R: Reader>(reader: &mut R, ptr: u32) -> Result<String, String> {
+    // Read in chunks to find null terminator
+    let mut result = Vec::new();
+    let mut addr = ptr;
+    let mut buf = [0u8; 64];
+
+    loop {
+        let chunk_size = buf.len().min(1024 - result.len()); // Limit total size
+        reader
+            .read(addr, &mut buf[..chunk_size])
+            .await
+            .map_err(|_| format!("Failed to read string at 0x{ptr:08X}"))?;
+
+        if let Some(null_pos) = buf[..chunk_size].iter().position(|&b| b == 0) {
+            result.extend_from_slice(&buf[..null_pos]);
+            break;
+        }
+
+        result.extend_from_slice(&buf[..chunk_size]);
+        addr += chunk_size as u32;
+
+        if result.len() >= 1024 {
+            return Err("String too long (>1KB)".into());
+        }
+    }
+
+    String::from_utf8(result).map_err(|_| "Invalid UTF-8 string".into())
+}
+
+async fn read_str_at_ptr<R: Reader>(reader: &mut R, len: u32, ptr: u32) -> Result<String, String> {
+    if len > 1024 {
+        return Err("String too long (>1KB)".into());
+    } else if len == 0 {
+        return Ok(String::new());
+    }
+
+    let mut buf = vec![0u8; len as usize];
+    reader
+        .read(ptr, &mut buf)
+        .await
+        .map_err(|_| format!("Failed to read string at 0x{ptr:08X}"))?;
+
+    String::from_utf8(buf).map_err(|_| "Invalid UTF-8 string".into())
 }
