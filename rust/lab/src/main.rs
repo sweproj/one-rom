@@ -20,7 +20,7 @@ use embassy_stm32::gpio::Flex;
 use embassy_stm32::rcc::{
     AHBPrescaler, APBPrescaler, Pll, PllMul, PllPDiv, PllPreDiv, PllQDiv, PllSource, Sysclk, clocks,
 };
-#[cfg(not(feature = "control"))]
+#[cfg(feature = "repeat")]
 use embassy_time::Timer;
 use embedded_alloc::LlffHeap as Heap;
 use panic_rtt_target as _;
@@ -133,26 +133,20 @@ async fn main(_spawner: Spawner) {
     {
         loop {
             match rom.read_rom().await {
-                Some(_) => {
-                    break;
-                }
-                None => {
-                    info!("Failed to read ROM, retrying...");
-                    Timer::after_millis(1000).await;
-                }
+                Some(_) => break,
+                None => info!("Failed to read ROM"),
             }
-        }
-        // In non-airfrog mode, just try to read the ROM until successful and
-        // then stop
-        #[cfg(feature = "oneshot")]
-        {
-            info!("Done");
-            return;
-        }
-        #[cfg(feature = "repeat")]
-        {
-            info!("Waiting 5 seconds before reading again");
-            Timer::after_secs(5).await;
+
+            #[cfg(feature = "oneshot")]
+            {
+                info!("Done");
+                return;
+            }
+            #[cfg(feature = "repeat")]
+            {
+                info!("Waiting 5 seconds before reading again");
+                Timer::after_secs(5).await;
+            }
         }
     }
 
