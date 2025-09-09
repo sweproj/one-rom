@@ -2,6 +2,17 @@
 
 One ROM Lab firmware reads ROM images from external ROM chips (originals, One ROMs, and other replacements), by using the One ROM hardware with female socket placed on top of the ROM socket pins.  It can also be used to instrument the performance of these external ROM chips, by using additional equipment, such as logic analyzers or oscilloscopes.
 
+<div class="video-container">
+    <iframe 
+        width="560" 
+        height="315" 
+        src="https://www.youtube.com/embed/9QBlPToP_BQ" 
+        frameborder="0" 
+        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" 
+        allowfullscreen>
+    </iframe>
+</div>
+
 You need female headers on the top of your One ROM PCB in order to use the Lab firmware. 
 
 One ROM Lab currently only support STM32F4 based One ROMs - a RP2350 is viable, with the appropriate changes to support `embassy-rp`.
