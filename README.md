@@ -2,13 +2,13 @@
 
 **One ROM To Rule Them All**
 
-The most flexible ROM replacement for your retro computer. It is highly configurable and low-cost.  Get them fabbed at JLC for under $5 each in a quantity of 10 or more.
+The most flexible ROM replacement for your retro computer.  It is highly configurable and low-cost.  Get them fabbed at JLC for under $5 each in a quantity of 10 or more.
 
 Based on a Raspberry Pi RP2350 or STM32F4 microcontroller.
 
 One ROM emulates any system's 2364, 2332 and 2316 ROMs, with any chip select configuration, and can serve different images to multiple ROM sockets simultaneously.
 
-Replaces failed ROMs in Commodore 64s, VIC-20s, PETs, disk drives.
+Replaces failed ROMs in Commodore 64s, VIC-20s, PETs, disk drives and another brands of retro systems.
 
 One ROM was formerly known as Software Defined Retro ROM (SDRR).
 
@@ -20,7 +20,7 @@ One ROM was formerly known as Software Defined Retro ROM (SDRR).
 
 📐 **[Same footprint](docs/images/sdrr-24-pin-side.png)** as original ROMs - doesn't overhang the socket like other solutions.
 
-🚀 **[Quick programming](docs/PROGRAMMING.md)** - just connect 4 wires and `make run`. No programming jigs necessary.
+🚀 **[Quick programming](docs/PROGRAMMING.md)** - just connect 3 wires and `make run`. No programming jigs necessary.
 
 🔌 **[Use a $5 programmer](docs/PI-PICO-PROGRAMMER.md)** - no expensive EEPROM programmer required.
 
@@ -59,6 +59,8 @@ This is the RP2350 24-pin version, hardware revison A.  See [sdrr-pcb](sdrr-pcb/
 </div>
 
 ## Quick Start
+
+See [Getting Started](docs/GETTING-STARTED.md) for detailed instructions on getting started with One ROM.
 
 You have two options
 
@@ -105,6 +107,7 @@ For configuration options, see [Configuration](docs/CONFIGURATION.md) and the [M
 
 | Topic | Description |
 |-------|-------------|
+| [Getting Started](docs/GETTING-STARTED.md) | Detailed instructions for flashing your One ROM |
 | [Frequently Asked Questions](docs/FAQ.md) | Answers to common questions about One ROM. |
 | [Installation](INSTALL.md) | Installation of dependencies. |
 | [Programming](docs/PROGRAMMING.md) | How to program One ROM. |
