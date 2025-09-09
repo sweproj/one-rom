@@ -18,7 +18,9 @@ I gave you 4 ROMs, each with a different pre-installed ROM collection:
 
 - **R** - A (very new) Raspberry Pi RP2350 based One ROM, with a multi-ROM set for the C64 including KERNAL/BASIC/Character ROM.  This single One ROM replaces all three ROMs simultaneously.  See [the config](/config/set-c64.mk) and [Multi-ROM Sets](./GETTING-STARTED.md#multi-rom-sets) for details.
 
-The 411/405/446 above indicate the type of STM32F4 MCU used on that One ROM.  Different STM32 MCUs can run at different max clock speeds, and have different flash sizes.  The F405/F446 are most suitable for machines **faster** than the C64 as they can be clocked the fastest.  Pretty much all features are available on both STM32 and RP2350 MCUs.
+The 411/405/446 above indicate the type of STM32F4 MCU used on that One ROM.  F/G indicate different PCB revisions.
+
+Different STM32 MCUs can run at different max clock speeds, and have different flash sizes.  The F405/F446 are most suitable for machines **faster** than the C64 as they can be clocked the fastest.  Pretty much all features are available on both STM32 and RP2350 MCUs.
 
 Because this is a software solution, and true to One ROM's aim to be the most flexible ROM replacement, there's oodles of [configuration options](/docs/CONFIGURATION.md) available, including MCU custom clock speeds, overclocking, configurable status LED, supporting custom third-party PCB layouts, automatically replicating smaller ROM images to server as larger ROM sizes, logging, etc.  I've even used One ROM to instrument a running C64's ROM access patterns, over WiFi, with [Airfrog](https://github.com/piersfinlayson/airfrog/blob/main/README.md#example-use-case---remote-telemetry).
 

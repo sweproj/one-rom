@@ -66,15 +66,15 @@ There are lots of other build configurations possible - see:
 
 ### STM32 Revisions 24-D/E/F Programming Pins
 
-![Programming Pins for Revisions STM revs D/E/F](/docs/images/prog-d-f.png)
+<img src="./images/prog-d-f.png" alt="Programming Pins for Revisions STM revs D/E/F" width="50%">
 
 ### STM32 Rev G and RP2350 Rev A Programming Pins
 
-![Programming Pins for Revisions STM rev G and RP rev A](/docs/images/prog-g-rp.png)
+<img src="./images/prog-g-rp.png" alt="Programming Pins for Revisions STM rev G and RP rev A" width="50%">
 
 ### External Power
 
-![External Power Pins](/docs/images/power.png)
+<img src="./images/power.png" alt="External Power Pins" width="50%">
 
 ## Image Selection
 
@@ -98,31 +98,31 @@ If you select an image number higher than the total number of images installed, 
 
 Revision D has 3 image select jumpers, with the least significant bit on the left.
 
-![Image Selection Jumpers for STM rev D](/docs/images/sel-d.png)
+<img src="./images/sel-d.png" alt="Image Selection Jumpers for STM rev D" width="50%">
 
 ### STM32 Revisions 24-E/F Image Selection Jumpers
 
 Revisions E and F have 4 image select jumpers, with the least significant bit on the left.
 
-![Image Selection Jumpers for STM revs E/F](/docs/images/sel-ef.png)
+<img src="./images/sel-ef.png" alt="Image Selection Jumpers for STM revs E/F" width="50%">
 
 ### STM32 Revision 24-G Image Selection Jumpers
 
 Revision G has 5 image select jumpers, with the least significant bit on the **right**.
 
-![Image Selection Jumpers for STM rev G](/docs/images/sel-g.png)
+<img src="./images/sel-ef.png" alt="Image Selection Jumpers for STM revs E/F" width="50%">
 
 ### RP2350 Revision A Image Selection Jumpers
 
 Revision A has 3 image select jumpers, with the least significant bit on the **right**.
 
-![Image Selection Jumpers for RP rev A](/docs/images/sel-rp-a.png)
+<img src="./images/sel-rp-a.png" alt="Image Selection Jumpers for RP rev A" width="50%">
 
 ## Bank Selection
 
 When using [bank switched configurations](/docs/MULTI-ROM-SETS.md#dynamic-bank-switching-configuration) (those that start `bank-`), One ROM dynamically switches between images using the bank select jumpers X1 and X2.  These are always found at the top of the PCB.
 
-![Bank Selection Jumpers](/docs/images/x1-x2.png)
+<img src="./images/x1-x2.png" alt="Bank Selection Jumpers" width="50%">
 
 See the [Multi-ROM Sets](/docs/MULTI-ROM-SETS.md) documentation for more information on banks and multi-ROM sets.
 
@@ -130,7 +130,7 @@ See the [Multi-ROM Sets](/docs/MULTI-ROM-SETS.md) documentation for more informa
 
 When using [multi-ROM sets](/docs/MULTI-ROM-SETS.md#multi-rom-set-configuration) (those that start `set-`), One ROM serves ROM images up to 3 ROM sockets simultaneously, using pins X1 and X2 as extra chip select lines.  Connect flying leads from the X1 and X2 pins to the chip select pins of the other ROM sockets to be served.
 
-![Bank Selection Jumpers](/docs/images/x1-x2.png)
+<img src="./images/x1-x2.png" alt="Bank Selection Jumpers" width="50%">
 
 See the [Multi-ROM Sets](/docs/MULTI-ROM-SETS.md) documentation for more information on banks and multi-ROM sets.
 
@@ -156,14 +156,14 @@ To enter DFU/bootloader mode, you must set the BOOT0 (or BOOT on RP2350) pin to 
 
 On revisions D, E, and F, BOOT0 and 3.3V are exposed at the top right of the board as shown - short the two indicated pins together to pull BOOT0 high.
 
-![BOOT0 Pin Location - STM revs D/E/F](/docs/images/boot0-d-f.png)
+<img src="./images/boot0-d-f.png" alt="BOOT0 Pin Location - STM revs D/E/F" width="50%">
 
 On revision G, BOOT0 and 3.3V are exposed at the bottom of the board as part of the programming pins, as shown.  Short the two indicated pins together to pull BOOT0 high.
 
-![BOOT0 Pin Location - STM rev G](/docs/images/boot0-g.png)
+<img src="./images/boot0-g.png" alt="BOOT0 Pin Location - STM rev G" width="50%">
 
 ## RP2350
 
 On the RP2350 BOOT must be pulled to GND, while resetting the device, to enter DFU/bootloader mode.  Short the two indicated pins together to pull BOOT low.
 
-![BOOT Pin Location - RP rev A](/docs/images/boot-rp.png)
+<img src="./images/boot-rp.png" alt="BOOT Pin Location - RP rev A" width="50%">
