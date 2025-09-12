@@ -43,6 +43,18 @@ void setup_vbus_interrupt(void) {
     // Now enable it
     EXTI_IMR |= EXTI_IMR_MR9;
     NVIC_ISER0 |= NVIC_ISER0_EXTI9_5;
+
+    // Now, just double check whether PA9 is already high.  If so, directly
+    // enter the bootloader, as we may have missed the interrupt if VBUS was
+    // already present.  This is typical if One ROM is powered on from USB.
+    //
+    // We do this after the above, so there's a few cycles between configuring
+    // the pull-down and check it, so it stabilises.
+    if (GPIOA_IDR & (1 << 9)) {
+        LOG("VBUS already present - entering bootloader");
+        for (volatile int ii = 0; ii < 1000000; ii++);
+        enter_bootloader();
+    }
 }
 
 // VBUS (PA9) interrupt Handler
