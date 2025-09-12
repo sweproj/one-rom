@@ -398,6 +398,16 @@ else
   endif
 endif
 
+# DFU support - only available for STM32 MCUs
+DFU_SUPPORTED := 0
+ifneq ($(filter f%,$(MCU)),)
+  DFU_SUPPORTED := 1
+endif
+
+ifneq ($(SUPPRESS_OUTPUT),1)
+  $(info - DFU_SUPPORTED=$(DFU_SUPPORTED))
+endif
+
 ifneq ($(CONFIG),)
 ifneq ($(SUPPRESS_OUTPUT),1)
   $(info - CONFIG=$(CONFIG))
@@ -642,14 +652,20 @@ endif
 
 .PHONY: all clean clean-firmware clean-firmware-build clean-gen clean-sdrr-gen sdrr-gen gen clean-sdrr-info sdrr-info info info-detail firmware run run-actual flash flash-actual test $(CARGO_TARGET_DIR)/sdrr-gen
 
+ifeq ($(DFU_SUPPORTED),1)
 all: firmware info dfu-binary
+else
+all: firmware info
+endif
 	@echo "=========================================="
 	@echo "One ROM firmware build complete:"
 	@echo "- firmware files are in sdrr/build/"
 	@echo "-----"
 	@ls -ltr sdrr/build/$(BIN_PREFIX).elf
 	@ls -ltr sdrr/build/$(BIN_PREFIX).bin
+ifeq ($(DFU_SUPPORTED),1)
 	@ls -ltr sdrr/build/$(BIN_PREFIX).dfu
+endif
 	@echo "=========================================="
 
 sdrr-gen:
@@ -746,18 +762,28 @@ flash-actual:
 	@probe-rs download --chip $(PROBE_RS_CHIP_ID) sdrr/build/$(BIN_PREFIX).bin
 
 dfu-binary: firmware
+ifeq ($(DFU_SUPPORTED),1)
 	@echo "=========================================="
 	@echo "Creating DFU binary:"
 	@echo "-----"
 	@cp sdrr/build/$(BIN_PREFIX).bin sdrr/build/$(BIN_PREFIX).dfu
 	@dfu-suffix -v 0x0483 -p 0xdf11 -a sdrr/build/$(BIN_PREFIX).dfu
 	@echo "DFU binary created: sdrr/build/$(BIN_PREFIX).dfu"
+else
+	@echo "DFU not supported for MCU type: $(MCU)"
+	@exit 1
+endif
 
 dfu-flash: dfu-binary
+ifeq ($(DFU_SUPPORTED),1)
 	@echo "=========================================="
 	@echo "Flash One ROM firmware via DFU:"
 	@echo "-----"
 	@dfu-util -a 0 -s 0x08000000 -D sdrr/build/$(BIN_PREFIX).dfu -R
+else
+	@echo "DFU not supported for MCU type: $(MCU)"
+	@exit 1
+endif
 
 clean-firmware-build:
 	+cd sdrr && make clean-build
