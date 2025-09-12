@@ -22,6 +22,10 @@ Pin 1 is marked on the PCB and the above image shows the board oriented so that 
 
 ⚠️ When installing One ROM in your retro system, always ensure the pin 1 is located correctly - you may damage your One ROM if you insert it incorrectly, as the power and ground pins will be connected with the wrong polarity.
 
+## Installing the Dependencies
+
+See [INSTALL.md](/INSTALL.md) for instructions on installing the required dependencies to build and flash the One ROM firmware.
+
 ## Programming One ROM
 
 You need an SWD programmer to program the One ROM hardware.  The Raspberry Pi Debug Probe and a Raspberry Pi Pico programmed as a Debug Probe are suitable programmers.  An ST-Link or any other SWD programmer should also work.

@@ -101,12 +101,22 @@ extern uint32_t _sdrr_runtime_info_end;   // End of .sdrr_runtime_info section i
 
 // Reset handler
 void Reset_Handler(void) {
+#ifdef STM32F4
+    if (sdrr_runtime_info.bootloader_entry == ENTER_BOOTLOADER_MAGIC) {
+        // Clear the magic value to avoid re-entering bootloader on next reset
+        sdrr_runtime_info.bootloader_entry = 0;
+
+        // Enter bootloader
+        dfu();
+    }
+#endif
+
     // We use memcpy and memset because it's likely to be faster than anything
     // we could come up with.
 
     // Copy sdrr_runtime_info_t from flash to RAM
-    memcpy(&_sdrr_runtime_info_start,
-           &_sdrr_runtime_info_ram,
+    memcpy(&_sdrr_runtime_info_ram,
+           &_sdrr_runtime_info_start,
            (unsigned int)((char*)&_sdrr_runtime_info_end - (char*)&_sdrr_runtime_info_start));
 
     // Copy data section from flash to RAM

@@ -642,13 +642,14 @@ endif
 
 .PHONY: all clean clean-firmware clean-firmware-build clean-gen clean-sdrr-gen sdrr-gen gen clean-sdrr-info sdrr-info info info-detail firmware run run-actual flash flash-actual test $(CARGO_TARGET_DIR)/sdrr-gen
 
-all: firmware info
+all: firmware info dfu-binary
 	@echo "=========================================="
 	@echo "One ROM firmware build complete:"
 	@echo "- firmware files are in sdrr/build/"
 	@echo "-----"
 	@ls -ltr sdrr/build/$(BIN_PREFIX).elf
 	@ls -ltr sdrr/build/$(BIN_PREFIX).bin
+	@ls -ltr sdrr/build/$(BIN_PREFIX).dfu
 	@echo "=========================================="
 
 sdrr-gen:
@@ -743,6 +744,20 @@ run-actual:
 
 flash-actual:
 	@probe-rs download --chip $(PROBE_RS_CHIP_ID) sdrr/build/$(BIN_PREFIX).bin
+
+dfu-binary: firmware
+	@echo "=========================================="
+	@echo "Creating DFU binary:"
+	@echo "-----"
+	@cp sdrr/build/$(BIN_PREFIX).bin sdrr/build/$(BIN_PREFIX).dfu
+	@dfu-suffix -v 0x0483 -p 0xdf11 -a sdrr/build/$(BIN_PREFIX).dfu
+	@echo "DFU binary created: sdrr/build/$(BIN_PREFIX).dfu"
+
+dfu-flash: dfu-binary
+	@echo "=========================================="
+	@echo "Flash One ROM firmware via DFU:"
+	@echo "-----"
+	@dfu-util -a 0 -s 0x08000000 -D sdrr/build/$(BIN_PREFIX).dfu -R
 
 clean-firmware-build:
 	+cd sdrr && make clean-build

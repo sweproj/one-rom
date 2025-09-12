@@ -21,6 +21,7 @@ sdrr_runtime_info_t sdrr_runtime_info __attribute__((section(".sdrr_runtime_info
     .access_count = 0xFFFFFFFF,
     .rom_table = NULL,
     .rom_table_size = 0,
+    .bootloader_entry = 0,
 };
 
 // This function checks the state of the image select pins, and returns an
@@ -95,7 +96,7 @@ void check_enter_bootloader(void) {
         LOG("Entering bootloader");
 
         // Pause to allow the log to be received
-        for (int ii = 0; ii < 100000000; ii++);
+        for (volatile int ii = 0; ii < 1000000; ii++);
 
         enter_bootloader();
     }

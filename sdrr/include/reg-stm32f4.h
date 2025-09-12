@@ -17,7 +17,15 @@
 #define GPIOA_BASE      0x40020000
 #define GPIOB_BASE      0x40020400
 #define GPIOC_BASE      0x40020800
+#define SYSCFG_BASE     0x40013800
 #define PWR_BASE        0x40007000
+#define RTC_BASE        0x40002800
+
+// SCB registers
+#define SCB_AIRCR  (*((volatile uint32_t *)0xE000ED0C))
+
+// RTC registers
+#define RTC_BKP0R       (*(volatile uint32_t *)(RTC_BASE + 0x50))
 
 // Power registers
 #define PWR_CR          (*(volatile uint32_t *)(PWR_BASE + 0x00))
@@ -36,6 +44,9 @@
 #define PWR_CSR_ODRDY   (1 << 16) // Overdrive ready
 #define PWR_CSR_ODSWRDY_MASK (1 << 17) // Overdrive switch ready mask
 #define PWR_CSR_ODSWRDY (1 << 17) // Overdrive switch
+
+// SYSCFG registers
+#define SYSCFG_MEMRMP  (*(volatile uint32_t *)(SYSCFG_BASE + 0x00))
 
 // RCC registers
 #define RCC_AHB1ENR_OFFSET 0x30

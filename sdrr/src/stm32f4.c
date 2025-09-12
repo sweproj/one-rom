@@ -210,7 +210,7 @@ void disable_sel_pins(void) {
     for (int ii = 0; ii < MAX_IMG_SEL_PINS; ii++) {
         uint8_t pin = sdrr_info.pins->sel[ii];
         if (pin < MAX_PORT_PINS) {
-            sel_2bit_mask |= (11 << (pin * 2));
+            sel_2bit_mask |= (0b11 << (pin * 2));
         }
     }
 
@@ -308,18 +308,35 @@ void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats) {
             delay(on_time);
             status_led_off(pin);
             delay(off_time);
-        }
+        }   
     }
 }
 
-// Enters bootloader mode.  This enables UART and SWD so the device can be
-// programmed.
+// Set RAM to enter bootloader mode and then reset - this triggers
+// reset_handler() which checks this RAM location and calls dfu() if set to
+// the magic value.
+//
+// We take this two step approach to ensure the processor is fully reset before
+// entering the bootloader, as this is more likely to work reliably.
 void enter_bootloader(void) {
-    // Set the stack pointer
-    asm volatile("msr msp, %0" : : "r" (*((uint32_t*)0x1FFFF000)));
+    // Set magic value in RAM to enter bootloader
+    sdrr_runtime_info.bootloader_entry = ENTER_BOOTLOADER_MAGIC;
+
+    // Perform system reset
+    SCB_AIRCR = 0x05FA0000 | (1 << 2);  // SYSRESETREQ
+}
+
+// Actually enters the DFU bootloader.
+void dfu(void) {
+    // Set memory mode to map system memory at 0x00000000
+    RCC_APB2ENR |= (1 << 14); // Enable SYSCFG clock
+    SYSCFG_MEMRMP = (SYSCFG_MEMRMP & ~0x3) | 0x1;
+
+    // Set the stack pointer to the start of system memory
+    asm volatile("msr msp, %0" : : "r" (*((uint32_t*)0x1FFF0000)));
     
     // Jump to the bootloader
-    ((void(*)())(*((uint32_t*)0x1FFFF004)))();
+    ((void(*)())(*((uint32_t*)0x1FFF0004)))();
 }
 
 // Checks configuration before entering the main loop.

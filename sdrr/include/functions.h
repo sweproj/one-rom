@@ -46,6 +46,9 @@ extern void check_config(
     const sdrr_rom_set_t *set
 );
 extern void platform_logging(void);
+#ifdef STM32F4
+void dfu(void);
+#endif
 
 // rom_impl.c
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)

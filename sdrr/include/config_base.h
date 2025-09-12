@@ -387,6 +387,12 @@ typedef struct sdrr_runtime_info_t {
     // Offset: 16
     // 4 bytes
     uint32_t rom_table_size;
+
+    // Whether to enter DFU mode - STM32 only.
+    //
+    // 0x21554644 ("DFU!" little endian) enters bootloader
+#define ENTER_BOOTLOADER_MAGIC 0x21554644
+    uint32_t bootloader_entry;
 } sdrr_runtime_info_t;
 
 #endif // CONFIG_BASE_H
