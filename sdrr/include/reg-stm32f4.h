@@ -17,12 +17,18 @@
 #define GPIOA_BASE      0x40020000
 #define GPIOB_BASE      0x40020400
 #define GPIOC_BASE      0x40020800
+#define EXTI_BASE       0x40013C00
 #define SYSCFG_BASE     0x40013800
 #define PWR_BASE        0x40007000
 #define RTC_BASE        0x40002800
 
 // SCB registers
-#define SCB_AIRCR  (*((volatile uint32_t *)0xE000ED0C))
+#define SCB_AIRCR       (*((volatile uint32_t *)0xE000ED0C))
+
+// NVIC registers
+#define NVIC_ISER0      (*((volatile uint32_t*)0xE000E100))
+
+#define NVIC_ISER0_EXTI9_5  (1 << 23)
 
 // RTC registers
 #define RTC_BKP0R       (*(volatile uint32_t *)(RTC_BASE + 0x50))
@@ -46,7 +52,19 @@
 #define PWR_CSR_ODSWRDY (1 << 17) // Overdrive switch
 
 // SYSCFG registers
-#define SYSCFG_MEMRMP  (*(volatile uint32_t *)(SYSCFG_BASE + 0x00))
+#define SYSCFG_MEMRMP   (*(volatile uint32_t *)(SYSCFG_BASE + 0x00))
+#define SYSCFG_EXTICR3  (*(volatile uint32_t *)(SYSCFG_BASE + 0x10))
+
+#define SYSCFG_EXTICR3_PA9_MASK (0xF << 4)
+
+// EXTI registers
+#define EXTI_IMR        (*(volatile uint32_t*)(EXTI_BASE + 0x00))
+#define EXTI_RTSR       (*(volatile uint32_t*)(EXTI_BASE + 0x08))
+#define EXTI_PR         (*(volatile uint32_t*)(EXTI_BASE + 0x14))
+
+#define EXTI_IMR_MR9            (1 << 9)
+#define EXTI_RTSR_TR9           (1 << 9)
+#define EXTI_PR_PR9             (1 << 9)
 
 // RCC registers
 #define RCC_AHB1ENR_OFFSET 0x30
@@ -128,6 +146,8 @@
 #define GPIO_PU_BITS      0b01
 #define GPIO_PD_BITS      0b10
 
+#define GPIOA_MODER_PA9_MASK    (3 << (2*9))
+
 // RCC mask definitions
 #define RCC_CR_RSVD_RO_MASK     (0b1111 << 28) |     \
                                 (0b1 << 27) |        \
@@ -189,6 +209,8 @@
 #define RCC_AHB1ENR_GPIOAEN (1 << 0)
 #define RCC_AHB1ENR_GPIOBEN (1 << 1)
 #define RCC_AHB1ENR_GPIOCEN (1 << 2)
+
+#define RCC_APB2ENR_SYSCFGEN    (1 << 14)
 
 // Flash configuration values
 #if defined(STM32F405)

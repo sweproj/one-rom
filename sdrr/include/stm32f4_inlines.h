@@ -17,12 +17,15 @@ static inline void __attribute__((always_inline)) main_loop_gpio_init() {
     // Configure PA0-7 as inputs initially (00 in MODER), no pull-up/down
     // Also PA10-12 are duplicate CS lines on some hw so set as inputs no
     // PU/PD.
+    //
     // We could theoretically check here that D0-7 uses PA0-7, but there's
     // checks like this earlier, and in sdrr-gen, so little point.  It's
     // required that they use 0-7 on a port, to avoid any bit shifting when
     // applying the value.
-    GPIOA_MODER &= ~0x00FCFFFF; // Clear bits 0-15 (PA0-7, 10-12 as inputs)
-    GPIOA_PUPDR &= ~0x00FCFFFF; // Clear pull-up/down for PA0-7, 10-12)
+    //
+    // We don't touch PA8/9 as these may be used for MCO (AF) and VBUS sensing 
+    GPIOA_MODER &= ~0x03F0FFFF; // Clear bits 0-15 (PA0-7, 10-12 as inputs)
+    GPIOA_PUPDR &= ~0x03F0FFFF; // Clear pull-up/down for PA0-7, 10-12)
     GPIOA_OSPEEDR &= ~0xFFFF;   // Clear output speed for PA0-7
     GPIOA_OSPEEDR |= 0xAAAA;    // Set PA0-7 speed to "fast", not "high" to
                                 // ensure V(OL) is max 0.4V

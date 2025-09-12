@@ -32,6 +32,10 @@ extern void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats);
 // If adding a new platform, these are the functions you need to implement,
 // plus those in include/*inlines.h
 extern void platform_specific_init(void);
+#if defined(USB_DFU)
+void setup_vbus_interrupt(void);
+void vbus_connect_handler(void);
+#endif // USB_DFU
 extern void setup_clock(void);
 extern void setup_gpio(void);
 extern void setup_mco(void);
@@ -46,9 +50,9 @@ extern void check_config(
     const sdrr_rom_set_t *set
 );
 extern void platform_logging(void);
-#ifdef STM32F4
+#if defined(STM32F4)
 void dfu(void);
-#endif
+#endif // STM32F4
 
 // rom_impl.c
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)

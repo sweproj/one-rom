@@ -139,6 +139,11 @@ int main(void) {
     // Initialize clock
     setup_clock();
 
+#if defined(USB_DFU)
+    // Set up VBUS detect interrupt
+    setup_vbus_interrupt();
+#endif // USB_DFU
+
     sdrr_runtime_info.rom_set_index = get_rom_set_index();
     const sdrr_rom_set_t *set = rom_set + sdrr_runtime_info.rom_set_index;
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)
@@ -186,7 +191,6 @@ int main(void) {
 #error "XIP_CACHE_WARM cannot be defined when EXECUTE_FROM_RAM is enabled"
 #endif // XIP_CACHE_WARM
 #endif // PRELOAD_TO_RAM
-
 
 #if !defined(EXECUTE_FROM_RAM) && !defined(XIP_CACHE_WARM)
     // Execute the main_loop

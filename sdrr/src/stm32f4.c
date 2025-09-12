@@ -25,6 +25,39 @@ void platform_specific_init(void) {
     // Nothing required
 }
 
+// Set up interrupt to fire when VBUS sensed on PA9
+void setup_vbus_interrupt(void) {
+    // Set PA9 pull-down
+    GPIOA_PUPDR &= ~(0b11 << (2 * 9));
+    GPIOA_PUPDR |= (0b10 << (2 * 9)); // Pull-down
+
+    // Configure interrupt on rising edge on PA9 to sense VBUS
+    RCC_APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+    GPIOA_MODER &= ~GPIOA_MODER_PA9_MASK;
+    SYSCFG_EXTICR3 &= ~SYSCFG_EXTICR3_PA9_MASK;
+    EXTI_RTSR |= EXTI_RTSR_TR9;
+
+    // Clear any pending interrupt before enabling
+    EXTI_PR = EXTI_PR_PR9;
+
+    // Now enable it
+    EXTI_IMR |= EXTI_IMR_MR9;
+    NVIC_ISER0 |= NVIC_ISER0_EXTI9_5;
+}
+
+// VBUS (PA9) interrupt Handler
+void vbus_connect_handler(void) {
+    EXTI_PR = EXTI_PR_PR9;
+
+    // Disable interrupts before logging
+    __asm volatile("cpsid i");
+
+    // Enter the bootloader
+    LOG("VBUS detected - entering bootloader");
+    for (volatile int ii = 0; ii < 1000000; ii++);
+    enter_bootloader();
+}
+
 void setup_clock(void) {
         if ((sdrr_info.mcu_line == F405) ||
         (sdrr_info.mcu_line == F411) || 
