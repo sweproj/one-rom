@@ -3,7 +3,7 @@
 To build the debug probe firmware for a stock Raspberry Pi Pico:
 
 ```bash
-git clone https://github.com/raspberrypi/debugprobe
+git clone https://github.com/raspberrypi/debugprobe.git
 cd debugprobe
 git submodule update --init --recursive  # This step takes some time
 mkdir build
