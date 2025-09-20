@@ -16,7 +16,7 @@ Electrically similar to the [STM32F4 24 Pin Rev F2](../../verified/stm32f4-24-pi
 - The status LED has been moved to to next to the programming header, to avoid a daughterboard obscuring it.
 - Moved to 0402 passives, with the expectation that most people will use an assembly service, and with a microscope and a decent iron, 0402 is also hand solderable.
 
-There is a single set of gerbers, one CPL/POS file and multiple BOM files, one for each of the followingF4xx microcontrollers, in ascending order of cost:
+There is a single set of gerbers, one CPL/POS file and multiple BOM files, one for each of the following F4xx microcontrollers, in ascending order of cost:
 - STM32F401RET6
 - STM32F411RET6
 - GD32F405RGT6
@@ -32,7 +32,7 @@ There is a single set of gerbers, one CPL/POS file and multiple BOM files, one f
 ## Contents
 
 - [Schematic](sdrr-24-pin-rev-g1-schematic.pdf)
-- [Fab Files](fab/) - unverified
+- [Fab Files](fab/)
 - [KiCad Design Files](kicad/)
 - [Errata](#errata)
 - [Notes](#notes)
