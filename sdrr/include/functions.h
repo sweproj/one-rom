@@ -32,10 +32,10 @@ extern void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats);
 // If adding a new platform, these are the functions you need to implement,
 // plus those in include/*inlines.h
 extern void platform_specific_init(void);
-#if defined(USB_DFU)
+#if defined(STM32F4)
 void setup_vbus_interrupt(void);
 void vbus_connect_handler(void);
-#endif // USB_DFU
+#endif // STM32F4
 extern void setup_clock(void);
 extern void setup_gpio(void);
 extern void setup_mco(void);

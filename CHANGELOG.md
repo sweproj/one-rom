@@ -2,6 +2,23 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.4.3 - 2025-09-19
+
+Added USB DFU support for firmware updates over USB, along with STM32 24-pin rev H hardware which includes a micro-USB connector.  One ROM detects when USB is connected, disables ROM serving, and enters STM32 DFU mode to allow the firmware to be updated. 
+
+### Changes
+
+Updated:
+- sdrr
+- sdrr-hw-config
+- sdrr-pcb
+- sdrr-common
+- sdrr-fw-parser
+- sdrr-gen
+- sdrr-info
+
+### Fixes
+
 ## v0.4.2 - 2025-09-06
 
 Added [One ROM Lab](rust/lab/README.md) support, which allows a One ROM to be used as a ROM reader.

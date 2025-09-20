@@ -691,6 +691,8 @@ fn generate_sdrr_config_implementation(
     writeln!(file, "// Extra info")?;
     writeln!(file, "static const sdrr_extra_info_t sdrr_extra_info = {{")?;
     writeln!(file, "    .rtt = &_SEGGER_RTT,")?;
+    writeln!(file, "    .usb_dfu = {},", if hw.has_usb() { 1 } else { 0 })?;
+    writeln!(file, "    .reserved1 = {{0}},")?;
     writeln!(file, "    ._post = {{")?;
     for _ in 0..31 {
         writeln!(
@@ -698,7 +700,6 @@ fn generate_sdrr_config_implementation(
             "        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,"
         )?;
     }
-    writeln!(file, "        0xff, 0xff, 0xff, 0xff, ")?;
     writeln!(file, "    }},")?;
     writeln!(file, "}};")?;
 

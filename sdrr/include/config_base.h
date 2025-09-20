@@ -130,8 +130,12 @@ typedef struct {
     // Pointer to RTT control block
     const void *rtt;
 
+    // Whether USB DFU is supported
+    uint8_t usb_dfu;
+    uint8_t reserved1[3];
+
     // Padding to make 256 bytes long
-    uint8_t _post[252];
+    uint8_t _post[248];
 } sdrr_extra_info_t;
 
 // Main SDRR information data structure

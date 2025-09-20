@@ -47,7 +47,7 @@ void (* const g_pfnVectors[])(void) = {
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
-#if defined(USB_DFU) && defined(STM32F4)
+#if defined(STM32F4)
     Default_Handler, Default_Handler, Default_Handler, vbus_connect_handler,
 #else
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,

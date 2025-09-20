@@ -115,6 +115,13 @@ pub struct Mcu {
     pub family: McuFamily,
     pub ports: McuPorts,
     pub pins: McuPins,
+    #[serde(default)]
+    pub usb: Option<McuUsb>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct McuUsb {
+    pub present: bool,
 }
 
 fn deserialize_mcu_family<'de, D>(deserializer: D) -> Result<McuFamily, D::Error>
@@ -319,6 +326,10 @@ impl HwConfig {
             }
         }
         false
+    }
+
+    pub fn has_usb(&self) -> bool {
+        self.mcu.usb.as_ref().map_or(false, |usb| usb.present)
     }
 }
 

@@ -139,10 +139,17 @@ int main(void) {
     // Initialize clock
     setup_clock();
 
-#if defined(USB_DFU)
-    // Set up VBUS detect interrupt
-    setup_vbus_interrupt();
-#endif // USB_DFU
+#if defined(STM32F4)
+    if (sdrr_info.extra->usb_dfu) {
+        // Set up VBUS detect interrupt
+        LOG("USB DFU supported - setting up VBUS detect");
+        setup_vbus_interrupt();
+    }
+#else // !STM32F4
+    if (sdrr_info.extra->usb_dfu) {
+        LOG("!!! USB DFU not supported on this MCU");
+    }
+#endif // STM32F4
 
     sdrr_runtime_info.rom_set_index = get_rom_set_index();
     const sdrr_rom_set_t *set = rom_set + sdrr_runtime_info.rom_set_index;

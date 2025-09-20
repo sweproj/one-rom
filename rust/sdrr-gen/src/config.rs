@@ -183,6 +183,15 @@ impl Config {
             }
         }
 
+        // Check USB DFU support
+        if self.hw.has_usb() && !self.mcu_variant.supports_usb_dfu() {
+            return Err(format!(
+                "Selected hardware {} has USB, but variant {:?} does not support USB",
+                self.hw.name,
+                self.mcu_variant,
+            ));
+        }
+
         // Validate ROM sets (basic validation that doesn't need ROM images)
         let mut sets: Vec<usize> = self.roms.iter().filter_map(|rom| rom.set).collect();
 

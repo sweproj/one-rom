@@ -2418,7 +2418,7 @@ dependencies = [
 
 [[package]]
 name = "sdrr-common"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "serde",
@@ -2427,7 +2427,7 @@ dependencies = [
 
 [[package]]
 name = "sdrr-fw-parser"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "airfrog-rpc",
  "deku",
@@ -2439,7 +2439,7 @@ dependencies = [
 
 [[package]]
 name = "sdrr-gen"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2454,7 +2454,7 @@ dependencies = [
 
 [[package]]
 name = "sdrr-info"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "anyhow",
  "chrono",

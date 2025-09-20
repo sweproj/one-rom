@@ -228,6 +228,7 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
     } else {
         "false"
     };
+    println!("USB DFU:          {}", info.extra_info.as_ref().map(|e| e.usb_dfu).unwrap_or(false));
     println!("SWD enabled:      {}", info.swd_enabled);
     println!("Boot logging:     {}", info.boot_logging_enabled);
     println!("Status LED:       {}", info.status_led_enabled);

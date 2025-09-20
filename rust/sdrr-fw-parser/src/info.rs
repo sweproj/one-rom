@@ -314,6 +314,9 @@ impl SdrrInfo {
 pub struct SdrrExtraInfo {
     /// Pointer to the RTT control block in RAM
     pub rtt_ptr: u32,
+
+    /// Whether USB DFU support is compiled in
+    pub usb_dfu: bool,
 }
 
 /// Information about a set of ROMs in an SDRR firmware

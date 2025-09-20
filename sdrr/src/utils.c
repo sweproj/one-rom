@@ -38,6 +38,8 @@ void log_init(void) {
     LOG("C main loop: enabled");
 #endif // C_MAIN_LOOP
 
+    LOG("USB DFU enabled: %d", sdrr_info.extra->usb_dfu);
+
     LOG("%s", log_divider);
     LOG("Pin Configuration ...");
     

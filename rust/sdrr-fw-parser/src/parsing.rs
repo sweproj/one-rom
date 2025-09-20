@@ -121,7 +121,10 @@ pub(crate) struct SdrrExtraInfoHeader {
     #[deku(endian = "little")]
     pub rtt_ptr: u32,
 
-    pub _post: [u8; 252],
+    pub usb_dfu: u8,
+    pub reserved1: [u8; 3],
+
+    pub _post: [u8; 248],
 }
 
 impl SdrrExtraInfoHeader {
@@ -340,6 +343,7 @@ pub(crate) async fn read_extra_info<R: Reader>(
 
     Ok(SdrrExtraInfo {
         rtt_ptr: header.rtt_ptr,
+        usb_dfu: header.usb_dfu != 0,
     })
 }
 

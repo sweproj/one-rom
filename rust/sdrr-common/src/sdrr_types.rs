@@ -457,6 +457,13 @@ impl McuVariant {
         }
     }
 
+    pub fn supports_usb_dfu(&self) -> bool {
+        match self.family() {
+            McuFamily::Stm32F4 => true,
+            McuFamily::Rp2350 => false,
+        }
+    }
+
     pub fn supports_banked_roms(&self) -> bool {
         // 72 KB RAM as requires:
         // - 64KB for total of 4 16KB banked images
