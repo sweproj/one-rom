@@ -1,1 +1,223 @@
-Coming soon!
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css">
+    <link rel="shortcut icon" href="images/favicon.png" type="image/x-icon" />
+
+    <!-- SEO title & description -->
+    <title>One ROM USB Programmer | piers.rocks</title>
+    <meta name="description" content="Programs USB version of One ROM - the most flexible retro ROM replacement">
+    <link rel="canonical" href="https://onerom.piers.rocks/" />
+
+    <!-- Script which contains the WebUSB DFU functions -->
+    <script src="usbDfuDevice.js"></script>
+</head>
+
+<!-- Page HTML content -->
+
+<body>
+    <div class="app">
+
+        <!-- Title -->
+        <h1>One ROM USB Programmer</h1>
+        <p>
+            This page can be used to program One ROM USB, using <a href="https://www.google.com/chrome/">Chrome</a> or <a href="https://www.chromium.org/">Chromium.</a>
+        </p>
+        <p>
+            See <a href="#usage">Usage</a> below for a usage guide.
+        </p>
+
+        <!-- Text entry boxes -->
+        <div class="entry-boxes">
+
+            <!-- MCU selection dropdown -->
+            <select id="mcuSelectBox">
+                <option value="">STM32 Variant</option>
+                <option value="F401RB">F401RB</option>
+                <option value="F401RC">F401RC</option>
+                <option value="F401RE">F401RE</option>
+                <option value="F405RG">F405RG</option>
+                <option value="F411RC">F411RC</option>
+                <option value="F411RE">F411RE</option>
+                <option value="F446RC">F446RC</option>
+                <option value="F446RE">F446RE</option>
+            </select>
+
+            <!-- Update file entry box -->
+            <input id="fileLocationBox" style="flex-grow: 1;" type="url" placeholder="https://one.piers.rocks/bin/firmware.bin">
+
+
+        </div>
+
+        <!-- Buttons and progress bar -->
+        <div class="buttons-and-bar">
+
+            <!-- Connect/program button -->
+            <button id="connectProgramButton">Program</button>
+
+            <!-- Progress bar -->
+            <progress id="progressBar" value="0" max="100"></progress>
+
+        </div>
+
+        <div class="usage">
+            <details>
+                <summary id="usage">Usage</summary>
+                <ol>
+                    <li>If this is your first time programming One ROM USB on Windows, you must set up a <a href="#usb">USB driver</a>. This isn't required on Mac or Linux.</li>
+                    <li>Select the STM32 variant you are programming.</li>
+                    <li>Enter the URL of the binary file you wish to program. (e.g. https://one.piers.rocks/bin/firmware.bin)</li>
+                    <li>Plug in your One ROM USB.  If this is a factory fresh One ROM USB jump the B0 and 3V3 pads on the underside while plugging it in.  If the red LED doesn't light up faintly, try again.</li>
+                    <li>Click the "Program" button.</li>
+                    <li>A popup will appear asking you to select a device. Select "STM32 BOOTLOADER".</li>
+                    <li>The button text will change to "Erasing". Wait for this to complete.</li>
+                    <li>The button text will change to "Programming". Wait for this to complete.</li>
+                    <li>When done, an alert box will appear indicating that the programming is complete. You can now disconnect the One ROM and plug it into your retro system.</li>
+                </ol>
+            </details>
+        </div>
+
+        <div class="usb">
+            <details>
+                <summary id="usb">Windows USB Driver Setup</summary>
+                <p>
+                    Windows only - this step is not required on Linux or Mac.
+                </p>
+                <ol>
+                    <li>Download and install <a href="https://zadig.akeo.ie/" target="_blank">Zadig</a>. On Linux and Mac, no driver installation is required.</li>
+                    <li>Plug in your One ROM USB.  If this is a factory fresh One ROM USB, jump the B0 and 3V3 pads on the underside while plugging it in.  If the red LED doesn't light up faintly, try again.</li>
+                    <li>In Zadig, select "Options" &gt; "List All Devices".</li>
+                    <li>In the dropdown, select "STM32 BOOTLOADER".</li>
+                    <li>From the driver selection box on the right of the big green arrow, select "WinUSB (some version number)".</li>
+                    <li>Click "Install Driver". If it says "Replace Driver" or "Reinstall Driver", click that instead.</li>
+                </ol>
+                <p><img src="images/zadig-1.png" alt="Zadig showing STM32 BOOTLOADER selected with WinUSB driver ready to install" style="width: 75%;"></p>
+                <ol start="7">
+                    <li>Wait for the installation to complete.  It may take a few seconds for the progress pop-up to appear.</li>
+                </ol>
+                <p><img src="images/zadig-2.png" alt="Zadig driver installation progress bar" style="width: 50%;"></p>
+                <p><img src="images/zadig-3.png" alt="Zadig driver installation successful completion dialog" style="width: 50%;"></p>
+                <ol start="8">
+                    <li>You can now close Zadig.</li>
+                </ol>
+            </details>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+
+            <p><a href="https://piers.rocks/u/one" target="_blank">One ROM</a> - the most flexible retro ROM replacement
+            </p>
+
+            <p>Copyright © 2025 <a href="https://piers.rocks" target="_blank">piers.rocks</a></p>
+
+        </footer>
+
+    </div>
+
+</body>
+
+
+<!-- Javascript for interacting with the button and progress bar -->
+
+<script>
+
+    // Create a USB dfu device object
+    let dfu = new usbDfuDevice();
+
+    // Reference to the text boxes, button and progress bar
+    const mcuSelectBox = document.getElementById('mcuSelectBox');
+    const pageSizeBox = document.getElementById('pageSizeBox');
+    const connectProgramButton = document.getElementById('connectProgramButton');
+    const progressBar = document.getElementById('progressBar');
+
+    // When the button is clicked
+    connectProgramButton.addEventListener('click', function () {
+
+        // Start the update function (This is an async process)
+        startUpdate();
+    });
+
+    // This function runs the update process. It is asynchronous because the operations inside take some time
+    async function startUpdate() {
+
+        // Disable the button to avoid the user calling this multiple times
+        connectProgramButton.disabled = true;
+
+        // Try to get the file and run the update sequence
+        try {
+
+            // Disallow empty URLs
+            if (fileLocationBox.value == "") {
+                throw ("Error: No URL provided");
+            }
+
+            if (mcuSelectBox.value == "") {
+                throw ("Error: No STM32 variant selected");
+            }
+
+            // Attempt to get the file. Note, your browser will block this if you try to run it locally
+            // See here: https://stackoverflow.com/questions/43262121/trying-to-use-fetch-and-pass-in-mode-no-cors 
+            let response = await fetch(fileLocationBox.value);
+
+            // This needs to be here to catch things like 404 errors, which aren't counted as a promise failure
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw ("Error: Firmware file not found at the specified URL");
+                } else if (response.status === 403) {
+                    throw ("Error: Access denied to firmware file");
+                } else {
+                    throw ("Error: Failed to download firmware file (" + response.status + " " + response.statusText + ")");
+                }
+            }
+
+            // Create an array buffer containing the file data
+            let fileArr = await response.arrayBuffer();
+
+            // Run the update sequence
+            await dfu.runUpdateSequence(fileArr, mcuSelectBox.value);
+
+            // Done
+            alert("One ROM USB programming complete");
+        }
+
+        // On any caught errors
+        catch (error) {
+
+            // Reset the button and progress bar
+            dfuDisconnectHandler();
+
+            // Show the error as an alert
+            alert(error);
+        }
+    }
+
+    // Updates the button text. "Connecting", "Erasing", etc.
+    function dfuStatusHandler(status) {
+        connectProgramButton.innerHTML = status;
+    }
+
+    // Updates the progress bar value. 0 - 100%
+    function dfuProgressHandler(value) {
+        progressBar.value = value;
+    }
+
+    // This function is called on a disconnect event
+    function dfuDisconnectHandler() {
+
+        // Reset the button back to 'connect'
+        connectProgramButton.innerHTML = "Program";
+
+        // Enable the button again
+        connectProgramButton.disabled = false;
+
+        // Reset the progress bar
+        progressBar.value = 0;
+    }
+
+</script>
+
+</html>
