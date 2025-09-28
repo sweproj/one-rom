@@ -48,8 +48,10 @@ void setup_vbus_interrupt(void) {
     // enter the bootloader, as we may have missed the interrupt if VBUS was
     // already present.  This is typical if One ROM is powered on from USB.
     //
-    // We do this after the above, so there's a few cycles between configuring
-    // the pull-down and check it, so it stabilises.
+    // We do this after a short delay, so there's enough cycles between
+    // configuring the pull-down and check it, so it stabilises.  A value of
+    // 200 in the for loop wasn't enough, 500 was, so double that to be sure.
+    for (volatile int ii = 0; ii < 1000; ii++);
     if (GPIOA_IDR & (1 << 9)) {
         LOG("VBUS already present - entering bootloader");
         for (volatile int ii = 0; ii < 1000000; ii++);
@@ -64,9 +66,11 @@ void vbus_connect_handler(void) {
     // Disable interrupts before logging
     __asm volatile("cpsid i");
 
-    // Enter the bootloader
+    // Log and pause for log to complete
     LOG("VBUS detected - entering bootloader");
     for (volatile int ii = 0; ii < 1000000; ii++);
+
+    // Re-enable interrupts and enter bootloader
     enter_bootloader();
 }
 
