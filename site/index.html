@@ -106,6 +106,20 @@
             </details>
         </div>
 
+        <div class="technical">
+            <details>
+                <summary id="technical">How It Works</summary>
+                <ul>
+                    <li>The page uses <a href="https://en.wikipedia.org/wiki/WebUSB" target="_blank">WebUSB</a> to access One ROM USB directly from your browser.</li>
+                    <li>For security reasons, WebUSB is only available when this site is served over HTTPS (or from localhost) - you are recommended to use it at <a href="https://onerom.piers.rocks" target="_blank">https://onerom.piers.rocks</a>.  This is served directly from the main branch of the One ROM github repository.</li>
+                    <li>Only the device you select when you hit "Program" can be accessed by this site - your other USB devices are not visible to it.</li>
+                    <li>The firmware on your One ROM USB can only be updated when it is in DFU (Device Firmware Update) mode.  This is automatically enabled when you plug in One ROM to a USB host, like a PC, unless you have a completely "fresh from the factory" One ROM USB.</li>
+                    <li style="list-style-type: none;">If you have factory fresh One ROM USB, you need to manually put it into DFU mode before flashing, by jumping B0 and 3V3 on the underside of One ROM, while plugging it into USB.</li>
+                    <li style="list-style-type: none;">If your One ROM USB is in DFU mode the status LED is lit dimly.</li>
+                </ul>
+            </details>
+        </div>
+
         <!-- Footer -->
         <footer>
 
