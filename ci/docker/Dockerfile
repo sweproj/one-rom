@@ -1,17 +1,17 @@
-FROM piersfinlayson/sdrr-build:latest
+FROM piersfinlayson/one-rom-build:latest
 
 # Metadata
-LABEL org.opencontainers.image.title="SDRR"
-LABEL org.opencontainers.image.description="Software Defined Retro ROM firmware and tools"
+LABEL org.opencontainers.image.title="One ROM"
+LABEL org.opencontainers.image.description="One ROM firmware and tooling container"
 LABEL org.opencontainers.image.authors="Piers Finlayson <piers@piers.rocks>"
 LABEL org.opencontainers.image.url="https://piers.rocks"
-LABEL org.opencontainers.image.source="https://github.com/piersfinlayson/software-defined-retro-rom"
+LABEL org.opencontainers.image.source="https://github.com/piersfinlayson/one-rom"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.vendor="piers.rocks"
 
-# SDRR build args
+# One ROM build args
 ARG CONFIG
-ARG STM
+ARG MCU
 ARG HW_REV
 ARG ROM_CONFIGS
 ARG SWD
@@ -30,17 +30,19 @@ ARG DISABLE_PRELOAD_TO_RAM
 ARG SERVE_ALG
 ARG GEN_OUTPUT_DIR
 ARG CARGO_PROFILE
+ARG EXTRA_C_FLAGS
+ARG COUNT_ROM_ACCESS
 
 # Clone the repository
-RUN git clone https://github.com/piersfinlayson/software-defined-retro-rom.git
-COPY config/docker/ /home/build/software-defined-retro-rom/config/docker/
+RUN git clone https://github.com/piersfinlayson/one-rom.git
+COPY config/docker/ /home/build/one-rom/config/docker/
 
-# Build SDRR
-WORKDIR /home/build/software-defined-retro-rom
-WORKDIR /home/build/software-defined-retro-rom
+# Build One ROM
+WORKDIR /home/build/one-rom
+WORKDIR /home/build/one-rom
 RUN env \
     ${CONFIG:+CONFIG=$CONFIG} \
-    ${STM:+STM=$STM} \
+    ${MCU:+MCU=$MCU} \
     ${HW_REV:+HW_REV=$HW_REV} \
     ${ROM_CONFIGS:+ROM_CONFIGS="$ROM_CONFIGS"} \
     ${SWD:+SWD=$SWD} \
@@ -59,6 +61,8 @@ RUN env \
     ${SERVE_ALG:+SERVE_ALG=$SERVE_ALG} \
     ${GEN_OUTPUT_DIR:+GEN_OUTPUT_DIR=$GEN_OUTPUT_DIR} \
     ${CARGO_PROFILE:+CARGO_PROFILE=$CARGO_PROFILE} \
+    ${EXTRA_C_FLAGS:+EXTRA_C_FLAGS=$EXTRA_C_FLAGS} \
+    ${COUNT_ROM_ACCESS:+COUNT_ROM_ACCESS=$COUNT_ROM_ACCESS} \
     make test info-detail
 
 # Copy build artifacts to output directory
@@ -66,8 +70,8 @@ RUN cp -r sdrr/build /home/build/output/
 
 # Output detailed firmware information
 RUN ELF_FILE=$(basename $(find sdrr/build -name "sdrr-stm32*.elf" -type f)) && \
-    /home/build/software-defined-retro-rom/rust/target/release/sdrr-info info -d /home/build/output/build/$ELF_FILE >> /home/build/output/sdrr-info.txt
+    /home/build/one-rom/rust/target/release/one-rom-info info -d /home/build/output/build/$ELF_FILE >> /home/build/output/one-rom-info.txt
 
 # Default to staying in the project directory
-WORKDIR /home/build/software-defined-retro-rom
+WORKDIR /home/build/one-rom
 VOLUME ["/home/build/output"]

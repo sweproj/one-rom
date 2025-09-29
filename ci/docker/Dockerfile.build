@@ -1,11 +1,11 @@
 FROM ubuntu:24.04
 
 # Metadata
-LABEL org.opencontainers.image.title="SDRR Build Environment"
-LABEL org.opencontainers.image.description="Multi-platform build environment for SDRR firmware and host tooling"
+LABEL org.opencontainers.image.title="One ROM Build Environment"
+LABEL org.opencontainers.image.description="Multi-platform build environment for One ROM firmware and host tooling"
 LABEL org.opencontainers.image.authors="Piers Finlayson <piers@piers.rocks>"
 LABEL org.opencontainers.image.url="https://piers.rocks"
-LABEL org.opencontainers.image.source="https://github.com/piersfinlayson/software-defined-retro-rom"
+LABEL org.opencontainers.image.source="https://github.com/piersfinlayson/one-rom"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.vendor="piers.rocks"
 
@@ -26,11 +26,13 @@ ARG TARGETARCH
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    dfu-util \
     git \
     libcurl4-openssl-dev \
     libjson-c-dev \
     libzip-dev \
     sudo \
+    vice \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
