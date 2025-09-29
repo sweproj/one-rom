@@ -9,6 +9,8 @@ All notables changes between versions are documented in this file.
 Updated:
 - USB One ROM site (onerom.piers.rocks):
   - Added the ability to select a local file as the firmware source, in addition to a URL.
+  - Add check to prevent non-USB firmware being flashed.
+  - Add check to ensure the MCU the firmware was build for matches the MCU the user selected.
 
 ## v0.4.3 - 2025-09-29
 

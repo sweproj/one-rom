@@ -67,7 +67,7 @@
                     <li>If this is your first time programming One ROM USB on Windows, you must set up a <a href="#usb">USB driver</a>. This isn't required on Mac or Linux.</li>
                     <li>Choose the firmware source: URL or Local File.</li>
                     <li>Select the STM32 variant you are programming.</li>
-                    <li>Enter the URL of the binary file you wish to program (e.g. https://one.piers.rocks/bin/firmware.bin), or select a local file.</li>
+                    <li>Enter the URL of one ROM .bin file you wish to program (e.g. https://one.piers.rocks/bin/firmware.bin), or select a local file.</li>
                     <li>Plug in your One ROM USB.  If this is a factory fresh One ROM USB jump the B0 and 3V3 pads on the underside while plugging it in.  If the red LED doesn't light up faintly, try again.</li>
                     <li>Click the "Program" button.</li>
                     <li>A popup will appear asking you to select a device. Select "STM32 BOOTLOADER" and click "Connect".</li>
@@ -141,6 +141,30 @@
     // Create a USB dfu device object
     let dfu = new usbDfuDevice();
 
+    // MCU variant mapping to firmware values.
+    // The numerical values match the enums in config_base.h.  They are used
+    // to verify the selected MCU matches the firmware being programmed.
+    const mcuVariantMap = {
+        'F401RB': { line: 0x0004, storage: 0x01 },  // F401BC + B
+        'F401RC': { line: 0x0004, storage: 0x02 },  // F401BC + C
+        'F401RE': { line: 0x0000, storage: 0x04 },  // F401DE + E
+        'F405RG': { line: 0x0001, storage: 0x06 },  // F405 + G
+        'F411RC': { line: 0x0002, storage: 0x02 },  // F411 + C
+        'F411RE': { line: 0x0002, storage: 0x04 },  // F411 + E
+        'F446RC': { line: 0x0003, storage: 0x02 },  // F446 + C
+        'F446RE': { line: 0x0003, storage: 0x04 }   // F446 + E
+    };
+
+    // Reverse lookup: convert firmware MCU values to variant name
+    function getMcuVariantName(line, storage) {
+        for (const [variant, values] of Object.entries(mcuVariantMap)) {
+            if (values.line === line && values.storage === storage) {
+                return variant;
+            }
+        }
+        return "Unknown (line=0x" + line.toString(16) + " storage=0x" + storage.toString(16) + ")";
+    }
+
     // Reference to the text boxes, button and progress bar
     const mcuSelectBox = document.getElementById('mcuSelectBox');
     const pageSizeBox = document.getElementById('pageSizeBox');
@@ -177,6 +201,73 @@
         // Start the update function (This is an async process)
         startUpdate();
     });
+
+    // Validate firmware binary
+    function validateFirmware(fileArr, mcuVariant) {
+        const view = new Uint8Array(fileArr);
+        const infoStructBase = 0x200;
+        
+        // Check for SDRR signature at offset 0x200
+        const expectedSignature = [0x53, 0x44, 0x52, 0x52]; // "SDRR" in ASCII
+        
+        if (fileArr.byteLength < infoStructBase + expectedSignature.length) {
+            throw ("Error: Invalid One ROM .bin file (Firmware file too small - expected \"SDRR\" signature at offset 0x200)");
+        }
+        
+        for (let i = 0; i < expectedSignature.length; i++) {
+            if (view[infoStructBase + i] !== expectedSignature[i]) {
+                throw ("Error: Invalid One ROM .bin file (missing \"SDRR\" signature at offset 0x200)");
+            }
+        }
+        
+        // Check MCU line and storage match selected variant
+        const mcuLineOffset = infoStructBase + 0x1C;
+        const mcuStorageOffset = infoStructBase + 0x1E;
+        
+        const mcuLine = view[mcuLineOffset] | (view[mcuLineOffset + 1] << 8);
+        const mcuStorage = view[mcuStorageOffset] | (view[mcuStorageOffset + 1] << 8);
+        
+        const expectedMcu = mcuVariantMap[mcuVariant];
+        if (!expectedMcu) {
+            throw ("Error: Unknown STM32 variant selected");
+        }
+        
+        if (mcuLine !== expectedMcu.line || mcuStorage !== expectedMcu.storage) {
+            const actualMcu = getMcuVariantName(mcuLine, mcuStorage);
+            throw ("Error: One ROM firmware is for wrong STM32 variant (Firmware is for " + 
+                   actualMcu + ", expected " + mcuVariant + ")");
+        }
+        
+        // Check USB DFU support flag in extra_info block
+        const pointerOffset = infoStructBase + 0x38;
+        const flashBase = 0x08000000;
+        
+        // Read pointer (little-endian)
+        if (fileArr.byteLength < pointerOffset + 4) {
+            throw ("Error: Invalid One ROM .bin file (Firmware file too small - cannot read extra_info pointer)");
+        }
+        
+        const pointer = view[pointerOffset] | 
+                       (view[pointerOffset + 1] << 8) | 
+                       (view[pointerOffset + 2] << 16) | 
+                       (view[pointerOffset + 3] << 24);
+        
+        // Convert flash address to file offset
+        const extraInfoOffset = pointer - flashBase;
+        
+        if (extraInfoOffset < 0 || extraInfoOffset + 5 > fileArr.byteLength) {
+            throw ("Error: Invalid One ROM .bin file (Invalid extra_info pointer in firmware 0x" + pointer.toString(16) + ")");
+        }
+        
+        // Check USB DFU support flag at extra_info + 4
+        const usbDfuSupport = view[extraInfoOffset + 4];
+        
+        if (usbDfuSupport !== 1) {
+            throw ("Error: One ROM firmware provided does not support USB (Choose a firmware image that supports USB)");
+        }
+        
+        return true;
+    }
 
     // This function runs the update process. It is asynchronous because the operations inside take some time
     async function startUpdate() {
@@ -223,11 +314,14 @@
                 
                 const file = fileUploadBox.files[0];
                 fileArr = await file.arrayBuffer();
-                
+
             } else {
                 throw ("Error: No firmware source provided");
             }
 
+            // Validate firmware before flashing
+            validateFirmware(fileArr, mcuSelectBox.value);
+            
             // Run the update sequence (existing code)
             await dfu.runUpdateSequence(fileArr, mcuSelectBox.value);
 
