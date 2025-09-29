@@ -2,9 +2,9 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.4.3 - 2025-09-28
+## v0.4.3 - 2025-09-29
 
-Added USB DFU support for firmware updates over USB, along with STM32 24-pin rev H hardware which includes a micro-USB connector.  One ROM detects when USB is connected, disables ROM serving, and enters STM32 DFU mode to allow the firmware to be updated.
+Added USB DFU support for firmware updates over USB, along with STM32 24-pin rev H hardware (24-h) which includes a micro-USB connector.  One ROM detects when USB is connected, disables ROM serving, and enters STM32 DFU mode to allow the firmware to be updated.
 
 There is also a new web-based programmer for One ROM USB, at https://onerom.piers.rocks/.  This can be used on Chrome or Chromium based browsers on Windows, Linux, or MacOS to program an attached One ROM USB.
 
