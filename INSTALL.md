@@ -36,7 +36,7 @@ At this point, you can choose to install the dependencies locally, or use the [D
 3. Install curl, zip and json-x development packages (required for tests) and vice (for demos):
 
     ```bash
-    sudo apt dfu-utils install libcurl4-openssl-dev libzip-dev libjson-c-dev vice
+    sudo apt install dfu-util libcurl4-openssl-dev libzip-dev libjson-c-dev vice
     ```
 
     If you are using a different package manager, the package name may vary slightly, e.g., `libcurl-devel` on Fedora.
