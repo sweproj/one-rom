@@ -2,6 +2,14 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.5.0 - 2025-??-??
+
+### Changes
+
+Updated:
+- USB One ROM site (onerom.piers.rocks):
+  - Added the ability to select a local file as the firmware source, in addition to a URL.
+
 ## v0.4.3 - 2025-09-29
 
 Added USB DFU support for firmware updates over USB, along with STM32 24-pin rev H hardware (24-h) which includes a micro-USB connector.  One ROM detects when USB is connected, disables ROM serving, and enters STM32 DFU mode to allow the firmware to be updated.

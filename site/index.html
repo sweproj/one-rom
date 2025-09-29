@@ -30,37 +30,34 @@
             See <a href="#usage">Usage</a> for instructions.
         </p>
 
-        <!-- Text entry boxes -->
-        <div class="entry-boxes">
-
-            <!-- MCU selection dropdown -->
-            <select id="mcuSelectBox">
-                <option value="">STM32 Variant</option>
-                <option value="F401RB">F401RB</option>
-                <option value="F401RC">F401RC</option>
-                <option value="F401RE">F401RE</option>
-                <option value="F405RG">F405RG</option>
-                <option value="F411RC">F411RC</option>
-                <option value="F411RE">F411RE</option>
-                <option value="F446RC">F446RC</option>
-                <option value="F446RE">F446RE</option>
-            </select>
-
-            <!-- Update file entry box -->
-            <input id="fileLocationBox" style="flex-grow: 1;" type="url" placeholder="https://one.piers.rocks/bin/firmware.bin">
-
-
+        <!-- Tab navigation -->
+        <div class="tab-navigation">
+            <button class="tab-button active" data-tab="url">URL</button>
+            <button class="tab-button" data-tab="file">Local File</button>
         </div>
 
-        <!-- Buttons and progress bar -->
-        <div class="buttons-and-bar">
-
-            <!-- Connect/program button -->
-            <button id="connectProgramButton">Program</button>
-
-            <!-- Progress bar -->
-            <progress id="progressBar" value="0" max="100"></progress>
-
+        <div class="tab-content-container">
+            <div class="entry-boxes">
+                <select id="mcuSelectBox">
+                    <option value="">STM32 Variant</option>
+                    <option value="F401RB">F401RB</option>
+                    <option value="F401RC">F401RC</option>
+                    <option value="F401RE">F401RE</option>
+                    <option value="F405RG">F405RG</option>
+                    <option value="F411RC">F411RC</option>
+                    <option value="F411RE">F411RE</option>
+                    <option value="F446RC">F446RC</option>
+                    <option value="F446RE">F446RE</option>
+                </select>
+                
+                <input id="fileLocationBox" class="tab-input" data-tab="url" type="url" placeholder="https://one.piers.rocks/bin/firmware.bin" style="flex-grow: 1;">
+                <input id="fileUploadBox" class="tab-input" data-tab="file" type="file" accept=".bin" style="flex-grow: 1; display: none;">
+            </div>
+            
+            <div class="buttons-and-bar">
+                <button id="connectProgramButton">Program</button>
+                <progress id="progressBar" value="0" max="100"></progress>
+            </div>
         </div>
 
         <div class="usage">
@@ -68,8 +65,9 @@
                 <summary id="usage">Usage</summary>
                 <ol>
                     <li>If this is your first time programming One ROM USB on Windows, you must set up a <a href="#usb">USB driver</a>. This isn't required on Mac or Linux.</li>
+                    <li>Choose the firmware source: URL or Local File.</li>
                     <li>Select the STM32 variant you are programming.</li>
-                    <li>Enter the URL of the binary file you wish to program. (e.g. https://one.piers.rocks/bin/firmware.bin)</li>
+                    <li>Enter the URL of the binary file you wish to program (e.g. https://one.piers.rocks/bin/firmware.bin), or select a local file.</li>
                     <li>Plug in your One ROM USB.  If this is a factory fresh One ROM USB jump the B0 and 3V3 pads on the underside while plugging it in.  If the red LED doesn't light up faintly, try again.</li>
                     <li>Click the "Program" button.</li>
                     <li>A popup will appear asking you to select a device. Select "STM32 BOOTLOADER" and click "Connect".</li>
@@ -149,6 +147,30 @@
     const connectProgramButton = document.getElementById('connectProgramButton');
     const progressBar = document.getElementById('progressBar');
 
+    // Get references to tab elements
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabInputs = document.querySelectorAll('.tab-input');
+
+    // Handle tab switching
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            
+            // Update button states
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show/hide appropriate input
+            tabInputs.forEach(input => {
+                if (input.getAttribute('data-tab') === targetTab) {
+                    input.style.display = 'block';
+                } else {
+                    input.style.display = 'none';
+                }
+            });
+        });
+    });
+
     // When the button is clicked
     connectProgramButton.addEventListener('click', function () {
 
@@ -165,34 +187,48 @@
         // Try to get the file and run the update sequence
         try {
 
-            // Disallow empty URLs
-            if (fileLocationBox.value == "") {
-                throw ("Error: No URL provided");
-            }
-
+            // Check MCU variant first
             if (mcuSelectBox.value == "") {
                 throw ("Error: No STM32 variant selected");
             }
 
-            // Attempt to get the file. Note, your browser will block this if you try to run it locally
-            // See here: https://stackoverflow.com/questions/43262121/trying-to-use-fetch-and-pass-in-mode-no-cors 
-            let response = await fetch(fileLocationBox.value);
-
-            // This needs to be here to catch things like 404 errors, which aren't counted as a promise failure
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw ("Error: Firmware file not found at the specified URL");
-                } else if (response.status === 403) {
-                    throw ("Error: Access denied to firmware file");
-                } else {
-                    throw ("Error: Failed to download firmware file (" + response.status + " " + response.statusText + ")");
+            // Determine source: URL or local file
+            let fileArr;
+            
+            if (fileLocationBox.style.display !== 'none' && fileLocationBox.value) {
+                // URL source
+                if (fileLocationBox.value == "") {
+                    throw ("Error: No URL provided");
                 }
+
+                let response = await fetch(fileLocationBox.value);
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw ("Error: Firmware file not found at the specified URL");
+                    } else if (response.status === 403) {
+                        throw ("Error: Access denied to firmware file");
+                    } else {
+                        throw ("Error: Failed to download firmware file (" + response.status + " " + response.statusText + ")");
+                    }
+                }
+
+                fileArr = await response.arrayBuffer();
+                
+            } else if (fileUploadBox.style.display !== 'none') {
+                // Local file source
+                if (!fileUploadBox.files || fileUploadBox.files.length === 0) {
+                    throw ("Error: No file selected");
+                }
+                
+                const file = fileUploadBox.files[0];
+                fileArr = await file.arrayBuffer();
+                
+            } else {
+                throw ("Error: No firmware source provided");
             }
 
-            // Create an array buffer containing the file data
-            let fileArr = await response.arrayBuffer();
-
-            // Run the update sequence
+            // Run the update sequence (existing code)
             await dfu.runUpdateSequence(fileArr, mcuSelectBox.value);
 
             // Done
@@ -201,6 +237,13 @@
 
         // On any caught errors
         catch (error) {
+
+            // User cancelled device selection - not an error
+            if (error.name === 'NotFoundError' || 
+                (error.message && error.message.includes('No device selected'))) {
+                dfuDisconnectHandler();
+                return;
+            }
 
             // Reset the button and progress bar
             dfuDisconnectHandler();
