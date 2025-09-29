@@ -79,8 +79,48 @@
             <details>
                 <summary id="problems">Problems</summary>
                 <p>
-                    If you encounter any issues using this programmer, please <a href="#" id="githubIssueLink" target="_blank">raise a GitHub issue</a>.
+                    If you encounter any issues using this programmer, please <a href="#" id="githubIssueLink1" target="_blank">raise a GitHub issue</a>.
                 </p>
+            </details>
+        </div>
+
+        <div class="faq">
+            <details>
+                <summary id="faq">FAQ</summary>
+                <ul>
+                    <ul><strong>Q: What if I hit problems?</strong></ul>
+                    <ul><strong>A:</strong> <a href="#" id="githubIssueLink" target="_blank">Raise a GitHub issue</a>.</ul>
+                    <ul><strong>Q: Why do I have to select the STM32 variant?</strong></ul>
+                    <ul><strong>A:</strong> So the programmer can ensure the firmware you provided is for your specific STM32 chip, and that your One ROM USB has enough flash space for the firmware image.</ul>
+                    <ul><strong>Q: How do I know what STM32 variant my One ROM has?</strong></ul>
+                    <ul><strong>A:</strong> Read the part number from One ROM's main IC.  You are looking for the 6 characters immediately after "STM32".</ul>
+                    <ul><strong>Q: How do I get hold of One ROM USB firmware images?</strong></ul>
+                    <ul><strong>A:</strong> Build them using the <a href="https://github.com/piersfinlayson/one-rom">One ROM github repository</a>.</ul>
+                    <ul><strong>Q: Can I use this with Firefox, Safari, or another non-Chromium browser?</strong></ul>
+                    <ul><strong>A:</strong> No, WebUSB, the technology behind this programmer, is only supported in Chromium based browsers like Chrome and Edge.</ul>
+                    <ul><strong>Q: Can I use this on Linux or Mac?</strong></ul>
+                    <ul><strong>A:</strong> Yes, no driver installation is required on Linux or Mac, but you must still use a Chromium based browser.</ul>
+                    <ul><strong>Q: Can I use this with a non-USB version of One ROM?</strong></ul>
+                    <ul><strong>A:</strong> No, this programmer only works with the USB version of One ROM.</ul>
+                    <ul><strong>Q: Can I use this to program other, non-One ROM, STM32 devices?</strong></ul>
+                    <ul><strong>A:</strong> This programmer only programs valid One ROM USB firmware - it checks the image before programming.  However, the site is based on a generic STM32 DFI implementation, and its code is MIT licensed, so you are free to copy and modify it for your own purposes.</ul>
+                    <ul><strong>Q: Can I use this on my phone or tablet?</strong></ul>
+                    <ul><strong>A:</strong> We have no idea - maybe if you are using Chrome. Let me us know via github if you get this working!</ul>
+            </details>
+        </div>
+
+        <div class="technical">
+            <details>
+                <summary id="technical">How It Works</summary>
+                <ul>
+                    <li>The page uses <a href="https://en.wikipedia.org/wiki/WebUSB" target="_blank">WebUSB</a> to access One ROM USB directly from your browser.</li>
+                    <li>For security reasons, WebUSB is only available when this site is served over HTTPS (or from localhost) - you are recommended to use it at <a href="https://onerom.piers.rocks" target="_blank">https://onerom.piers.rocks</a>.  This version is built directly from the main branch of the One ROM github repository.</li>
+                    <li>Only the device you select when you hit "Program" can be accessed by this page's javascript code - your other USB devices are not visible to it.  None of your devices, including your chosen one, are visible to the server.</li>
+                    <li>The page's javascript code implements the STM32 DFU protocol, performing the necessary flash erase and programming operations on your One ROM USB.</li>
+                    <li>The firmware on your One ROM USB can only be updated when it is in DFU (Device Firmware Update) mode.  This is automatically enabled when you plug in One ROM to a USB host, like a PC, unless you have a completely "fresh from the factory" One ROM USB.</li>
+                    <li style="list-style-type: none;">If you have factory fresh One ROM USB, you need to manually put it into DFU mode before flashing, by jumping B0 and 3V3 on the underside of One ROM, while plugging it into USB.</li>
+                    <li style="list-style-type: none;">One ROM's status LED is lit dimly when in DFU mode.</li>
+                </ul>
             </details>
         </div>
 
@@ -107,21 +147,6 @@
                 <ol start="8">
                     <li>You can now close Zadig.</li>
                 </ol>
-            </details>
-        </div>
-
-        <div class="technical">
-            <details>
-                <summary id="technical">How It Works</summary>
-                <ul>
-                    <li>The page uses <a href="https://en.wikipedia.org/wiki/WebUSB" target="_blank">WebUSB</a> to access One ROM USB directly from your browser.</li>
-                    <li>For security reasons, WebUSB is only available when this site is served over HTTPS (or from localhost) - you are recommended to use it at <a href="https://onerom.piers.rocks" target="_blank">https://onerom.piers.rocks</a>.  This version is built directly from the main branch of the One ROM github repository.</li>
-                    <li>Only the device you select when you hit "Program" can be accessed by this page's javascript code - your other USB devices are not visible to it.  None of your devices, including your chosen one, are visible to the server.</li>
-                    <li>The page's javascript code implements the STM32 DFU protocol, performing the necessary flash erase and programming operations on your One ROM USB.</li>
-                    <li>The firmware on your One ROM USB can only be updated when it is in DFU (Device Firmware Update) mode.  This is automatically enabled when you plug in One ROM to a USB host, like a PC, unless you have a completely "fresh from the factory" One ROM USB.</li>
-                    <li style="list-style-type: none;">If you have factory fresh One ROM USB, you need to manually put it into DFU mode before flashing, by jumping B0 and 3V3 on the underside of One ROM, while plugging it into USB.</li>
-                    <li style="list-style-type: none;">One ROM's status LED is lit dimly when in DFU mode.</li>
-                </ul>
             </details>
         </div>
 
@@ -415,6 +440,7 @@ Please upload your firmware .bin file if possible.
                     `body=${encodeURIComponent(body)}`;
         
         document.getElementById('githubIssueLink').href = url;
+        document.getElementById('githubIssueLink1').href = url;
     })();
 
 </script>
