@@ -29,8 +29,8 @@
 
         <!-- Update tab navigation to include Pre-built -->
         <div class="tab-navigation">
-            <button class="tab-button" data-tab="prebuilt">Pre-built Image</button>
-            <button class="tab-button active" data-tab="file">Local Image</button>
+            <button class="tab-button active" data-tab="prebuilt">Pre-built Image</button>
+            <button class="tab-button" data-tab="file">Local Image</button>
             <button class="tab-button" data-tab="url">URL Image</button>
         </div>
 
@@ -70,7 +70,6 @@
                 
                 <!-- Pre-built Images tab -->
                 <div class="tab-input" data-tab="prebuilt" style="display: none;">
-                    <p><strong>Not yet functional</strong></p><br/>
                     <div id="prebuiltLoading">Loading releases...</div>
                     <div id="prebuiltSelectors" style="display: none;">
                         <select id="modelSelect" style="display: none;">
@@ -225,6 +224,26 @@
 sudo udevadm trigger</code></pre>
                     </li>
                 </ol>
+            </details>
+        </div>
+
+        <div class="privacy">
+            <details>
+                <summary id="privacy">Privacy</summary>
+                <p>
+                    The One ROM USB Programmer is hosted and served by GitHub Pages.  It retrieves One ROM firmware manifest information from GitHub.  GitHub may log your browser details and IP address.
+                </p>
+                <p>
+                    Most of the site's functionality runs entirely in your browser, and no data is sent to the server:
+                    <ul>
+                        <li>If you flash a pre-built image, the image is downloaded from GitHub via a piers.rocks server.  This is done to work around javasript limitations when retrieving GitHub release artifacts.  The piers.rocks server logs your browser's User-Agent string (which typically includes your OS and browser version) and the firmware file being downloaded, but <strong>does not</strong> log any personally identifiable information like your IP address.</li>
+                        <li>If you flash a local file, it is read directly from your computer, and not sent to any server.</li>
+                        <li>If you flash an image from a URL, the image is downloaded directly from that server by your browser.  That server may log your IP address and browser details, as any web server might.</li>
+                    </ul>
+                </p>
+                <p>
+                    If you have any questions about privacy, please <a href="#" id="githubIssueLink2" target="_blank">raise a GitHub issue</a>.
+                </p>
             </details>
         </div>
 
@@ -532,6 +551,7 @@ Please upload your firmware .bin file if possible.
         
         document.getElementById('githubIssueLink').href = url;
         document.getElementById('githubIssueLink1').href = url;
+        document.getElementById('githubIssueLink2').href = url;
     })();
 
     // Pre-built images functionality
@@ -745,7 +765,13 @@ Please upload your firmware .bin file if possible.
                 throw new Error('No artifact selected');
             }
             
-            const response = await fetch(this.selectedArtifact.url);
+            // Transform GitHub URL to use CORS proxy
+            const proxyUrl = this.selectedArtifact.url.replace(
+                /^https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/releases\/download\/(.+)$/,
+                'https://github-cors.piers.rocks/github-release/$1/$2/$3'
+            );
+            
+            const response = await fetch(proxyUrl);
             if (!response.ok) {
                 throw new Error('Failed to download firmware: ' + response.status);
             }
