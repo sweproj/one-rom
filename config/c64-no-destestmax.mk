@@ -6,7 +6,6 @@
 # 1 - 8KB Basic ROM, 901226-01
 # 2 - 4KB Character ROM, 901225-01
 # 3 - 8KB Dead Test Kernal ($E000) ROM, 781220
-# 4 - 8KB DesTestMAX Kernal ($E000) ROM - https://factorofmatt.com/destestmax
 
 ROM_CONFIGS = \
 	file=http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/kernal.901227-03.bin,type=2364,cs1=0 \
