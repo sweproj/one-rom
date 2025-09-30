@@ -399,7 +399,7 @@ a:hover {
     padding: 0.75rem 1.5rem;
     margin: 0;
     min-width: auto;
-    background-color: var(--bg-color)
+    background-color: var(--bg-color);
     border: 1px solid var(--border-color);
     border-bottom: none;
     border-radius: 6px 6px 0 0;
@@ -459,4 +459,42 @@ pre {
 code {
     font-family: 'Courier New', Consolas, monospace;
     font-size: 14px;
+}
+
+.config-description {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--input-bg-color);
+    border-radius: 6px 6px 0 0;
+    white-space: pre-wrap;
+    display: none;
+}
+
+.config-description.visible {
+    display: block;
+}
+
+#prebuiltSelectors {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px; 
+}
+
+.select-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: fit-content;
+}
+
+.select-row label {
+    width: 150px;
+    text-align: right;
+    line-height: normal;
+}
+
+.select-row select {
+    flex: 1;
+    margin: 0;
 }

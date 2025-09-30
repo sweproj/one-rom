@@ -29,8 +29,8 @@
 
         <!-- Update tab navigation to include Pre-built -->
         <div class="tab-navigation">
-            <button class="tab-button active" data-tab="prebuilt">Pre-built Image</button>
-            <button class="tab-button" data-tab="file">Local Image</button>
+            <button class="tab-button" data-tab="prebuilt">Pre-built Image</button>
+            <button class="tab-button active" data-tab="file">Local Image</button>
             <button class="tab-button" data-tab="url">URL Image</button>
         </div>
 
@@ -70,25 +70,42 @@
                 
                 <!-- Pre-built Images tab -->
                 <div class="tab-input" data-tab="prebuilt" style="display: none;">
+                    <p><strong>Not yet functional</strong></p><br/>
                     <div id="prebuiltLoading">Loading releases...</div>
                     <div id="prebuiltSelectors" style="display: none;">
-                        <select id="modelSelect">
-                            <option value="">Select Model</option>
+                        <select id="modelSelect" style="display: none;">
+                            <option value="">Model</option>
                         </select>
-                        <select id="hwRevSelect" disabled>
-                            <option value="">Select Hardware Revision</option>
-                        </select>
-                        <select id="mcuSelectPrebuilt" disabled>
-                            <option value="">Select MCU</option>
-                        </select>
-                        <select id="versionSelect" disabled>
-                            <option value="">Select Firmware Version</option>
-                        </select>
-                        <select id="romConfigSelect" disabled>
-                            <option value="">Select ROM Config</option>
-                        </select>
-                        <div id="configDescription" style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px; display: none; white-space: pre-wrap;"></div>
+                        
+                        <div class="select-row">
+                            <label>Hardware Revision:</label>
+                            <select id="hwRevSelect" disabled>
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="select-row">
+                            <label>MCU:</label>
+                            <select id="mcuSelectPrebuilt" disabled>
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="select-row">
+                            <label>Firmware Version:</label>
+                            <select id="versionSelect" disabled>
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="select-row">
+                            <label>ROM Config:</label>
+                            <select id="romConfigSelect" disabled>
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
                     </div>
+                    <div id="configDescription" class="config-description"></div>
                 </div>
             </div>
             
@@ -565,7 +582,7 @@ Please upload your firmware .bin file if possible.
         
         showSelectors() {
             document.getElementById('prebuiltLoading').style.display = 'none';
-            document.getElementById('prebuiltSelectors').style.display = 'block';
+            document.getElementById('prebuiltSelectors').style.display = 'flex';
         },
         
         populateModels() {
@@ -595,14 +612,17 @@ Please upload your firmware .bin file if possible.
         
         filterByModel(model) {
             const hwRevSelect = document.getElementById('hwRevSelect');
-            hwRevSelect.innerHTML = '<option value="">Select Hardware Revision</option>';
+            hwRevSelect.innerHTML = '<option value="">Select ...</option>';
             hwRevSelect.disabled = false;
             
             const hwRevs = new Set();
             this.manifests.forEach(manifest => {
                 manifest.artifacts.forEach(artifact => {
                     if (artifact.model === model) {
-                        hwRevs.add(artifact.hw_rev);
+                        // Only include hw_revs with USB support
+                        if (manifest.hardware[artifact.hw_rev] && manifest.hardware[artifact.hw_rev].usb_support === true) {
+                            hwRevs.add(artifact.hw_rev);
+                        }
                     }
                 });
             });
@@ -621,12 +641,12 @@ Please upload your firmware .bin file if possible.
             this.resetSelector('mcuSelectPrebuilt');
             this.resetSelector('versionSelect');
             this.resetSelector('romConfigSelect');
-            document.getElementById('configDescription').style.display = 'none';
+            document.getElementById('configDescription').classList.remove('visible');
         },
         
         filterByHwRev(model, hwRev) {
             const mcuSelect = document.getElementById('mcuSelectPrebuilt');
-            mcuSelect.innerHTML = '<option value="">Select MCU</option>';
+            mcuSelect.innerHTML = '<option value="">Select...</option>';
             mcuSelect.disabled = false;
             
             const mcus = new Set();
@@ -647,12 +667,12 @@ Please upload your firmware .bin file if possible.
             
             this.resetSelector('versionSelect');
             this.resetSelector('romConfigSelect');
-            document.getElementById('configDescription').style.display = 'none';
+            document.getElementById('configDescription').classList.remove('visible');
         },
         
         filterByMcu(model, hwRev, mcu) {
             const versionSelect = document.getElementById('versionSelect');
-            versionSelect.innerHTML = '<option value="">Select Firmware Version</option>';
+            versionSelect.innerHTML = '<option value="">Select...</option>';
             versionSelect.disabled = false;
             
             const versions = new Set();
@@ -673,12 +693,12 @@ Please upload your firmware .bin file if possible.
             });
             
             this.resetSelector('romConfigSelect');
-            document.getElementById('configDescription').style.display = 'none';
+            document.getElementById('configDescription').classList.remove('visible');
         },
         
         filterByVersion(model, hwRev, mcu, version) {
             const romConfigSelect = document.getElementById('romConfigSelect');
-            romConfigSelect.innerHTML = '<option value="">Select ROM Config</option>';
+            romConfigSelect.innerHTML = '<option value="">Select...</option>';
             romConfigSelect.disabled = false;
             
             const manifest = this.manifests.find(m => m.version === version);
@@ -695,7 +715,7 @@ Please upload your firmware .bin file if possible.
                 romConfigSelect.appendChild(option);
             });
             
-            document.getElementById('configDescription').style.display = 'none';
+            document.getElementById('configDescription').classList.remove('visible');
         },
         
         selectRomConfig(romConfig) {
@@ -709,7 +729,7 @@ Please upload your firmware .bin file if possible.
                     const description = manifest.rom_configs[romConfig].description;
                     const descDiv = document.getElementById('configDescription');
                     descDiv.textContent = description;
-                    descDiv.style.display = 'block';
+                    descDiv.classList.add('visible');
                 }
             }
         },
@@ -826,7 +846,13 @@ Please upload your firmware .bin file if possible.
             
             // Initialize prebuilt manager if pre-built tab is active on load
             if (activeTab === 'prebuilt') {
-                PrebuiltManager.init();
+                PrebuiltManager.init().then(() => {
+                    // Auto-select Ice and trigger cascade
+                    const modelSelect = document.getElementById('modelSelect');
+                    modelSelect.value = 'ice';
+                    modelSelect.style.display = 'none'; // Hide it
+                    PrebuiltManager.filterByModel('ice');
+                });
             }
         }
     })();
