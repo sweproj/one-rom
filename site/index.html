@@ -8,20 +8,22 @@
     <link rel="shortcut icon" href="images/favicon.png" type="image/x-icon" />
 
     <!-- SEO title & description -->
-    <title>One ROM USB Programmer | piers.rocks</title>
+    <title>One ROM USB Programmer</title>
     <meta name="description" content="Programs the USB version of One ROM - the most flexible retro ROM replacement">
     <link rel="canonical" href="https://onerom.piers.rocks/" />
 
     <!-- Open Graph for social media -->
-    <meta property="og:title" content="One ROM USB Programmer">
-    <meta property="og:description" content="Programs the USB version of One ROM - the most flexible retro ROM replacement">
     <meta property="og:url" content="https://onerom.piers.rocks/">
     <meta property="og:type" content="website">
+    <meta property="og:title" content="One ROM USB Programmer | piers.rocks">
+    <meta property="og:description" content="Programs the USB version of One ROM - the most flexible retro ROM replacement">
     <meta property="og:image" content="https://onerom.piers.rocks/images/one-rom-ice-usb.png">
 
-    <!-- Twitter Card -->
+    <!-- Twitter Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="One ROM USB Programmer">
+    <meta property="twitter:domain" content="onerom.piers.rocks">
+    <meta property="twitter:url" content="https://onerom.piers.rocks/">
+    <meta name="twitter:title" content="One ROM USB Programmer | piers.rocks">
     <meta name="twitter:description" content="Programs the USB version of One ROM - the most flexible retro ROM replacement">
     <meta name="twitter:image" content="https://onerom.piers.rocks/images/one-rom-ice-usb.png">
 
@@ -170,8 +172,10 @@
                     <ul><strong>A:</strong> So the programmer can ensure the firmware you provided is for your specific STM32 chip, and that your One ROM USB has enough flash space for the firmware image.</ul>
                     <ul><strong>Q: How do I know what STM32 variant my One ROM has?</strong></ul>
                     <ul><strong>A:</strong> Read the part number from One ROM's main IC.  You are looking for the 6 characters immediately after "STM32".</ul>
-                    <ul><strong>Q: How do I get hold of One ROM USB firmware images?</strong></ul>
-                    <ul><strong>A:</strong> Build them using the <a href="https://github.com/piersfinlayson/one-rom">One ROM github repository</a>.</ul>
+                    <ul><strong>Q: Why isn't there a pre-built image for my system?</strong></ul>
+                    <ul><strong>A:</strong> Either build it yourself using the <a href="https://github.com/piersfinlayson/one-rom">One ROM github repo</a>, or <a href="#" id="githubIssueLink3" target="_blank">raise a GitHub issue</a> letting us know where we can find the ROM image(s) you want One ROM to serve.</ul>
+                    <ul><strong>Q: Why isn't my STM32 variant listed?</strong></ul>
+                    <ul><strong>A:</strong> Pre-built images are available for the most commonly used STM32 variants.  You can build images for other variants using the <a href="https://github.com/piersfinlayson/one-rom">One ROM github repo</a>.</ul>
                     <ul><strong>Q: Can I use this with Firefox, Safari, or another non-Chromium browser?</strong></ul>
                     <ul><strong>A:</strong> No, WebUSB, the technology behind this programmer, is only supported in Chromium based browsers like Chrome and Edge.</ul>
                     <ul><strong>Q: Can I use this on Linux or Mac?</strong></ul>
@@ -570,6 +574,7 @@ Please upload your firmware .bin file if possible.
         document.getElementById('githubIssueLink').href = url;
         document.getElementById('githubIssueLink1').href = url;
         document.getElementById('githubIssueLink2').href = url;
+        document.getElementById('githubIssueLink3').href = url;
     })();
 
     // Pre-built images functionality
