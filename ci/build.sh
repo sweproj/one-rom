@@ -217,12 +217,24 @@ is_blacklisted() {
 #
 discover_configs() {
     local configs=()
+    
+    # Find .mk files in config/ (top level only)
     for mk_file in "${PROJECT_ROOT}/config"/*.mk; do
         if [[ -f "$mk_file" ]]; then
-            config_name=$(basename "$mk_file" .mk)
+            local config_name=$(basename "$mk_file" .mk)
             configs+=("$config_name")
         fi
     done
+    
+    # Find .mk files in config/third-party/
+    if [[ -d "${PROJECT_ROOT}/config/third-party" ]]; then
+        for mk_file in "${PROJECT_ROOT}/config/third-party"/*.mk; do
+            if [[ -f "$mk_file" ]]; then
+                local config_name="third-party/$(basename "$mk_file" .mk)"
+                configs+=("$config_name")
+            fi
+        done
+    fi
     
     if [[ ${#configs[@]} -eq 0 ]]; then
         echo "ERROR: No config files found in ${PROJECT_ROOT}/config/"
@@ -472,22 +484,23 @@ create_zips() {
             local zip_temp="${temp_dir}/${hw_rev}-${mcu}"
             mkdir -p "$zip_temp"
             
-            # Copy all .bin files with renamed filenames
-            for config_dir in "${mcu_dir}"/*; do
-                [[ ! -d "$config_dir" ]] && continue
+            # Find all .bin files recursively
+            while IFS= read -r bin_file; do
+                # Get config path relative to mcu_dir
+                local rel_path="${bin_file#${mcu_dir}/}"
+                # Extract directory path (config with subdirs)
+                local config_dir=$(dirname "$rel_path")
+                # Convert path to dashed format: third-party/whatever -> third-party-whatever
+                local config="${config_dir//\//-}"
                 
-                local config=$(basename "$config_dir")
                 local bin_prefix="$(get_bin_prefix "$mcu")"
-                local bin_file="${config_dir}/${bin_prefix}.bin"
+                local new_name="onerom-${hw_rev}-${mcu}-${config}.bin"
                 
-                if [[ -f "$bin_file" ]]; then
-                    local new_name="onerom-${hw_rev}-${mcu}-${config}.bin"
-                    # Copy to temp for zipping
-                    cp "$bin_file" "${zip_temp}/${new_name}"
-                    # Also copy directly to firmware directory as individual artifact
-                    cp "$bin_file" "${builds_dir}/firmware/${new_name}"
-                fi
-            done
+                # Copy to temp for zipping
+                cp "$bin_file" "${zip_temp}/${new_name}"
+                # Also copy directly to firmware directory as individual artifact
+                cp "$bin_file" "${builds_dir}/firmware/${new_name}"
+            done < <(find "$mcu_dir" -name "*.bin" -type f)
             
             # Create zip from temp directory if it has files
             if [[ -n "$(ls -A "$zip_temp" 2>/dev/null)" ]]; then
@@ -798,14 +811,14 @@ generate_manifest() {
     done
     hardware_json+="}"
 
-    # Build rom_configs JSON
+    # Build rom_configs JSON - scan all .mk files including subdirectories
     local rom_configs_json="{"
     local first_config=true
 
-    for config_file in "${PROJECT_ROOT}/config"/*.mk; do
-        [[ ! -f "$config_file" ]] && continue
-        
-        local config_name=$(basename "$config_file" .mk)
+    while IFS= read -r config_file; do
+        # Get path relative to config/ directory and strip .mk
+        local rel_path="${config_file#${PROJECT_ROOT}/config/}"
+        local config_name="${rel_path%.mk}"
         local description=$(extract_config_description "$config_file")
         
         if [[ "$first_config" == true ]]; then
@@ -814,11 +827,13 @@ generate_manifest() {
             rom_configs_json+=","
         fi
         
-        rom_configs_json+="\"${config_name}\":{\"description\":\"${description}\"}"
-    done
+        # Use dashed format for JSON key: third-party/whatever -> third-party-whatever
+        local config_key="${config_name//\//-}"
+        rom_configs_json+="\"${config_key}\":{\"description\":\"${description}\"}"
+    done < <(find "${PROJECT_ROOT}/config" -name "*.mk" -type f)
     rom_configs_json+="}"
     
-    # Build artifacts list
+    # Build artifacts list - find all .bin files recursively
     for hw_rev_dir in "${builds_dir}"/*; do
         [[ ! -d "$hw_rev_dir" || "$(basename "$hw_rev_dir")" == "firmware" ]] && continue
         
@@ -830,10 +845,14 @@ generate_manifest() {
             local mcu=$(basename "$mcu_dir")
             local model=$(get_model "$mcu")
             
-            for config_dir in "${mcu_dir}"/*; do
-                [[ ! -d "$config_dir" ]] && continue
+            # Find all .bin files recursively under this MCU directory
+            while IFS= read -r bin_file; do
+                # Get config path relative to mcu_dir
+                local rel_path="${bin_file#${mcu_dir}/}"
+                local config_dir=$(dirname "$rel_path")
+                # Convert to dashed format
+                local config="${config_dir//\//-}"
                 
-                local config=$(basename "$config_dir")
                 local filename="onerom-${hw_rev}-${mcu}-${config}.bin"
                 local filepath="${firmware_dir}/${filename}"
                 local url="https://github.com/${github_repo}/releases/download/${version}/${filename}"
@@ -852,7 +871,7 @@ generate_manifest() {
                 fi
                 
                 artifacts_json+="{\"hw_rev\":\"${hw_rev}\",\"mcu\":\"${mcu}\",\"model\":\"${model}\",\"rom_config\":\"${config}\",\"filename\":\"${filename}\",\"url\":\"${url}\",\"sha256\":\"${sha256}\"}"
-            done
+            done < <(find "$mcu_dir" -name "*.bin" -type f)
         done
     done
     artifacts_json+="]"
