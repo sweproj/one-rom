@@ -1,8 +1,8 @@
 # MCU Selection
 
-Your most important choice is between a Raspbery Pi RP2350-based One ROM Fire, or an STM32F4-based One ROM Ice.  Both have roughly equivalent support in the firmware.
+Your most important choice is between a Raspbery Pi RP2350-based One ROM Fire 🔥, or an STM32F4-based One ROM Ice ❄️.  Both have roughly equivalent support in the firmware.
 
-| Feature | Fire - RP2350 | Ice - STM32F4 |
+| Feature | Fire 🔥 RP2350 | Ice ❄️ STM32F4 |
 |---------|--------|---------|
 | **Firmware** | Support just added but already mostly complete | More mature firmware |
 | **Price Each (5 units)** | $9 | $6.50 |
