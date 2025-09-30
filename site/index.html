@@ -61,7 +61,13 @@
             <details>
                 <summary id="usage">Usage</summary>
                 <ol>
-                    <li>If this is your first time programming One ROM USB on Windows, you must set up a <a href="#usb">USB driver</a>. This isn't required on Mac or Linux.</li>
+                    <li>First time setup:
+                        <ul>
+                            <li><a href="#windows">Windows</a></li>
+                            <li><a href="#linux">Linux</a></li>
+                            <li>Mac - not required</li>
+                        </ul>
+                    </li>
                     <li>Choose the firmware source: URL or Local File.</li>
                     <li>Select the STM32 variant you are programming.</li>
                     <li>Enter the URL of the One ROM .bin file you wish to program (e.g. https://one.piers.rocks/bin/firmware.bin), or select a local file.</li>
@@ -79,7 +85,7 @@
             <details>
                 <summary id="problems">Problems</summary>
                 <p>
-                    If you encounter any issues using this programmer, please <a href="#" id="githubIssueLink1" target="_blank">raise a GitHub issue</a>.
+                    If you encounter any issues using this programmer, <a href="#" id="githubIssueLink1" target="_blank">raise a GitHub issue</a>.
                 </p>
             </details>
         </div>
@@ -99,7 +105,7 @@
                     <ul><strong>Q: Can I use this with Firefox, Safari, or another non-Chromium browser?</strong></ul>
                     <ul><strong>A:</strong> No, WebUSB, the technology behind this programmer, is only supported in Chromium based browsers like Chrome and Edge.</ul>
                     <ul><strong>Q: Can I use this on Linux or Mac?</strong></ul>
-                    <ul><strong>A:</strong> Yes, no driver installation is required on Linux or Mac, but you must still use a Chromium based browser.</ul>
+                    <ul><strong>A:</strong> Yes, but you must still use a Chromium based browser.</ul>
                     <ul><strong>Q: Can I use this with a non-USB version of One ROM?</strong></ul>
                     <ul><strong>A:</strong> No, this programmer only works with the USB version of One ROM.</ul>
                     <ul><strong>Q: Can I use this to program other, non-One ROM, STM32 devices?</strong></ul>
@@ -124,14 +130,11 @@
             </details>
         </div>
 
-        <div class="usb">
+        <div class="windows">
             <details>
-                <summary id="usb">Windows USB Driver Setup</summary>
-                <p>
-                    Windows only - this step is not required on Linux or Mac.
-                </p>
+                <summary id="windows">Windows Setup</summary>
                 <ol>
-                    <li>Download and install <a href="https://zadig.akeo.ie/" target="_blank">Zadig</a>. On Linux and Mac, no driver installation is required.</li>
+                    <li>Download and install <a href="https://zadig.akeo.ie/" target="_blank">Zadig</a>.</li>
                     <li>Plug in your One ROM USB.  If this is a factory fresh One ROM USB, jump the B0 and 3V3 pads on the underside while plugging it in.  If the red LED doesn't light up faintly, try again.</li>
                     <li>In Zadig, select "Options" &gt; "List All Devices".</li>
                     <li>In the dropdown, select "STM32 BOOTLOADER".</li>
@@ -146,6 +149,23 @@
                 <p><img src="images/zadig-3.png" alt="Zadig driver installation successful completion dialog" style="width: 50%;"></p>
                 <ol start="8">
                     <li>You can now close Zadig.</li>
+                </ol>
+            </details>
+        </div>
+
+        <div class="linux">
+            <details>
+                <summary id="linux">Linux Setup</summary>
+                <ol>
+                    <li>
+                        Create a file called <code>/etc/udev/rules.d/51-one-rom.rules</code> with the following content:
+                        <pre><code>SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", MODE="0666"</code></pre>
+                    </li>
+                    <li>
+                        Then run:
+                        <pre><code>sudo udevadm control --reload-rules
+sudo udevadm trigger</code></pre>
+                    </li>
                 </ol>
             </details>
         </div>

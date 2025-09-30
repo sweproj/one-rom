@@ -443,3 +443,20 @@ a:hover {
 .tab-content.active {
     display: block;
 }
+
+pre {
+    background-color: var(--input-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px 6px 0 0;
+    padding: 12px;
+    overflow-x: auto;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    margin-left: 32px;
+    margin-right: 64px;
+}
+
+code {
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 14px;
+}

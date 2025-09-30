@@ -2,6 +2,10 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.4.5 - 2025-09-30
+
+Add a new tab to the One ROM USB Programmer to flash pre-built firmware images from github's release artifacts.
+
 ## v0.4.4 - 2025-09-30
 
 This is a point release that changes the release artifact generation, to set up the One ROM USB programmer to be able to offer to flash pre-built firmware images from the release artifacts.
