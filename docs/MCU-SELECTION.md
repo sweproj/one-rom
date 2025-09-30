@@ -1,8 +1,8 @@
 # MCU Selection
 
-Your most important choice is between a Raspbery Pi RP2350-based One ROM, or an STM32F4-based One ROM.  Both have roughly equivalent support in the firmware.
+Your most important choice is between a Raspbery Pi RP2350-based One ROM Fire, or an STM32F4-based One ROM Ice.  Both have roughly equivalent support in the firmware.
 
-| Feature | RP2350 | STM32F4 |
+| Feature | Fire - RP2350 | Ice - STM32F4 |
 |---------|--------|---------|
 | **Firmware** | Support just added but already mostly complete | More mature firmware |
 | **Price Each (5 units)** | $9 | $6.50 |
@@ -24,9 +24,7 @@ Notes:
 
 ## Which One Should **You** Choose?
 
-If you don't have strong reasons to go with the STM32, go with the RP2350.  Get a few and expect you might fry one one day with a dodgy voltage regular/power supply.
-
-One ROM's support is already essentially equivalent and will only get better.
+It's too early to say.  Why not try both and see which you prefer?
 
 ## RP2350
 
