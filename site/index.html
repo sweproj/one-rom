@@ -773,13 +773,16 @@ Please upload your firmware .bin file if possible.
                 artifact.model === model && artifact.hw_rev === hwRev && artifact.mcu === mcu
             );
             
-            this.filteredArtifacts.forEach(artifact => {
+            const sortedConfigs = this.filteredArtifacts
+                .map(a => a.rom_config)
+                .sort((a, b) => a.localeCompare(b));
+
+            sortedConfigs.forEach(romConfig => {
                 const option = document.createElement('option');
-                option.value = artifact.rom_config;
-                option.textContent = artifact.rom_config;
+                option.value = romConfig;
+                option.textContent = romConfig;
                 romConfigSelect.appendChild(option);
-            });
-            
+            });            
             document.getElementById('configDescription').classList.remove('visible');
         },
         
