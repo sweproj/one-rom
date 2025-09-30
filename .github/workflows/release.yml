@@ -36,6 +36,22 @@ jobs:
     - name: Package release
       run: ci/build.sh release ${{ steps.version.outputs.VERSION }}
       
+    - name: Commit manifest.json back to repo
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Copy manifest to a releases directory
+        mkdir -p releases
+        cp builds/${{ steps.version.outputs.VERSION }}/firmware/manifest.json releases/manifest-${{ steps.version.outputs.VERSION }}.json
+        
+        # Also update a "latest" manifest
+        cp builds/${{ steps.version.outputs.VERSION }}/firmware/manifest.json releases/manifest-latest.json
+        
+        git add releases/
+        git commit -m "Add manifest for ${{ steps.version.outputs.VERSION }}"
+        git push
+
     - name: Read release notes
       id: release_notes
       run: |

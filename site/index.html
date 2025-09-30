@@ -29,9 +29,9 @@
 
         <!-- Update tab navigation to include Pre-built -->
         <div class="tab-navigation">
-            <button class="tab-button active" data-tab="prebuilt">Pre-built</button>
-            <button class="tab-button" data-tab="file">Local</button>
-            <button class="tab-button" data-tab="url">URL</button>
+            <button class="tab-button active" data-tab="prebuilt">Pre-built Image</button>
+            <button class="tab-button" data-tab="file">Local Image</button>
+            <button class="tab-button" data-tab="url">URL Image</button>
         </div>
 
         <div class="tab-content-container">
@@ -534,7 +534,9 @@ Please upload your firmware .bin file if possible.
                 // Load manifests from latest to oldest
                 for (const release of releases) {
                     try {
-                        const manifestUrl = `https://github.com/piersfinlayson/one-rom/releases/download/${release.tag_name}/manifest.json`;
+                        // Construct URL to fetch from your repo's releases/ directory
+                        const manifestUrl = `https://raw.githubusercontent.com/piersfinlayson/one-rom/main/releases/manifest-${release.tag_name}.json`;
+                        
                         const manifestResponse = await fetch(manifestUrl);
                         
                         if (manifestResponse.ok) {
@@ -546,12 +548,11 @@ Please upload your firmware .bin file if possible.
                                 this.showSelectors();
                                 this.populateModels();
                             } else {
-                                // Update selectors with new data
                                 this.updateSelectors();
                             }
                         }
                     } catch (e) {
-                        // Skip releases without manifest.json
+                        // Skip releases without manifest or with fetch errors
                         continue;
                     }
                 }
