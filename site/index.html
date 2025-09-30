@@ -562,6 +562,22 @@ Please upload your firmware .bin file if possible.
         
         async init() {
             try {
+                // Check if CORS proxy is available
+                try {
+                    const healthCheck = await fetch('https://github-cors.piers.rocks/health', {
+                        method: 'GET',
+                        cache: 'no-store'
+                    });
+                    if (!healthCheck.ok) {
+                        throw new Error('Health check failed');
+                    }
+                } catch (proxyError) {
+                    document.getElementById('prebuiltLoading').innerHTML = 
+                        '<p><strong>Temporarily Unavailable</strong></p>' +
+                        '<p>Pre-built images cannot be downloaded as the server is down. Try the Local Image or URL Image options instead, or come back later.</p><br/>';
+                    return;
+                }
+
                 // Fetch releases list from your repo
                 const response = await fetch('https://raw.githubusercontent.com/piersfinlayson/one-rom/main/releases/releases.json');
                 if (!response.ok) throw new Error('Failed to fetch releases list');
@@ -594,6 +610,12 @@ Please upload your firmware .bin file if possible.
                 
                 if (this.manifests.length === 0) {
                     document.getElementById('prebuiltLoading').textContent = 'No pre-built images available';
+                } else {
+                    // Auto-select ice model and trigger cascade
+                    const modelSelect = document.getElementById('modelSelect');
+                    modelSelect.value = 'ice';
+                    modelSelect.style.display = 'none';
+                    this.filterByModel('ice');
                 }
             } catch (error) {
                 document.getElementById('prebuiltLoading').textContent = 'Error loading releases: ' + error.message;
