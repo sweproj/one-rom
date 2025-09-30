@@ -12,9 +12,7 @@
 # - 1541/1540 $C000 8KB ROM, 325302-01
 #
 # Notes:
-# - The _lower_ ROM ($C000) is the first image in the set.  This means you
-#   must install SDRR in the $C000 ROM slot (UB3), and connect X1 to pin 20
-#   of the $E000 ROM slot (UB4).
+# - The _lower_ ROM ($C000) is the first image in the set.  This means you must install SDRR in the $C000 ROM slot (UB3), and connect X1 to pin 20 of the $E000 ROM slot (UB4).
 
 ROM_CONFIGS = \
 	set=0,file=http://www.zimmers.net/anonftp/pub/cbm/firmware/drives/new/1541/1541-c000.325302-01.bin,type=2364,cs1=0 \

@@ -1,5 +1,4 @@
-# Contains stock dynamically bank switchable upper ($E000) kernal ROMs for the
-# 1540/1541 drives which use 8KB (2364) ROMs
+# Contains stock dynamically bank switchable upper ($E000) kernal ROMs for the 1540/1541 drives which use 8KB (2364) ROMs
 #
 # The second set contains just a single image - the lower ($C000) ROM 
 #

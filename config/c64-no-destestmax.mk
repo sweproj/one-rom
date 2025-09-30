@@ -1,5 +1,4 @@
-# Contains stock ROMs for a C64, without DesTestMAX (as that requires accepting
-# a licence)
+# Contains stock ROMs for a C64, without DesTestMAX (as that requires accepting a licence)
 #
 # Images:
 # 0 - 8KB Kernal ROM, 901227-03

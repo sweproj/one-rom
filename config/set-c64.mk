@@ -1,5 +1,4 @@
-# Serves a set of stock ROMs for a C64 - all of kernal, basic and character
-# ROMs - when installed in the kernal socket.
+# Serves a set of stock ROMs for a C64 - all of kernal, basic and character ROMs - when installed in the kernal socket.
 #
 # The Dead Test Kernal ROM 781220 is installed as set 1.
 #
@@ -25,8 +24,7 @@
 # b. Basic ROM 901226-01
 #
 # Notes:
-# - Character ROM CS2 is set to `ignore` as is it tied to 5V within the C64,
-#   so always active 
+# - Character ROM CS2 is set to `ignore` as is it tied to 5V within the C64, so always active 
 # - Requires HW_REV=f
 ROM_CONFIGS = \
 	set=0,file=http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/c64/kernal.901227-03.bin,type=2364,cs1=0 \

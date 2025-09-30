@@ -1,5 +1,4 @@
-# Contains various ROM images to enable testing the SDRR firmware and build
-# process.
+# Contains various ROM images to enable testing the One ROM firmware and build process.
 #
 # Images:
 # 0 - 8KB ROM filled with 0x00

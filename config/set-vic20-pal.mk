@@ -1,13 +1,12 @@
-# Serves a pair of stock ROMs for a PAL VIC20 - both kernal and basic ROMs
-# SDDR cannot also serve the character ROM for the VIC20, as it has a different
-# data bus to the kernal and basic ROMs.
+# Serves a pair of stock ROMs for a PAL VIC20 - both kernal and basic ROMs.
+# One ROM cannot also serve the character ROM for the VIC20, as it has a different data bus to the kernal and basic ROMs.
 #
 # The VIC20 dead test kernal ROM is installed as set 1.
 #
 # Instructions:
 # 1. Install ROM in (kernal) socket
 # 2. Connect Basic ROM socket CS pin (20) to SDRR pin X1
-# 3. Use SDRR image select jumpers to select required set, 0 = all open
+# 3. Use One ROM image select jumpers to select required set, 0 = all open
 #
 # Image details:
 #
