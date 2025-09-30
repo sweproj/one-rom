@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     dfu-util \
     git \
+    jq \
     libcurl4-openssl-dev \
     libjson-c-dev \
     libzip-dev \

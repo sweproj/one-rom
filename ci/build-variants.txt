@@ -1,0 +1,24 @@
+# Build option variants to build
+# Add new variants here, one per line
+# Lines starting with # are ignored
+
+# Fire rev A
+rp2350:HW_REV=p24-a
+
+# Ice rev F
+f401re:HW_REV=24-f
+f411re:HW_REV=24-f
+f405rg:HW_REV=24-f
+f446re:HW_REV=24-f
+
+# Ice rev G
+f401re:HW_REV=24-g
+f411re:HW_REV=24-g
+f405rg:HW_REV=24-g
+f446re:HW_REV=24-g
+
+# Ice rev H
+f401re:HW_REV=24-h
+f411re:HW_REV=24-h
+f405rg:HW_REV=24-h
+f446re:HW_REV=24-h

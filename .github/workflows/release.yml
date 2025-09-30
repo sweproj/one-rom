@@ -19,7 +19,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y dfu-util gcc-arm-none-eabi make zip libcurl4-openssl-dev libzip-dev libjson-c-dev
+        sudo apt-get install -y dfu-util gcc-arm-none-eabi jq libcurl4-openssl-dev libjson-c-dev libzip-dev make zip
         
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -80,7 +80,6 @@ jobs:
           --latest
           
         # Upload all files
-        gh release upload ${VERSION} builds/${VERSION}/firmware/*.zip
-        gh release upload ${VERSION} builds/${VERSION}/full-output/*.zip
+        gh release upload ${VERSION} builds/${VERSION}/firmware/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

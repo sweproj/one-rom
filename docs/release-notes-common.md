@@ -8,15 +8,15 @@ The most flexible ROM replacement for your retro computer.
 
 ## Quick Start
 
-**Most users:** Depending on your flashing method, either download the **bin-*.zip** files or the **elf-*.zip** files.
+If you have a One ROM USB, you can use the web-based [One ROM USB Programmer](https://onerom.piers.rocks/) to flash the firmware directly from your browser.
 
-**For developers:** Download **full-*.zip** files for complete build outputs including disassembly and map files
+For a non-USB One ROM, choose the binary image below matching your hardware and chosen ROM image(s), and flash it to your One ROM.
 
 ## File Types
 
-- **bin-stm32_variant.zip** - Binary files for STM32 variant (ready to flash)
-- **elf-stm32_variant.zip** - ELF firmware files for STM32 variant (ready to flash)
-- **full-stm32_variant.zip** - Complete build output (bin/elf/dis/map files)
+- **onerom-{hw-rev}-{mcu}-{rom-config}.bin** - Single binary file for a specific hardware revision, MCU variant and ROM configuration, ready to flash
+- **onerom-{hw-rev}-{mcu}.zip** - Zip of binaries for a specific hardware revision and MCU variant, ready to flash
+- **manifest.json** - JSON manifest file listing all available firmware images, their hardware and ROM configurations, and SHA256 checksums, for use by automated tooling.
 
 ## Supported Configurations
 
@@ -31,12 +31,13 @@ Each zip firmware with a selection of ROM images for multiple system configurati
 
 Firmware for ROM image configurations that require explicit licence acceptance (for example ['c64'](/config/c64.mk)) are not included in the release, and neither are multi-ROM and bank switched sets.  You can build them yourself, by following instructions in the [README](/README.md) and [INSTALL](/INSTALL.md).
 
+There are more hardware, MCU and other build configurations options supported by One ROM than are included in the release artifacts.  You can build them yourself, by following instructions in the [README](/README.md) and [INSTALL](/INSTALL.md).
+
 ## Installation
 
-1. Download the appropriate **bin-*.zip** for your STM32 variant
-2. Extract the zip file  
-3. Flash the desired configuration file (e.g., **vic20-pal-f411re.bin**) to your STM32
-4. Connect according to your hardware setup
+1. Download the appropriate **.bin** for your hardware and desired ROM configuration
+2. Flash the desired binary to your One ROM
+3. Install One ROM into your retro computer
 
 ## Support
 

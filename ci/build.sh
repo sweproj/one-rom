@@ -4,7 +4,7 @@
 # build.sh - Build all MCU variant and config combinations for One ROM project
 #
 # This script automates building all combinations of MCU variants and configuration
-# files for the software-defined-retro-rom project. It supports both CI builds
+# files for the one-rom project. It supports both CI builds
 # (for automated testing), specific test builds (for build system validation), 
 # and release builds (with packaging).
 #
@@ -15,7 +15,7 @@
 #   ci/build.sh clean           - Delete builds/ directory
 #
 # Configuration files:
-#   ci/mcu-variants.txt         - List of MCU variants to build (one per line)
+#   ci/build-variants.txt       - List of MCU variants to build (one per line)
 #   ci/blacklist-config.txt     - Configs to skip building (one per line)
 #   ci/size-incompatible.txt    - Config+MCU combinations that don't fit in flash
 #   ci/tests.txt                - Specific option combinations to test
@@ -33,11 +33,11 @@ set -e  # Exit immediately on any command failure
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BLACKLIST_FILENAME="blacklist-config.txt"
-MCU_VARIANTS_FILENAME="mcu-variants.txt"
+BUILD_VARIANTS_FILENAME="build-variants.txt"
 SIZE_INCOMPATIBLE_FILENAME="size-incompatible.txt"
 TESTS_FILENAME="tests.txt"
 BLACKLIST_FILE="${SCRIPT_DIR}/${BLACKLIST_FILENAME}"
-MCU_VARIANTS_FILE="${SCRIPT_DIR}/${MCU_VARIANTS_FILENAME}"
+BUILD_VARIANTS_FILE="${SCRIPT_DIR}/${BUILD_VARIANTS_FILENAME}"
 SIZE_INCOMPATIBLE_FILE="${SCRIPT_DIR}/${SIZE_INCOMPATIBLE_FILENAME}"
 TESTS_FILE="${SCRIPT_DIR}/${TESTS_FILENAME}"
 
@@ -53,7 +53,7 @@ usage() {
     echo "  clean             - Delete builds/ directory"
     echo ""
     echo "Configuration files:"
-    echo "  ci/${MCU_VARIANTS_FILENAME}      - MCU variants to build"
+    echo "  ci/${BUILD_VARIANTS_FILENAME}      - MCU variants to build"
     echo "  ci/${BLACKLIST_FILENAME}  - Configs to skip"
     echo "  ci/${SIZE_INCOMPATIBLE_FILENAME} - Size-incompatible combinations"
     echo "  ci/${TESTS_FILENAME}             - Specific test combinations"
@@ -84,13 +84,13 @@ get_bin_prefix() {
 }
 
 #
-# Load MCU variants from mcu-variants.txt file
+# Load MCU variants from build-variants.txt file
 # Returns: Array of variant names (one per line)
 #
 load_mcu_variants() {
     local variants=()
-    if [[ ! -f "${MCU_VARIANTS_FILE}" ]]; then
-        echo "ERROR: MCU variants file not found: ${MCU_VARIANTS_FILE}"
+    if [[ ! -f "${BUILD_VARIANTS_FILE}" ]]; then
+        echo "ERROR: MCU variants file not found: ${BUILD_VARIANTS_FILE}"
         exit 1
     fi
     
@@ -98,10 +98,10 @@ load_mcu_variants() {
         # Skip empty lines and comments (lines starting with #)
         [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
         variants+=("$line")
-    done < "${MCU_VARIANTS_FILE}"
+    done < "${BUILD_VARIANTS_FILE}"
     
     if [[ ${#variants[@]} -eq 0 ]]; then
-        echo "ERROR: No MCU variants found in ${MCU_VARIANTS_FILE}"
+        echo "ERROR: No MCU variants found in ${BUILD_VARIANTS_FILE}"
         exit 1
     fi
     
@@ -293,7 +293,7 @@ build_combination() {
         for env_var in "${env_vars[@]}"; do
             make_cmd="$env_var $make_cmd"
         done
-        make_cmd="$make_cmd make"
+        make_cmd="$make_cmd make gen firmware info"
         
         if eval "$make_cmd" > /dev/null; then
             success=1
@@ -404,21 +404,38 @@ execute_test() {
 # Args: mcu_variant, config_name, target_base_dir
 #
 organize_files() {
-    local mcu="$1"
+    local mcu_line="$1"
     local config="$2"
     local target_dir="$3"
     
+    # Parse MCU and env vars
+    mapfile -t parsed < <(parse_mcu_variant "$mcu_line")
+    local mcu="${parsed[0]}"
+    local env_vars=("${parsed[@]:1}")
+    
+    # Extract HW_REV from env_vars
+    local hw_rev=""
+    for env_var in "${env_vars[@]}"; do
+        if [[ "$env_var" =~ ^HW_REV= ]]; then
+            hw_rev="${env_var#HW_REV=}"
+            break
+        fi
+    done
+    
+    # Validate hw_rev exists
+    if [[ -z "$hw_rev" ]]; then
+        echo "ERROR: No HW_REV specified for MCU $mcu"
+        exit 1
+    fi
+    
     local build_dir="${PROJECT_ROOT}/sdrr/build"
     local base_name="$(get_bin_prefix "$mcu")"
-    local dest_dir="${target_dir}/${mcu}/${config}"
+    local dest_dir="${target_dir}/${hw_rev}/${mcu}/${config}"
     
-    # Create destination directory structure
     mkdir -p "$dest_dir"
     
-    # Copy all build artifacts to organized location
-    for ext in bin dis elf map; do
-        cp "${build_dir}/${base_name}.${ext}" "$dest_dir/"
-    done
+    # Copy only .bin files
+    cp "${build_dir}/${base_name}.bin" "$dest_dir/"
 }
 
 #
@@ -431,47 +448,59 @@ create_zips() {
     
     echo "Creating zip files..."
     
-    # Create firmware and full-output directories
+    # Create firmware directory
     mkdir -p "${builds_dir}/firmware"
-    mkdir -p "${builds_dir}/full-output"
     
-    # Load MCU variants
-    mapfile -t mcu_variants < <(load_mcu_variants)
-
-    for mcu_line in "${mcu_variants[@]}"; do
-        # Parse MCU name from variant line
-        mapfile -t parsed_mcu < <(parse_mcu_variant "$mcu_line")
-        local mcu="${parsed_mcu[0]}"
+    # Create a temp directory for organizing files before zipping
+    local temp_dir=$(mktemp -d)
+    
+    # Iterate through all hw_rev directories
+    for hw_rev_dir in "${builds_dir}"/*; do
+        # Skip if not a directory or if it's the firmware directory itself
+        [[ ! -d "$hw_rev_dir" || "$(basename "$hw_rev_dir")" == "firmware" ]] && continue
         
-        if [[ -d "${builds_dir}/${mcu}" ]]; then
-            # Create firmware-only zip (just .elf files, renamed with config names)
-            cd "${builds_dir}/${mcu}"
-            for config_dir in */; do
-                config_name=$(basename "$config_dir")
-                local bin_prefix="$(get_bin_prefix "$mcu")"
-                if [[ -f "${config_dir}${bin_prefix}.elf" ]]; then
-                    zip -j "${builds_dir}/firmware/elf-${mcu}.zip" "${config_dir}${bin_prefix}.elf" > /dev/null
-                    # Rename the file in the zip to use config name
-                    (cd /tmp && unzip -q "${builds_dir}/firmware/elf-${mcu}.zip" "${bin_prefix}.elf" && mv "${bin_prefix}.elf" "${config_name}-${mcu}.elf" && zip -u "${builds_dir}/firmware/elf-${mcu}.zip" "${config_name}-${mcu}.elf" && zip -d "${builds_dir}/firmware/elf-${mcu}.zip" "${bin_prefix}.elf")                fi
-            done
-            echo "Created firmware/elf-${mcu}.zip"
-
-            # Create bin-only zip (just .bin files, renamed with config names)
-            for config_dir in */; do
-                config_name=$(basename "$config_dir")
-                if [[ -f "${config_dir}${bin_prefix}.bin" ]]; then
-                    zip -j "${builds_dir}/firmware/bin-${mcu}.zip" "${config_dir}${bin_prefix}.bin" > /dev/null
-                    # Rename the file in the zip to use config name
-                    (cd /tmp && unzip -q "${builds_dir}/firmware/bin-${mcu}.zip" "${bin_prefix}.bin" && mv "${bin_prefix}.bin" "${config_name}-${mcu}.bin" && zip -u "${builds_dir}/firmware/bin-${mcu}.zip" "${config_name}-${mcu}.bin" && zip -d "${builds_dir}/firmware/bin-${mcu}.zip" "${bin_prefix}.bin")                fi
-            done
-            echo "Created firmware/bin-${mcu}.zip"
+        local hw_rev=$(basename "$hw_rev_dir")
+        
+        # Iterate through all MCU directories within this hw_rev
+        for mcu_dir in "${hw_rev_dir}"/*; do
+            [[ ! -d "$mcu_dir" ]] && continue
             
-            # Create complete zip with full structure  
-            cd "${builds_dir}"
-            zip -r "full-output/full-${mcu}.zip" "${mcu}" > /dev/null
-            echo "Created full-output/full-${mcu}.zip"
-        fi
+            local mcu=$(basename "$mcu_dir")
+            local zip_name="onerom-${hw_rev}-${mcu}.zip"
+            
+            # Create temp subdir for this zip's contents
+            local zip_temp="${temp_dir}/${hw_rev}-${mcu}"
+            mkdir -p "$zip_temp"
+            
+            # Copy all .bin files with renamed filenames
+            for config_dir in "${mcu_dir}"/*; do
+                [[ ! -d "$config_dir" ]] && continue
+                
+                local config=$(basename "$config_dir")
+                local bin_prefix="$(get_bin_prefix "$mcu")"
+                local bin_file="${config_dir}/${bin_prefix}.bin"
+                
+                if [[ -f "$bin_file" ]]; then
+                    local new_name="onerom-${hw_rev}-${mcu}-${config}.bin"
+                    # Copy to temp for zipping
+                    cp "$bin_file" "${zip_temp}/${new_name}"
+                    # Also copy directly to firmware directory as individual artifact
+                    cp "$bin_file" "${builds_dir}/firmware/${new_name}"
+                fi
+            done
+            
+            # Create zip from temp directory if it has files
+            if [[ -n "$(ls -A "$zip_temp" 2>/dev/null)" ]]; then
+                cd "$zip_temp"
+                zip "${builds_dir}/firmware/${zip_name}" *.bin > /dev/null
+                echo "Created firmware/${zip_name}"
+                cd - > /dev/null
+            fi
+        done
     done
+    
+    # Clean up temp directory
+    rm -rf "$temp_dir"
     
     # Return to project root
     cd "${PROJECT_ROOT}"
@@ -522,6 +551,10 @@ main() {
         # Initial clean to ensure we start with a clean slate
         echo "Performing initial clean..."
         make clean > /dev/null 2>&1 || true
+
+        # Build sdrr-gen once
+        echo "Building sdrr-gen (this will take a little while)..."
+        make sdrr-gen
     
         mkdir -p "$target_dir"
         
@@ -538,20 +571,26 @@ main() {
             total_tests=$((total_tests + 1))
             
             if execute_test "$test_line" "$total_tests"; then
-                # Test succeeded, organize the output files for verification
-                # Extract MCU variant from test line for organizing files
+                # Extract MCU and HW_REV from test line
                 IFS=':' read -r test_name test_vars <<< "$test_line"
                 local mcu_variant=""
+                local hw_rev=""
+                
                 if [[ -n "$test_vars" ]]; then
                     IFS=',' read -ra var_pairs <<< "$test_vars"
                     for var_pair in "${var_pairs[@]}"; do
                         if [[ "$var_pair" =~ ^MCU= ]]; then
                             mcu_variant="${var_pair#MCU=}"
-                            break
+                        elif [[ "$var_pair" =~ ^HW_REV= ]]; then
+                            hw_rev="${var_pair#HW_REV=}"
                         fi
                     done
                 fi
-                organize_files "$mcu_variant" "$test_name" "$target_dir"
+                
+                # Reconstruct variant line format for organize_files
+                local variant_line="${mcu_variant}:HW_REV=${hw_rev}"
+                organize_files "$variant_line" "$test_name" "$target_dir"
+
                 successful_tests=$((successful_tests + 1))
             else
                 echo "ERROR: Test failed, stopping"
@@ -588,6 +627,7 @@ main() {
         
         # Create zip files
         create_zips "$version"
+        generate_manifest "$version"
         echo "Release ${version} packaging complete"
         echo "Firmware zips: ${target_dir}/firmware/*-firmware.zip"
         echo "Complete zips: ${target_dir}/full-output/*-all.zip"
@@ -598,6 +638,10 @@ main() {
         # Initial clean to ensure we start with a clean slate
         echo "Performing initial clean..."
         make clean > /dev/null 2>&1 || true
+
+        # Build sdrr-gen once
+        echo "Building sdrr-gen (this will take a little while)..."
+        make sdrr-gen
 
         # Ensure target directory exists
         mkdir -p "$target_dir"
@@ -647,7 +691,7 @@ main() {
                 # Attempt to build this combination
                 if build_combination "$mcu_line" "$config"; then
                     # Build succeeded, organize the output files
-                    organize_files "$mcu" "$config" "$target_dir"
+                    organize_files "$mcu_line" "$config" "$target_dir"
                     successful_builds=$((successful_builds + 1))
                 else
                     echo "ERROR: Build failed for MCU=${mcu} CONFIG=${config}"
@@ -668,6 +712,193 @@ main() {
         echo "CI build complete"
         echo "Files organized in: $target_dir"
     fi
+}
+
+#
+# Generate manifest JSON for release artifacts
+# Args: version_string
+#
+generate_manifest() {
+    local version="$1"
+    local builds_dir="${PROJECT_ROOT}/builds/${version}"
+    local firmware_dir="${builds_dir}/firmware"
+    local manifest_file="${firmware_dir}/manifest.json"
+    
+    echo "Generating manifest..."
+    
+    # Get GitHub repo info (try from git remote, fallback to env vars)
+    local github_repo="${GITHUB_REPOSITORY:-}"
+    if [[ -z "$github_repo" ]]; then
+        # Try to extract from git remote
+        local git_remote=$(git remote get-url origin 2>/dev/null || echo "")
+        if [[ "$git_remote" =~ github.com[:/]([^/]+/[^/.]+) ]]; then
+            github_repo="${BASH_REMATCH[1]}"
+            # Remove .git suffix if present
+            github_repo="${github_repo%.git}"
+        fi
+    fi
+    
+    if [[ -z "$github_repo" ]]; then
+        echo "ERROR: Could not determine GitHub repository. Set GITHUB_REPOSITORY env var or ensure git remote is configured."
+        exit 1
+    fi
+    
+    # Function to get model from MCU
+    get_model() {
+        local mcu="$1"
+        if [[ "$mcu" =~ ^rp.* ]]; then
+            echo "fire"
+        elif [[ "$mcu" =~ ^f.* ]]; then
+            echo "ice"
+        else
+            echo "unknown"
+        fi
+    }
+    
+    # Function to get display name for hardware revision
+    get_hw_display() {
+        local hw_rev="$1"
+        case "$hw_rev" in
+            24-h) echo "H/H2" ;;
+            24-g) echo "G" ;;
+            24-f) echo "F" ;;
+            p24-a) echo "A/A2" ;;
+            *) echo "$hw_rev" ;;  # Default to hw_rev itself
+        esac
+    }
+    
+    # Start building JSON
+    local hardware_json="{"
+    local artifacts_json="["
+    local first_hw=true
+    local first_artifact=true
+    
+    # Collect hardware metadata
+    for hw_rev_dir in "${builds_dir}"/*; do
+        [[ ! -d "$hw_rev_dir" || "$(basename "$hw_rev_dir")" == "firmware" ]] && continue
+        
+        local hw_rev=$(basename "$hw_rev_dir")
+        
+        # Read hardware config JSON if it exists
+        local hw_config_file="${PROJECT_ROOT}/sdrr-hw-config/${hw_rev}.json"
+        if [[ -f "$hw_config_file" ]]; then
+            local description=$(jq -r '.description // ""' "$hw_config_file")
+            local usb_support=$(jq -r '.mcu.usb.present // false' "$hw_config_file")
+            local display=$(get_hw_display "$hw_rev")
+            
+            # Add to hardware JSON
+            if [[ "$first_hw" == true ]]; then
+                first_hw=false
+            else
+                hardware_json+=","
+            fi
+            
+            hardware_json+="\"${hw_rev}\":{\"display\":\"${display}\",\"description\":\"${description}\",\"usb_support\":${usb_support}}"
+        fi
+    done
+    hardware_json+="}"
+
+    # Build rom_configs JSON
+    local rom_configs_json="{"
+    local first_config=true
+
+    for config_file in "${PROJECT_ROOT}/config"/*.mk; do
+        [[ ! -f "$config_file" ]] && continue
+        
+        local config_name=$(basename "$config_file" .mk)
+        local description=$(extract_config_description "$config_file")
+        
+        if [[ "$first_config" == true ]]; then
+            first_config=false
+        else
+            rom_configs_json+=","
+        fi
+        
+        rom_configs_json+="\"${config_name}\":{\"description\":\"${description}\"}"
+    done
+    rom_configs_json+="}"
+    
+    # Build artifacts list
+    for hw_rev_dir in "${builds_dir}"/*; do
+        [[ ! -d "$hw_rev_dir" || "$(basename "$hw_rev_dir")" == "firmware" ]] && continue
+        
+        local hw_rev=$(basename "$hw_rev_dir")
+        
+        for mcu_dir in "${hw_rev_dir}"/*; do
+            [[ ! -d "$mcu_dir" ]] && continue
+            
+            local mcu=$(basename "$mcu_dir")
+            local model=$(get_model "$mcu")
+            
+            for config_dir in "${mcu_dir}"/*; do
+                [[ ! -d "$config_dir" ]] && continue
+                
+                local config=$(basename "$config_dir")
+                local filename="onerom-${hw_rev}-${mcu}-${config}.bin"
+                local filepath="${firmware_dir}/${filename}"
+                local url="https://github.com/${github_repo}/releases/download/${version}/${filename}"
+                
+                # Calculate SHA256 checksum
+                local sha256=""
+                if [[ -f "$filepath" ]]; then
+                    sha256=$(sha256sum "$filepath" | awk '{print $1}')
+                fi
+                
+                # Add to artifacts JSON
+                if [[ "$first_artifact" == true ]]; then
+                    first_artifact=false
+                else
+                    artifacts_json+=","
+                fi
+                
+                artifacts_json+="{\"hw_rev\":\"${hw_rev}\",\"mcu\":\"${mcu}\",\"model\":\"${model}\",\"rom_config\":\"${config}\",\"filename\":\"${filename}\",\"url\":\"${url}\",\"sha256\":\"${sha256}\"}"
+            done
+        done
+    done
+    artifacts_json+="]"
+    
+    # Build models JSON (static for now)
+    local models_json="{\"ice\":{\"display\":\"Ice\"},\"fire\":{\"display\":\"Fire\"}}"
+    
+    # Combine into final manifest
+    local manifest="{\"version\":\"${version}\",\"hardware\":${hardware_json},\"models\":${models_json},\"rom_configs\":${rom_configs_json},\"artifacts\":${artifacts_json}}"
+    
+    # Pretty-print and save
+    echo "$manifest" | jq '.' > "$manifest_file"
+    
+    echo "Generated manifest: ${manifest_file}"
+}
+
+#
+# Extract description from config .mk file
+# Args: config_file_path
+# Returns: description text (multi-line comments from top of file)
+#
+extract_config_description() {
+    local config_file="$1"
+    local description=""
+    local in_header=true
+    
+    while IFS= read -r line; do
+        # Skip empty lines at start
+        if [[ -z "$line" ]] && [[ -z "$description" ]]; then
+            continue
+        fi
+        
+        # If line starts with #, extract the comment
+        if [[ "$line" =~ ^#[[:space:]]?(.*) ]]; then
+            local text="${BASH_REMATCH[1]}"
+            if [[ -n "$description" ]]; then
+                description+="\\n"
+            fi
+            description+="$text"
+        # Stop at first non-comment, non-empty line
+        elif [[ -n "$line" ]]; then
+            break
+        fi
+    done < "$config_file"
+    
+    echo "$description"
 }
 
 # Execute main function with all script arguments

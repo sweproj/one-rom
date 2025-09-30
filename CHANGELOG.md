@@ -2,7 +2,17 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.4.4 - 2025-??-??
+## v0.4.4 - 2025-09-30
+
+This is a point release that changes the release artifact generation, to set up the One ROM USB programmer to be able to offer to flash pre-built firmware images from the release artifacts.
+
+Release artifact change summary:
+- Include additional hardware variants
+- Only include .bin files (not .elf, .dis, .map) in the release artifacts.
+- Remove some of the less common STM32 variants from the release artifacts (to save build time and space)
+- Include a build artifact manifest JSON file. 
+
+If the particular release artifact you want is no longer included, you can build it yourself from source.
 
 ### Changes
 
@@ -11,6 +21,9 @@ Updated:
   - Added the ability to select a local file as the firmware source, in addition to a URL.
   - Add check to prevent non-USB firmware being flashed.
   - Add check to ensure the MCU the firmware was build for matches the MCU the user selected.
+- CI build process, to create release artifacts:
+  - Now only creates .bin files (not .elf, .dis, .map) - if you want the other types, build them yourself.
+  - Creates images for multiple different hardware revisions.
 
 ## v0.4.3 - 2025-09-29
 
