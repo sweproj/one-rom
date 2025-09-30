@@ -1,5 +1,5 @@
 # Serves a pair of stock ROMs for a PAL VIC20 - both kernal and basic ROMs.
-# One ROM cannot also serve the character ROM for the VIC20, as it has a different data bus to the kernal and basic ROMs.
+# A single One ROM cannot serve the character ROM for the VIC20 at the same time as the KERNAL and BASIC ROMs, as it has a different data bus to the kernal and basic ROMs.
 #
 # The VIC20 dead test kernal ROM is installed as set 1.
 #
