@@ -114,7 +114,7 @@ Revisions E and F have 4 image select jumpers, with the least significant bit on
 
 Revision G has 5 image select jumpers, with the least significant bit on the **right**.
 
-<img src="./images/sel-ef.png" alt="Image Selection Jumpers for STM revs E/F" width="50%">
+<img src="./images/sel-g.png" alt="Image Selection Jumpers for STM revs G" width="50%">
 
 ### RP2350 Revision A Image Selection Jumpers
 
