@@ -525,18 +525,17 @@ Please upload your firmware .bin file if possible.
         
         async init() {
             try {
-                // Fetch releases list from GitHub API
-                const response = await fetch('https://api.github.com/repos/piersfinlayson/one-rom/releases');
-                if (!response.ok) throw new Error('Failed to fetch releases');
+                // Fetch releases list from your repo
+                const response = await fetch('https://raw.githubusercontent.com/piersfinlayson/one-rom/main/releases/releases.json');
+                if (!response.ok) throw new Error('Failed to fetch releases list');
                 
                 const releases = await response.json();
                 
-                // Load manifests from latest to oldest
-                for (const release of releases) {
+                // Load manifests from latest to oldest (reverse order since we append to the list)
+                for (const release of releases.reverse()) {
                     try {
-                        // Construct URL to fetch from your repo's releases/ directory
-                        const manifestUrl = `https://raw.githubusercontent.com/piersfinlayson/one-rom/main/releases/manifest-${release.tag_name}.json`;
-                        
+                        // Fetch the manifest for this release
+                        const manifestUrl = `https://raw.githubusercontent.com/piersfinlayson/one-rom/main/releases/manifest-${release.tag}.json`;
                         const manifestResponse = await fetch(manifestUrl);
                         
                         if (manifestResponse.ok) {
@@ -552,7 +551,6 @@ Please upload your firmware .bin file if possible.
                             }
                         }
                     } catch (e) {
-                        // Skip releases without manifest or with fetch errors
                         continue;
                     }
                 }

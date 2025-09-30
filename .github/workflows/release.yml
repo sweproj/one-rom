@@ -38,19 +38,32 @@ jobs:
       
     - name: Commit manifest.json back to repo
       run: |
+        # Checkout main branch
+        git fetch origin main
+        git checkout main
+        
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Copy manifest to a releases directory
         mkdir -p releases
+        
+        # Copy manifest with version
         cp builds/${{ steps.version.outputs.VERSION }}/firmware/manifest.json releases/manifest-${{ steps.version.outputs.VERSION }}.json
         
-        # Also update a "latest" manifest
+        # Also update latest manifest
         cp builds/${{ steps.version.outputs.VERSION }}/firmware/manifest.json releases/manifest-latest.json
         
+        # Update or create releases.json
+        if [ -f releases/releases.json ]; then
+        jq '. += [{"tag": "${{ steps.version.outputs.VERSION }}", "date": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}]' releases/releases.json > releases/releases.json.tmp
+        mv releases/releases.json.tmp releases/releases.json
+        else
+        echo '[{"tag": "${{ steps.version.outputs.VERSION }}", "date": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}]' > releases/releases.json
+        fi
+        
         git add releases/
-        git commit -m "Add manifest for ${{ steps.version.outputs.VERSION }}"
-        git push
+        git commit -m "Add manifest and update releases list for ${{ steps.version.outputs.VERSION }}"
+        git push origin main
 
     - name: Read release notes
       id: release_notes
