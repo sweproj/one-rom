@@ -2,9 +2,9 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.4.5 - 2025-09-30
+## v0.4.5 - 2025-??-??
 
-Add a new tab to the One ROM USB Programmer to flash pre-built firmware images from github's release artifacts.
+Moved USB programmer site to https://github.com/piersfinlayson/one-rom-site.
 
 ## v0.4.4 - 2025-09-30
 
