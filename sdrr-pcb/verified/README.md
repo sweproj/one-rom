@@ -15,6 +15,9 @@ The current recommended hardware revision is A.  The RP2350 design is less matur
 
 The current recommended hardware revision is G, although it has only been verified with STM32F411RET6.  It is highly likely to work with all of the other supports models.
 
+- [Rev H](./stm32f4-24-pin-rev-h/README.md)
+  - `HW_REV=24-h`
+  - First USB version of One ROM Ice
 - [Rev G](./stm32f4-24-pin-rev-g/README.md)
   - `HW_REV=24-g`
   - Partially verified, using STM32F411RET6.

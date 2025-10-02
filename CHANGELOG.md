@@ -4,7 +4,15 @@ All notables changes between versions are documented in this file.
 
 ## v0.4.5 - 2025-??-??
 
-Moved USB programmer site to https://github.com/piersfinlayson/one-rom-site.
+### New
+
+- Added One ROM Ice USB H2 (unverified).
+- Added One Rom Ice USB H (verified) kicad files.
+- Added One ROM Fire USB B (unverified)
+
+### Changes
+
+Moved USB programmer site to https://github.com/piersfinlayson/one-rom-site repo.
 
 ## v0.4.4 - 2025-09-30
 
