@@ -2,6 +2,12 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.5.1 - 2025-??-??
+
+### Fixes
+
+- Make "no ROMs installed" LED blink pattern slower, to be more visible.  Now on for 0.5s, off for 2.5s.  Previously flashed much too fast to be used properly.
+
 ## v0.5.0 - 2025-10-07
 
 This release adds a bunch of hardware revisions, plus a modified flash and firmware format, to ease future device re-programming.

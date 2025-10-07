@@ -184,9 +184,10 @@ int main(void) {
 
     if (sdrr_info.metadata_header->rom_set_count == 0) {
         // Brief blink pattern to indicate no ROM being served.  Stays off for
-        // a tenth of the time as it is on.
+        // a fifth of the time as it is on.  Exact timings depend on clock
+        // speed.  At 100MHz this is roughly 0.5s on 2.5s off.
         while (1) {
-            blink_pattern(100000, 1000000, 1);
+            blink_pattern(5000000, 25000000, 1);
         }
     }
 
