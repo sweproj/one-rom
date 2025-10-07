@@ -151,19 +151,24 @@ int main(void) {
     }
 #endif // STM32F4
 
-    sdrr_runtime_info.rom_set_index = get_rom_set_index();
-    const sdrr_rom_set_t *set = rom_set + sdrr_runtime_info.rom_set_index;
+    const sdrr_rom_set_t *set = NULL;
+    if (sdrr_info.metadata_header->rom_set_count > 0) {
+        sdrr_runtime_info.rom_set_index = get_rom_set_index();
+        set = sdrr_info.metadata_header->rom_sets + sdrr_runtime_info.rom_set_index;
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)
-    // Set up the ROM table
-    if (sdrr_info.preload_image_to_ram) {
-        sdrr_runtime_info.rom_table = preload_rom_image(set);
-    } else {
-        // If we are not preloading the ROM image, we need to set up the
-        // rom_table to point to the flash location of the ROM image.
-        sdrr_runtime_info.rom_table = (void *)&(set->data[0]);
-    }
-    sdrr_runtime_info.rom_table_size = set->size;
+        // Set up the ROM table
+        if (sdrr_info.preload_image_to_ram) {
+            sdrr_runtime_info.rom_table = preload_rom_image(set);
+        } else {
+            // If we are not preloading the ROM image, we need to set up the
+            // rom_table to point to the flash location of the ROM image.
+            sdrr_runtime_info.rom_table = (void *)&(set->data[0]);
+        }
+        sdrr_runtime_info.rom_table_size = set->size;
 #endif // !TIMER_TEST && !TOGGLE_PA4
+    } else {
+        LOG("!!! No ROM sets in this firmware");
+    }
 
     // Startup MCO after preloading the ROM - this allows us to test (with a
     // scope), how long the startup takes.
@@ -175,6 +180,14 @@ int main(void) {
     // main loop - which might be running from RAM.
     if (sdrr_info.status_led_enabled) {
         setup_status_led();
+    }
+
+    if (sdrr_info.metadata_header->rom_set_count == 0) {
+        // Brief blink pattern to indicate no ROM being served.  Stays off for
+        // a tenth of the time as it is on.
+        while (1) {
+            blink_pattern(100000, 1000000, 1);
+        }
     }
 
     // Do final checks before entering the main loop

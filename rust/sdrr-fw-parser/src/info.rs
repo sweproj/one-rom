@@ -76,6 +76,9 @@ pub struct SdrrInfo {
 
     /// Extra information
     pub extra_info: Option<SdrrExtraInfo>,
+
+    /// Whether explicit metadata is included
+    pub metadata_present: bool,
 }
 
 impl SdrrInfo {

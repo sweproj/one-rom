@@ -123,7 +123,7 @@ typedef struct {
 } sdrr_pins_t;
 
 // Forward declarations
-struct sdrr_rom_set_t;
+struct onerom_metadata_header_t;
 
 // Extra information stored in flash
 typedef struct {
@@ -194,10 +194,13 @@ typedef struct {
     const uint8_t boot_logging_enabled;
     const uint8_t mco_enabled;
 
-    // Number of ROM sets - number of entries in the `rom_sets` array 
+    // Padding.
+    //
+    // In pre-v0.5.0 firmware, this was used as the number of ROM sets in the
+    // firmware.  We now indicate that within the metadata header.
     // Offset: 41
     // 1 byte
-    const uint8_t rom_set_count;
+    const uint8_t deprecated_rom_set_count;
 
     // Whether access count is enabled
     // Offset: 42
@@ -207,10 +210,15 @@ typedef struct {
     // Reserved for future use
     const uint8_t pad2[1];
     
-    // Pointer to array of ROM sets
+    // Pointer to metadata.
+    //
+    // In pre-v0.5.0 firmware versions this was used as a pointer to rom_sets.
+    // We have now added an addition structure and redirection to rom_sets,
+    // pointing to them within the metadata header.  
+    //
     // Offset: 44
     // 4 bytes
-    const struct sdrr_rom_set_t *rom_sets;
+    const struct onerom_metadata_header_t *metadata_header;
 
     // Pin allocation structure
     // Offset: 48
@@ -398,5 +406,39 @@ typedef struct sdrr_runtime_info_t {
 #define ENTER_BOOTLOADER_MAGIC 0x21554644
     uint32_t bootloader_entry;
 } sdrr_runtime_info_t;
+
+// One ROM Metadata Header
+//
+// Placed at the start of the metadata flash area to indicate:
+// - metadata version
+// - location of the actual metadata
+typedef struct onerom_metadata_header_t {
+    // Magic bytes to identify the metadata header
+    //
+    // Offset: 0
+    const char magic[16];  // "ONEROM_METADATA\0"
+
+    // Metadata version
+    //
+    // Offset: 16
+    const uint32_t version; // Metadata version - currently 1
+
+    // Number of installed ROM sets
+    // 
+    // Offset: 20
+    const uint8_t rom_set_count;
+    const uint8_t pad1[3];
+
+    // Pointer to array of ROM sets (also in metadata section)
+    //
+    // Offset: 24
+    const sdrr_rom_set_t *rom_sets;
+
+    // Reserved for future expansion.
+    //
+    // Offset: 28
+    const uint8_t reserved[228];
+
+} onerom_metadata_header_t;
 
 #endif // CONFIG_BASE_H

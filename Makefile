@@ -15,8 +15,8 @@
 #
 
 VERSION_MAJOR := 0
-VERSION_MINOR := 4
-VERSION_PATCH := 4
+VERSION_MINOR := 5
+VERSION_PATCH := 0
 BUILD_NUMBER := 1
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 export VERSION_MAJOR VERSION_MINOR VERSION_PATCH BUILD_NUMBER GIT_COMMIT
@@ -601,7 +601,7 @@ endif
 endif
 
 ifeq ($(ROM_CONFIGS),)
-  $(error - $(COLOUR_RED)ROM_CONFIGS not set$(COLOUR_RESET) - please set it to a valid value, or use the CONFIG variable to include a config file)
+  $(info - $(COLOUR_YELLOW)ROM_CONFIGS not set$(COLOUR_RESET) - no ROMs will be included in firmware)
 else
 ifneq ($(SUPPRESS_OUTPUT),1)
   $(info - ROM_CONFIGS=$(ROM_CONFIGS))

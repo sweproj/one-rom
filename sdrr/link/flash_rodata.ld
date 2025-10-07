@@ -7,5 +7,4 @@
     KEEP(*(.rodata*));
     . = ALIGN(4);
     _rodata_end = .;
-    _flash_end = .;
 } >FLASH

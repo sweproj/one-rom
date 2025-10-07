@@ -77,13 +77,13 @@ void log_init(void) {
 
     LOG("%s", log_divider);
     LOG("ROM info ...");
-    LOG("# of ROM sets: %d", sdrr_rom_set_count);
-    for (uint8_t ii = 0; ii < sdrr_rom_set_count; ii++) {
-        LOG("Set #%d: %d ROM(s), size: %d bytes", ii, rom_set[ii].rom_count, rom_set[ii].size);
+    LOG("# of ROM sets: %d", sdrr_info.metadata_header->rom_set_count);
+    for (uint8_t ii = 0; ii < sdrr_info.metadata_header->rom_set_count; ii++) {
+        LOG("Set #%d: %d ROM(s), size: %d bytes", ii, sdrr_info.metadata_header->rom_sets[ii].rom_count, sdrr_info.metadata_header->rom_sets[ii].size);
         
-        for (uint8_t jj = 0; jj < rom_set[ii].rom_count; jj++) {
+        for (uint8_t jj = 0; jj < sdrr_info.metadata_header->rom_sets[ii].rom_count; jj++) {
             const char *rom_type_str;
-            const sdrr_rom_info_t *rom = rom_set[ii].roms[jj];
+            const sdrr_rom_info_t *rom = sdrr_info.metadata_header->rom_sets[ii].roms[jj];
             switch (rom->rom_type) {
                 case ROM_TYPE_2364:
                     rom_type_str = r2364;

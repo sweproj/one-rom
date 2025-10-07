@@ -121,11 +121,6 @@ impl CsConfig {
 
 impl Config {
     pub fn validate(&mut self) -> Result<(), String> {
-        // Validate at least one ROM
-        if self.roms.is_empty() {
-            return Err("At least one ROM image must be provided".to_string());
-        }
-
         // Validate each ROM configuration
         for rom in &self.roms {
             rom.cs_config
@@ -187,8 +182,7 @@ impl Config {
         if self.hw.has_usb() && !self.mcu_variant.supports_usb_dfu() {
             return Err(format!(
                 "Selected hardware {} has USB, but variant {:?} does not support USB",
-                self.hw.name,
-                self.mcu_variant,
+                self.hw.name, self.mcu_variant,
             ));
         }
 

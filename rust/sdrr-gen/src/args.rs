@@ -25,7 +25,7 @@ use crate::file::{FileSource, check_output_dir, source_image_file};
 )]
 pub struct Args {
     /// ROM configuration (file=path,type=2364,cs1=0)
-    #[clap(long, alias = "rom-config", required_unless_present = "list_hw_revs")]
+    #[clap(long, alias = "rom-config")]
     rom: Vec<String>,
 
     /// MCU variant (f446rc, f446re, f411rc, f411re, f405rg, f401re, f401rb, f401rc, rp2350)

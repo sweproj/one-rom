@@ -131,7 +131,7 @@ $(ELF): $(OBJS) $(ROMS_OBJ) $(SDRR_CONFIG_OBJ) $(SEGGER_OBJS) $(LDSCRIPT) | $(BU
 # Generate binary
 $(BIN): $(ELF)
 	@echo "- Generating binary from sdrr/$< -> sdrr/$@"
-	@$(OBJCOPY) -O binary $< $@
+	@$(OBJCOPY) -O binary --gap-fill=0xff $< $@
 	@$(OBJDUMP) -D -m arm -S -t -h $< > $(DISASM)
 	@echo "----"
 	@echo "Build complete:"

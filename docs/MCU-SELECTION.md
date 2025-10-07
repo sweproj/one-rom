@@ -42,21 +42,21 @@ If you'd like an unsupported STM32 variant supported, please raise an issue via 
 
 ### Supported Microcontrollers
 
-The following table provides details about the supported STM32 and clone microcontrollers:
+The following table provides details about the supported STM32 and clone microcontrollers for One ROM Ice:
 
-| Model | Flash | RAM | Max Clock Speed | Max single ROM Images | Max mult-ROM sets | Build variant |
+| Model | Flash | RAM | Max Clock Speed | Max single ROM Images | Max multi-ROM sets | Build variant |
 |-------|-------|-----|-----------------|-----------------------|-------------|---------------|
-| STM32F401RBT6 | 128KB | 64KB | 84MHz | 6 | - | f401rb |
-| STM32F401RCT6 | 256KB | 64KB | 84MHz | 14 | - | f401rc |
+| STM32F401RBT6 | 128KB | 64KB | 84MHz | 4 | - | f401rb |
+| STM32F401RCT6 | 256KB | 64KB | 84MHz | 12 | - | f401rc |
 | STM32F401RET6 | 512KB | 96KB | 84MHz | 16 | 7 | f401re |
-| STM32F411RCT6 | 256KB | 128KB | 100MHz | 14 | 3 | f411rc |
+| STM32F411RCT6 | 256KB | 128KB | 100MHz | 12 | 3 | f411rc |
 | STM32F411RET6 | 512KB | 128KB | 100MHz | 16 | 7 | f411re |
-| GD32F405RGT6* | 1024KB | 128KB | 168MHz | 16 | 15 | f405rg |
-| STM32F405RGT6 | 1024KB | 128KB | 168MHz | 16 | 15 | f405rg |
-| STM32F446RCT6 | 256KB | 128KB | 180MHz | 16 | 3 | f446rc |
+| GD32F405RGT6* | 1024KB | 128KB | 168MHz | 32 | 15 | f405rg |
+| STM32F405RGT6 | 1024KB | 128KB | 168MHz | 32 | 15 | f405rg |
+| STM32F446RCT6 | 256KB | 128KB | 180MHz | 12 | 3 | f446rc |
 | STM32F446RETx | 512KB | 128KB | 180MHz | 16 | 7 | f446re |
 
-(*) The GD32F405RGT6 is currently preferred above the STM32F405RGT6 as it seems more highly performant.  See [this issue](https://github.com/piersfinlayson/software-defined-retro-rom/issues/8) for more details.
+(*) The GD32F405RGT6 is currently preferred above the STM32F405RGT6 as it seems more highly performant, although it has slower boot times.  See [this issue](https://github.com/piersfinlayson/software-defined-retro-rom/issues/8) for more details.
 
 Neither STM32F401RBT6 and STM32F401RCT6 have sufficient RAM to serve multi-ROM or banked sets of images, but they can serve single ROM images.
 
@@ -68,6 +68,10 @@ The vast majority of ROMs can be emulated by the cheapest variant, the F401.  Th
 The F401 may require a small overclock for some systems, such as running the C64 multi-ROM set (~90MHz vs 84MHz rated maximum).
 
 There are also cheap [clones available](/docs/STM32-CLONES.md), with a clone F405 coming in at around the same price as a genuine F411 (from LCSC).  The GD32F405RGT6 has been tested, and is a recommended MCU.
+
+For One ROM Fire boards, the RP2350A is the supported microcontroller, using ```MCU=rp2350```.  Flash is a separate chip, and is 2MB on the official boards.
+
+Therefore the maximum number single ROM images and multi-ROM sets are both 16 for One ROM Fire.  On hardware rev A, there are only 3 image select jumpers, so only 2^3 = 8 images can be selected via these jumpers.
 
 ### Clock Speed Requirements
 

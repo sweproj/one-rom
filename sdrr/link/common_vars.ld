@@ -13,3 +13,9 @@ _Sdrr_Info_Ram_Size = 0x100; /* 256 bytes */
 
 /* Offset from start of RAM for sdrr_info_t */
 _Sdrr_Info_Offset = 0x200;
+
+/* Amount of flash reserved at start for firmware */
+_Onerom_Flash_Size = 0xC000;
+
+/* Amount of flash reserved after firmware for metadata */
+_Onerom_Metadata_Size = 0x4000; 

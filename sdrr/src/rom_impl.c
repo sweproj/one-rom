@@ -511,7 +511,7 @@ uint8_t get_rom_set_index(void) {
     // Calculate the ROM image index based on the selection bits and number of
     // images installed in this firmware.  For example, if image 4 was selected
     // but there are only 3 images, it will select image 1.
-    rom_index = rom_sel % sdrr_rom_set_count;
+    rom_index = rom_sel % sdrr_info.metadata_header->rom_set_count;
 
     LOG("ROM sel/index %d/%d", rom_sel, rom_index);
 

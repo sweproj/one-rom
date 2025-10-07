@@ -4,7 +4,7 @@
 
 The most flexible ROM replacement for your retro computer.  It is highly configurable and low-cost.  Get them fabbed at JLC for under $5 each in a quantity of 10 or more.
 
-Based on a Raspberry Pi RP2350 or STM32F4 microcontroller.
+Based on a Raspberry Pi RP2350 (One ROM Fire 🔥) or STM32F4 (One ROM Ice ❄️).
 
 One ROM emulates any system's 2364, 2332 and 2316 ROMs, with any chip select configuration, and can serve different images to multiple ROM sockets simultaneously.
 
@@ -14,15 +14,15 @@ One ROM was formerly known as Software Defined Retro ROM (SDRR).
 
 ## Key Features
 
-💰 Based on sub-$2 microcontrollers.  [**Choose from Raspberry Pi or STM flavours**]((docs/MCU-SELECTION.md)).
+💰 Based on sub-$2 microcontrollers.  **[Choose from Raspberry Pi (Fire 🔥) or STM (Ice ❄️) flavours](docs/MCU-SELECTION.md)**.
 
 ⚡ **[Fast](docs/STM32-SELECTION.md)** enough for PETs, VIC-20s, C64s, 1541s, IEEE drives, etc. Support faster systems with higher end microcontroller.
 
 📐 **[Same footprint](docs/images/sdrr-24-pin-side.png)** as original ROMs - doesn't overhang the socket like other solutions.
 
-🚀 **[Quick programming](docs/PROGRAMMING.md)** - just connect 3 wires and `make run`. No programming jigs necessary.
+🔌 **[USB Version](https://onerom.org/prog/)** - no programmer required, program from your browser.
 
-🔌 **[Use a $5 programmer](docs/PI-PICO-PROGRAMMER.md)** - no expensive EEPROM programmer required.
+🚀 **[Quick programming](docs/PROGRAMMING.md)** - build and flash in <10 seconds.
 
 🛠️ **[Reflash in situ](docs/PROGRAMMING.md)** - no need to remove the ROM from the host when reprogramming.
 

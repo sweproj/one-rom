@@ -90,11 +90,11 @@ pub(crate) struct SdrrInfoHeader {
     pub status_led_enabled: u8,
     pub boot_logging_enabled: u8,
     pub mco_enabled: u8,
-    pub rom_set_count: u8,
+    pub rom_set_count: u8, // Deprecated as of v0.5.0
     pub count_rom_access: u8,
     #[deku(pad_bytes_before = "1")]
     #[deku(endian = "little")]
-    pub rom_sets_ptr: u32,
+    pub rom_sets_ptr: u32, // Changed as of v0.5.0 to be metadata pointer
     #[deku(endian = "little")]
     pub pins_ptr: u32,
     #[deku(bytes = "4")]
@@ -138,6 +138,31 @@ impl SdrrExtraInfoHeader {
             SdrrExtraInfoHeader::EXTRA_INFO_HEADER_SIZE
         );
         Self::EXTRA_INFO_HEADER_SIZE
+    }
+}
+
+#[derive(Debug, DekuRead, DekuWrite)]
+#[deku(endian = "little", magic = b"ONEROM_METADATA\0")]
+// Used internally to construct OneRomMetadataHeader
+//
+// Reflects onerom_metadata_header_t from `sdrr/include/config_base.h`
+pub(crate) struct OneRomMetadataHeaderInternal {
+    #[deku(endian = "little")]
+    pub version: u32,
+    #[deku(pad_bytes_after = "3")]
+    pub rom_set_count: u8,
+    #[deku(endian = "little")]
+    pub rom_sets_ptr: u32,
+    pub _reserved: [u8; 228],
+}
+
+impl OneRomMetadataHeaderInternal {
+    // Cannot assert this against SdrrInfoHeader size, as contains Vecs, which
+    // increase its size.
+    const ONE_ROM_METADATA_HEADER_SIZE: usize = 256;
+
+    pub(crate) const fn size() -> usize {
+        Self::ONE_ROM_METADATA_HEADER_SIZE
     }
 }
 
@@ -329,7 +354,7 @@ pub(crate) async fn read_extra_info<R: Reader>(
     base_addr: u32,
 ) -> Result<SdrrExtraInfo, String> {
     if ptr < base_addr {
-        return Err(format!("Invalid pointer: 0x{:08X}", ptr));
+        return Err(format!("ROM Extra Info invalid pointer: {ptr:#010X}"));
     }
 
     let mut buf = [0u8; SdrrExtraInfoHeader::size()];
@@ -347,6 +372,30 @@ pub(crate) async fn read_extra_info<R: Reader>(
     })
 }
 
+/// Read OneRomMetadataHeaderInfo
+pub(crate) async fn read_one_rom_metadata_header_info<R: Reader>(
+    reader: &mut R,
+    ptr: u32,
+    base_addr: u32,
+) -> Result<OneRomMetadataHeaderInternal, String> {
+    if ptr < base_addr {
+        return Err(format!(
+            "Failed to read One ROM metadata header as pointer invalid {ptr:#010X}"
+        ));
+    }
+
+    let mut buf = [0u8; OneRomMetadataHeaderInternal::size()];
+    reader
+        .read(ptr, &mut buf)
+        .await
+        .map_err(|_| format!("Failed to read One ROM metadata header at {ptr:#010X}"))?;
+
+    let (_, metadata) = OneRomMetadataHeaderInternal::from_bytes((&buf, 0))
+        .map_err(|e| format!("Failed to parse One ROM metadata header: {e}"))?;
+
+    Ok(metadata)
+}
+
 /// Read ROM sets from firmware
 pub(crate) async fn read_rom_sets<R: Reader>(
     reader: &mut R,
@@ -355,8 +404,14 @@ pub(crate) async fn read_rom_sets<R: Reader>(
     base_addr: u32,
     boot_logging_enabled: bool,
 ) -> Result<Vec<SdrrRomSet>, String> {
-    if ptr < base_addr || count == 0 {
+    if count == 0 {
         return Ok(Vec::new());
+    }
+
+    if ptr < base_addr {
+        return Err(format!(
+            "ROM set pointer {ptr:#010X} is below base address {base_addr:#010X}"
+        ));
     }
 
     let mut rom_sets = Vec::with_capacity(count as usize);
@@ -406,8 +461,14 @@ async fn read_rom_infos<R: Reader>(
     base_addr: u32,
     boot_logging_enabled: bool,
 ) -> Result<Vec<SdrrRomInfo>, String> {
-    if ptr < base_addr || count == 0 {
+    if count == 0 {
         return Ok(Vec::new());
+    }
+
+    if ptr < base_addr {
+        return Err(format!(
+            "ROM infos pointer {ptr:#010X} is below base address {base_addr:#010X}"
+        ));
     }
 
     let mut rom_infos = Vec::with_capacity(count as usize);

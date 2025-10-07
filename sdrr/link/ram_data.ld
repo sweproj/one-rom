@@ -1,6 +1,6 @@
 /* Data to be copied from flash to RAM */
 _sidata = LOADADDR(.data);
-.data :
+.data : AT(LOADADDR(.sdrr_runtime_info) + SIZEOF(.sdrr_runtime_info))
 {
     . = ALIGN(4);
     _sdata = .;
@@ -8,7 +8,9 @@ _sidata = LOADADDR(.data);
     *(.data*)
     . = ALIGN(4);
     _edata = .;
-} >RAM AT> FLASH
+} >RAM
+
+_flash_firmware_end = LOADADDR(.data) + SIZEOF(.data);
 
 /* Uninitialized data */
 .bss :

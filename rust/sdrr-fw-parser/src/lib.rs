@@ -38,8 +38,8 @@ use airfrog_rpc::io::Reader;
 
 /// Maximum SDRR firmware versions supported by this version of`sdrr-fw-parser`
 pub const MAX_VERSION_MAJOR: u16 = 0;
-pub const MAX_VERSION_MINOR: u16 = 4;
-pub const MAX_VERSION_PATCH: u16 = 4;
+pub const MAX_VERSION_MINOR: u16 = 5;
+pub const MAX_VERSION_PATCH: u16 = 0;
 
 // lib.rs - Public API and core traits
 pub mod info;
@@ -315,7 +315,7 @@ impl<'a, R: Reader> Parser<'a, R> {
     /// ```
     pub async fn parse_flash(&mut self) -> Result<SdrrInfo, String> {
         // Parse and validate header using the helper
-        let header = self.retrieve_header().await?;
+        let mut header = self.retrieve_header().await?;
 
         // Update our base address based on the header - before this we don't
         // need to have the correct base_flash_address set.  Base RAM is the
@@ -345,18 +345,68 @@ impl<'a, R: Reader> Parser<'a, R> {
         };
 
         // Parse extra info
-        let extra_info = match parsing::read_extra_info(
-            self.reader,
-            header.extra_ptr,
-            self.base_flash_address,
-        )
-        .await
-        {
-            Ok(info) => Some(info),
-            Err(e) => {
-                parse_errors.push(ParseError::new("Extra Info", e));
-                None
+        let extra_info =
+            match parsing::read_extra_info(self.reader, header.extra_ptr, self.base_flash_address)
+                .await
+            {
+                Ok(info) => Some(info),
+                Err(e) => {
+                    parse_errors.push(ParseError::new("Extra Info", e));
+                    None
+                }
+            };
+
+        // If necessary, parse OneRomMetadataHeader
+        let metadata_present = if header.major_version > 0 || header.minor_version > 4 {
+            // OneRomMetadataHeader should be parsed for 0.5.0 and above.  Its
+            // pointer is actually stored in rom_sets_ptr.
+            let metadata_ptr = header.rom_sets_ptr;
+            header.rom_set_count = 0;
+            header.rom_sets_ptr = 0;
+
+            match parsing::read_one_rom_metadata_header_info(
+                self.reader,
+                metadata_ptr,
+                self.base_flash_address,
+            )
+            .await
+            {
+                Ok(metadata) => {
+                    if metadata.version == 1 {
+                        if metadata.rom_set_count == 0 {
+                            true
+                        } else if metadata.rom_sets_ptr > 0 {
+                            // Update main header's ROM set info.
+                            header.rom_set_count = metadata.rom_set_count;
+                            header.rom_sets_ptr = metadata.rom_sets_ptr;
+                            true
+                        } else {
+                            parse_errors.push(ParseError::new(
+                                "Metadata",
+                                format!(
+                                    "Metadata: Invalid ROM sets pointer {}",
+                                    metadata.rom_sets_ptr
+                                ),
+                            ));
+                            false
+                        }
+                    } else {
+                        parse_errors.push(ParseError::new(
+                            "Metadata",
+                            format!("Metadata: Invalid version {}", metadata.version),
+                        ));
+                        false
+                    }
+                }
+                Err(e) => {
+                    // Set ROM set info to 0
+                    parse_errors.push(ParseError::new("Metadata", e));
+                    false
+                }
             }
+        } else {
+            // No metadata
+            false
         };
 
         // Parse ROM sets with error collection
@@ -369,7 +419,19 @@ impl<'a, R: Reader> Parser<'a, R> {
         )
         .await
         {
-            Ok(sets) => sets,
+            Ok(sets) => {
+                if sets.len() != header.rom_set_count as usize {
+                    parse_errors.push(ParseError::new(
+                        "Rom Sets",
+                        format!(
+                            "Incorrect number of ROM sets found: Found {}, expected {}",
+                            sets.len(),
+                            header.rom_set_count
+                        ),
+                    ));
+                }
+                sets
+            }
             Err(e) => {
                 parse_errors.push(ParseError::new("ROM Sets", e));
                 Vec::new()
@@ -378,9 +440,7 @@ impl<'a, R: Reader> Parser<'a, R> {
 
         // Parse pins
         let pins =
-            match parsing::read_pins(self.reader, header.pins_ptr, self.base_flash_address)
-                .await
-            {
+            match parsing::read_pins(self.reader, header.pins_ptr, self.base_flash_address).await {
                 Ok(p) => Some(p),
                 Err(e) => {
                     parse_errors.push(ParseError::new("Pins", e));
@@ -413,6 +473,7 @@ impl<'a, R: Reader> Parser<'a, R> {
             boot_config: header.boot_config,
             parse_errors,
             extra_info,
+            metadata_present,
         })
     }
 

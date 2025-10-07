@@ -6,3 +6,4 @@
 # Add combinations here that don't fit in flash memory
 
 pet-4-40-50 f401rb
+test-sdrr-0 f401rb

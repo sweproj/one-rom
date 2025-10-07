@@ -35,9 +35,7 @@ pub fn generate_files(config: &Config, rom_sets: &[RomSet]) -> Result<()> {
             OutType::RomsC => generate_roms_implementation_file(&filename, config, rom_sets)?,
             OutType::RomsH => generate_roms_header_file(&filename, config, rom_sets)?,
             OutType::SdrrConfigH => generate_sdrr_config_header(&filename, config)?,
-            OutType::SdrrConfigC => {
-                generate_sdrr_config_implementation(&filename, config, rom_sets)?
-            }
+            OutType::SdrrConfigC => generate_sdrr_config_implementation(&filename, config)?,
             OutType::GenMk => generate_makefile_fragment(&filename, config)?,
             OutType::LinkerLd => generate_linker_script(&filename, config)?,
             OutType::PlatformBootBlockLd => generate_platform_ld_script(&filename, config)?,
@@ -123,7 +121,9 @@ fn generate_roms_header_file(filename: &Path, config: &Config, rom_sets: &[RomSe
     // ROM set array
     writeln!(file, "// ROM set array")?;
     writeln!(file, "extern const uint8_t sdrr_rom_set_count;")?;
-    writeln!(file, "extern const sdrr_rom_set_t rom_set[SDRR_NUM_SETS];")?;
+    if !rom_sets.is_empty() {
+        writeln!(file, "extern const sdrr_rom_set_t rom_set[SDRR_NUM_SETS];")?;
+    }
     writeln!(file)?;
 
     writeln!(file, "#endif // SDRR_ROMS_H")?;
@@ -144,6 +144,41 @@ fn generate_roms_implementation_file(
     writeln!(file, "#include \"roms.h\"")?;
     writeln!(file)?;
 
+    // Generate metadata header (goes first in metadata section via linker)
+    writeln!(file, "//")?;
+    writeln!(file, "// Metadata header")?;
+    writeln!(file, "//")?;
+    if !rom_sets.is_empty() {
+        writeln!(file, "// Forward declaration of rom_set array")?;
+        writeln!(file, "extern const sdrr_rom_set_t rom_set[SDRR_NUM_SETS];")?;
+        writeln!(file)?;
+    }
+    writeln!(file, "__attribute__((section(\".metadata.header\")))")?;
+    writeln!(
+        file,
+        "const onerom_metadata_header_t onerom_metadata_header = {{"
+    )?;
+    writeln!(file, "    .magic = \"ONEROM_METADATA\",")?;
+    writeln!(file, "    .version = 1,")?;
+    writeln!(file, "    .rom_set_count = SDRR_NUM_SETS,")?;
+    writeln!(file, "    .pad1 = {{0, 0, 0}},")?;
+    if rom_sets.is_empty() {
+        writeln!(file, "    .rom_sets = (void *)0,")?;
+    } else {
+        writeln!(file, "    .rom_sets = rom_set,")?;
+    }
+    writeln!(file, "    .reserved = {{")?;
+    for _ in 0..28 {
+        writeln!(
+            file,
+            "        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,"
+        )?;
+    }
+    writeln!(file, "        0xff, 0xff, 0xff, 0xff,")?; // Last 4 bytes to make 228 total
+    writeln!(file, "    }},")?;
+    writeln!(file, "}};")?;
+    writeln!(file)?;
+
     // Generate filename strings (debug only)
     writeln!(file, "// ROM filenames (BOOT_LOGGING only)")?;
     writeln!(file, "#if defined(BOOT_LOGGING)")?;
@@ -156,6 +191,7 @@ fn generate_roms_implementation_file(
             .split('/')
             .next_back()
             .unwrap_or_else(|| panic!("Failed to extract valid filename from source: {}", source));
+        writeln!(file, "__attribute__((section(\".metadata.data\")))")?;
         writeln!(
             file,
             "static const char sdrr_rom_{}_filename[] = \"{}\";",
@@ -193,6 +229,7 @@ fn generate_roms_implementation_file(
     for (ii, rom_config) in config.roms.iter().enumerate() {
         writeln!(file, "// ROM {}", ii)?;
 
+        writeln!(file, "__attribute__((section(\".metadata.data\")))")?;
         writeln!(file, "static const sdrr_rom_info_t rom_{}_info = {{", ii)?;
 
         let cs1_state = cs_logic_to_enum(rom_config.cs_config.cs1);
@@ -251,6 +288,7 @@ fn generate_roms_implementation_file(
             "static const uint8_t rom_set_{}_data[];  // Forward declaration",
             ii
         )?;
+        writeln!(file, "__attribute__((section(\".metadata.data\")))")?;
         writeln!(
             file,
             "static const sdrr_rom_info_t * const rom_set_{}_roms[] = {{",
@@ -267,7 +305,9 @@ fn generate_roms_implementation_file(
     writeln!(file, "//")?;
     writeln!(file, "// ROM set array")?;
     writeln!(file, "//")?;
+    writeln!(file, "__attribute__((section(\".metadata.data\")))")?;
     writeln!(file, "const uint8_t sdrr_rom_set_count = SDRR_NUM_SETS;")?;
+    writeln!(file, "__attribute__((section(\".metadata.data\")))")?;
     writeln!(file, "const sdrr_rom_set_t rom_set[SDRR_NUM_SETS] = {{")?;
 
     for rom_set in rom_sets {
@@ -343,6 +383,7 @@ fn generate_roms_implementation_file(
         let ii = rom_set.id;
 
         writeln!(file, "// ROM set {} data", rom_set.id)?;
+        writeln!(file, "__attribute__((section(\".rom_data\")))")?;
         writeln!(
             file,
             "static const uint8_t rom_set_{}_data[ROM_SET_{}_DATA_SIZE] = {{",
@@ -613,17 +654,20 @@ fn generate_sdrr_config_header(filename: &Path, config: &Config) -> Result<()> {
 }
 
 // Generate sdrr_config.c implementation file
-fn generate_sdrr_config_implementation(
-    filename: &Path,
-    config: &Config,
-    rom_sets: &[RomSet],
-) -> Result<()> {
+fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Result<()> {
     let mut file = create_file(&config.output_dir, filename, FileType::C)?;
 
     writeln!(file, "#include \"sdrr_config.h\"")?;
     writeln!(file, "#include \"config_base.h\"")?;
     writeln!(file, "#include \"roms.h\"")?;
     writeln!(file, "#include \"SEGGER_RTT.h\"")?;
+    writeln!(file)?;
+
+    writeln!(
+        file,
+        "// Linker variable containing location of metadata header"
+    )?;
+    writeln!(file, "extern char _metadata_start;")?;
     writeln!(file)?;
 
     let hw = &config.hw;
@@ -784,14 +828,17 @@ fn generate_sdrr_config_implementation(
     )?;
 
     // ROM set info
-    writeln!(file, "    .rom_set_count = {},", rom_sets.len())?;
+    writeln!(file, "    .deprecated_rom_set_count = 0xFF,")?;
     writeln!(
         file,
         "    .count_rom_access = {},",
         if config.count_rom_access { 1 } else { 0 }
     )?;
     writeln!(file, "    .pad2 = {{0}},")?;
-    writeln!(file, "    .rom_sets = rom_set,")?;
+    writeln!(
+        file,
+        "    .metadata_header = (const struct onerom_metadata_header_t *)&_metadata_start,"
+    )?;
     writeln!(file, "    .pins = &sdrr_pins,")?;
 
     // Boot configuration - reserved for future use, set to 0xff

@@ -80,8 +80,8 @@ struct FirmwareData {
 }
 
 pub fn print_header() {
-    println!("Software Defined Retro ROM - Firmware Information");
-    println!("-------------------------------------------------");
+    println!("One ROM - Firmware Information");
+    println!("------------------------------");
 }
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -137,6 +137,15 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
 
     print_header();
     println!();
+
+    if !info.parse_errors.is_empty() {
+        println!("!!! Firmware Parse Errors !!!");
+        println!("-----------------------------");
+        for error in &info.parse_errors {
+            println!("{}", error);
+        }
+        println!();
+    }
 
     println!("Core Firmware Properties");
     println!("------------------------");
@@ -207,7 +216,16 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
         "Frequency:     {} MHz (Overclocking: {})",
         info.freq, info.overclock
     );
+    println!(
+        "ROM metadata:  {}",
+        if info.metadata_present {
+            "Present"
+        } else {
+            "Not present"
+        }
+    );
     println!();
+
     println!("Configurable Options");
     println!("--------------------");
 
@@ -228,7 +246,10 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
     } else {
         "false"
     };
-    println!("USB DFU:          {}", info.extra_info.as_ref().map(|e| e.usb_dfu).unwrap_or(false));
+    println!(
+        "USB DFU:          {}",
+        info.extra_info.as_ref().map(|e| e.usb_dfu).unwrap_or(false)
+    );
     println!("SWD enabled:      {}", info.swd_enabled);
     println!("Boot logging:     {}", info.boot_logging_enabled);
     println!("Status LED:       {}", info.status_led_enabled);

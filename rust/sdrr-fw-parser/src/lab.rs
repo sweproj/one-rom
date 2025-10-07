@@ -228,7 +228,7 @@ impl<'a, R: Reader> LabParser<'a, R> {
             .retrieve_flash_info()
             .await
             .inspect_err(|e| warn!("Failed to retrieve flash: {e}"))?;
-        
+
         let major_version = self
             .read_flash_str_at_ptr(info.major_version_len, info.major_version_ptr)
             .await

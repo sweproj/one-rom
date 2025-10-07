@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SDRR Firmware Parser Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .controls { margin-bottom: 20px; }
+        .controls > * { margin: 10px 0; }
+        #output { 
+            white-space: pre-wrap; 
+            border: 1px solid #ccc; 
+            padding: 10px;
+            background: #f5f5f5;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        button { padding: 5px 15px; }
+    </style>
+</head>
+<body>
+    <h1>SDRR Firmware Parser</h1>
+    
+    <div class="controls">
+        <div>
+            <label>Firmware File: <input type="file" id="fileInput" accept=".bin,.elf"></label>
+        </div>
+        <div>
+            <button id="parseBtn">Parse Firmware</button>
+        </div>
+    </div>
+
+    <div id="output">Select a firmware file and click Parse Firmware</div>
+
+    <script type="module">
+        import init, { parse_firmware } from '../../pkg/onerom_wasm.js';
+        
+        await init();
+
+        const fileInput = document.getElementById('fileInput');
+        const parseBtn = document.getElementById('parseBtn');
+        const output = document.getElementById('output');
+
+        parseBtn.addEventListener('click', async () => {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                output.textContent = 'Please select a file first';
+                return;
+            }
+
+            try {
+                output.textContent = 'Loading file...';
+                
+                const file = fileInput.files[0];
+                const arrayBuffer = await file.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                
+                output.textContent = 'Parsing firmware...';
+                
+                const result = await parse_firmware(data);
+                
+                output.textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                output.textContent = `Error: ${error}`;
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
