@@ -4,6 +4,10 @@ All notables changes between versions are documented in this file.
 
 ## v0.5.1 - 2025-??-??
 
+### New
+
+- [Atari 800XL BASIC ROM config](/config/atari800xl.mk) included
+
 ### Fixes
 
 - Make "no ROMs installed" LED blink pattern slower, to be more visible.  Now on for 0.5s, off for 2.5s.  Previously flashed much too fast to be used properly.
