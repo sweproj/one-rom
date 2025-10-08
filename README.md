@@ -8,7 +8,7 @@ Based on a Raspberry Pi RP2350 (One ROM Fire 🔥) or STM32F4 (One ROM Ice ❄�
 
 One ROM emulates any system's 2364, 2332 and 2316 ROMs, with any chip select configuration, and can serve different images to multiple ROM sockets simultaneously.
 
-Replaces failed ROMs in Commodore 64s, VIC-20s, PETs, disk drives and another brands of retro systems.
+Replaces failed ROMs in Commodore 64s, VIC-20s, PETs, disk drives and another brands of retro systems, including Atari, TI, etc.
 
 One ROM was formerly known as Software Defined Retro ROM (SDRR).
 
