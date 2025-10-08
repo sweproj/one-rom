@@ -50,11 +50,11 @@ The following table provides details about the supported STM32 and clone microco
 | STM32F401RCT6 | 256KB | 64KB | 84MHz | 12 | - | f401rc |
 | STM32F401RET6 | 512KB | 96KB | 84MHz | 16 | 7 | f401re |
 | STM32F411RCT6 | 256KB | 128KB | 100MHz | 12 | 3 | f411rc |
-| STM32F411RET6 | 512KB | 128KB | 100MHz | 16 | 7 | f411re |
+| STM32F411RET6 | 512KB | 128KB | 100MHz | 28 | 7 | f411re |
 | GD32F405RGT6* | 1024KB | 128KB | 168MHz | 32 | 15 | f405rg |
 | STM32F405RGT6 | 1024KB | 128KB | 168MHz | 32 | 15 | f405rg |
 | STM32F446RCT6 | 256KB | 128KB | 180MHz | 12 | 3 | f446rc |
-| STM32F446RETx | 512KB | 128KB | 180MHz | 16 | 7 | f446re |
+| STM32F446RETx | 512KB | 128KB | 180MHz | 28 | 7 | f446re |
 
 (*) The GD32F405RGT6 is currently preferred above the STM32F405RGT6 as it seems more highly performant, although it has slower boot times.  See [this issue](https://github.com/piersfinlayson/software-defined-retro-rom/issues/8) for more details.
 
