@@ -8,6 +8,10 @@ All notables changes between versions are documented in this file.
 
 - [Atari 800XL BASIC ROM config](/config/atari800xl.mk) included
 
+### Changes
+
+- Call out from sdrr-gen to wget to retrieve images located on sourceforge, as cloudfare seems to spot and block Rust TLS.
+
 ### Fixes
 
 - Make "no ROMs installed" LED blink pattern slower, to be more visible.  Now on for 0.5s, off for 2.5s.  Previously flashed much too fast to be used properly.

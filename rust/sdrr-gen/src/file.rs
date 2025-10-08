@@ -216,12 +216,48 @@ fn copy_local_file(src: &Path, dest: &Path) -> Result<(), String> {
 }
 
 fn download_file(url: &str) -> Result<Bytes, String> {
-    let response =
-        reqwest::blocking::get(url).map_err(|e| format!("Failed to download {url}: {e}"))?;
+    // For SourceForge, use wget/curl since their bot detection breaks reqwest
+    if url.contains("sourceforge.net") {
+        return download_with_wget(url);
+    }
+    
+    // Original reqwest logic for other URLs
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("Wget/1.21.3")
+        .cookie_store(true)
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
+    
+    let response = client
+        .get(url)
+        .header("Accept", "*/*")
+        .header("Accept-Encoding", "identity")
+        .header("Connection", "Keep-Alive")
+        .send()
+        .map_err(|e| format!("Failed to download {url}: {e}"))?;
 
     response
         .bytes()
         .map_err(|e| format!("Failed to read download {url}: {e}"))
+}
+
+fn download_with_wget(url: &str) -> Result<Bytes, String> {
+
+    println!("Falling back to wget");
+    let output = std::process::Command::new("wget")
+        .arg("-O")
+        .arg("-")
+        .arg("-q")
+        .arg(url)
+        .output()
+        .map_err(|e| format!("Failed to run wget: {e}"))?;
+    
+    if !output.status.success() {
+        return Err(format!("wget failed with status: {}", output.status));
+    }
+    
+    Ok(Bytes::from(output.stdout))
 }
 
 fn download_url(dest_file: &Path, url: &str) -> Result<(), String> {
