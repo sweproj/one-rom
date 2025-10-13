@@ -24,4 +24,4 @@ These tests have an external dependency on `libcurl` and `libzip` which are used
 sudo apt install libcurl4-openssl-dev libzip-dev libjson-c-dev
 ```
 
-Note that this test suite does _not_ yet use the pin mapping from [`sdrr-hw-config`](/sdrr-hw-config/README.md), so will report errors for hardware revisions other than `24-d`, `24-e` and `24-f`.
+Note that this test suite does _not_ yet use the pin mapping from [`rust/config/json`](/rust/config/json/README.md), so will report errors for hardware revisions other than `24-d`, `24-e` and `24-f`.

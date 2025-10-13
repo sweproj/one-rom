@@ -1,6 +1,6 @@
 # One ROM
 
-**One ROM To Rule Them All**
+**[One ROM](https://onerom.org) - One ROM To Rule Them All**
 
 The most flexible ROM replacement for your retro computer.  It is highly configurable and low-cost.  Get them fabbed at JLC for under $5 each in a quantity of 10 or more.
 
@@ -121,6 +121,7 @@ For configuration options, see [Configuration](docs/CONFIGURATION.md) and the [M
 | [Logging](docs/LOGGING.md) | How to enable and use One ROM logging. |
 | [Technical Summary](docs/TECHNICAL-SUMMARY.md) | Overview of the One ROM architecture, operation and design decisions. |
 | [Technical Details](docs/TECHNICAL-DETAILS.md) | Technical details of the One ROM firmware and hardware. |
+| [ROMs Glorious ROMs](docs/ROMS-GLORIOUS-ROMS.md) | Everything you ever wanted to know about 23/27 series ROMs but were afraid to ask. |
 | [Custom Hardware](docs/CUSTOM-HARDWARE.md) | Guide on designing custom hardware for One ROM. |
 | [Build System](docs/BUILD-SYSTEM.md) | How the One ROM build system works. |
 | [Voltage Levels](docs/VOLTAGE-LEVELS.md) | How the One ROM supports the required logic voltage levels. |

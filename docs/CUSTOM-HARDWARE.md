@@ -33,9 +33,9 @@ If you are using a different model of microcontroller, read [Requirements Justif
 
 These instructions apply to STM32F4xxR based hardware only.  If you have selected a different microcontroller, you will likely need to adapt the [firmware source code](/sdrr/).
 
-Add a config file to either [`sdrr-hw-config/third-party`](/sdrr-hw-config/third-party/README.md) or [`sdrr-hw-config/user`](/sdrr-hw-config/user/README.md) using the name of your hardware configuration, e.g. `piers.rocks-24pin-rev-a.json`.
+Add a config file to either [`rust/config/json/third-party`](/rust/config/json/third-party/README.md) or [`rust/config/json/user`](/rust/config/json/user/README.md) using the name of your hardware configuration, e.g. `piers.rocks-24pin-rev-a.json`.
 
-This file contains the ports and pins used for each function.  Use the existing files in [`sdrr-hw-config/`](/sdrr-hw-config/) as a template.
+This file contains the ports and pins used for each function.  Use the existing files in [`rust/config/json/`](/rust/config/json/) as a template.
 
 No firmware changes are required, so long as you follow the requirements above.  The firmware will automatically detect the hardware configuration based on the config file, and apply the correct pin mappings.
 

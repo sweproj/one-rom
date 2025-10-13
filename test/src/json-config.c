@@ -12,7 +12,7 @@
 #include <json-c/json.h>
 #include <json-config.h>
 
-#define HW_CONFIG_DIR  "sdrr-hw-config"
+#define HW_CONFIG_DIR  "rust/config/json"
 static const char* base_dirs[] = {HW_CONFIG_DIR "/", "../" HW_CONFIG_DIR "/"};
 static const char* sub_dirs[] = {"third-party/", "user/"};
 
@@ -21,13 +21,13 @@ static char* normalize_filename(const char* hw_rev) {
     char* normalized = malloc(len + 6);
 
     if (!strcmp(hw_rev, "d")) {
-        strcpy(normalized, "24-d.json");
+        strcpy(normalized, "ice-24-d.json");
         return normalized;
     } else if (!strcmp(hw_rev, "e")) {
-        strcpy(normalized, "24-e.json");
+        strcpy(normalized, "ice-24-e.json");
         return normalized;
     } else if (!strcmp(hw_rev, "f")) {
-        strcpy(normalized, "24-f.json");
+        strcpy(normalized, "ice-24-f.json");
         return normalized;
     }
     

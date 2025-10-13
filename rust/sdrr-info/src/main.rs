@@ -113,6 +113,16 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    if !fw_data.info.parse_errors.is_empty() {
+        eprintln!("Warning: Firmware parsed with errors:");
+        for error in &fw_data.info.parse_errors {
+            eprintln!("  {}", error);
+        }
+        eprintln!();
+    } else {
+        println!("Firmware parsed successfully");
+    }
+
     // Only output a header if output-binary argument not set
     if let Some(binary) = args.output_binary {
         if !binary {

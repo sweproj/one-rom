@@ -171,6 +171,19 @@ impl SdrrInfo {
                 pin_to_addr_map[pins.cs3_2316 as usize] = Some(12);
                 0x07FF // 11-bit address
             }
+            SdrrRomType::Rom23128 => {
+                assert!(pins.ce_23128 < 16, "CE pin for 23128 must be less than 16");
+                assert!(pins.oe_23128 < 16, "OE pin for 23128 must be less than 16");
+                pin_to_addr_map[pins.ce_23128 as usize] = Some(15);
+                pin_to_addr_map[pins.oe_23128 as usize] = Some(14);
+                0x3FFF // 14-bit address
+            }
+            _ => {
+                return Err(format!(
+                    "Unsupported ROM type {} for address mangling",
+                    rom_type
+                ));
+            }
         };
 
         let overflow = addr & !addr_mask;
@@ -213,6 +226,17 @@ impl SdrrInfo {
                     }
                 }
             }
+            SdrrRomType::Rom23128 => {
+                if cs1 {
+                    input_addr |= 1 << 14;
+                }
+                if let Some(cs2) = cs2 {
+                    if cs2 {
+                        input_addr |= 1 << 13;
+                    }
+                }
+            }
+            _ => unreachable!(),
         };
 
         if num_roms > 1 {
@@ -254,7 +278,10 @@ impl SdrrInfo {
             .ok_or_else(|| format!("ROM set {} not found", set))?;
 
         if offset + buf.len() as u32 > rom_set.size {
-            return Err("Read extends past ROM set data".into());
+            return Err(format!(
+                "Read extends past ROM set data {offset}, {}",
+                rom_set.size
+            ));
         }
 
         let addr = rom_set.data_ptr + offset;

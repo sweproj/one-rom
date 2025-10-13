@@ -81,16 +81,17 @@ typedef struct {
     //
     // Offset: 36
     // 16 x 1 byte = 16 bytes
-    uint8_t cs1_2364;
-    uint8_t cs1_2332;
-    uint8_t cs1_2316;
-    uint8_t cs2_2332;
-    uint8_t cs2_2316;
-    uint8_t cs3_2316;
+    uint8_t cs1;
+    uint8_t cs2;
+    // 3rd CS line, only used on 2316 and 23128, actually 2316's CS2, as 2316's CS3 is 2332's CS2
+    uint8_t cs3;
+    uint8_t reserved2a[1];
+    uint8_t reserved2b[1];
+    uint8_t reserved2c[1];
     uint8_t x1;
     uint8_t x2;
-    uint8_t ce_23128;
-    uint8_t oe_23128;
+    uint8_t ce;
+    uint8_t oe;
     uint8_t x_jumper_pull;
     uint8_t reserved3[5];
 
@@ -265,7 +266,18 @@ typedef struct {
 typedef enum {
     ROM_TYPE_2316,
     ROM_TYPE_2332,
-    ROM_TYPE_2364
+    ROM_TYPE_2364,
+    ROM_TYPE_23128,
+    ROM_TYPE_23256,
+    ROM_TYPE_23512,
+    ROM_TYPE_2704,
+    ROM_TYPE_2708,
+    ROM_TYPE_2716,
+    ROM_TYPE_2732,
+    ROM_TYPE_2764,
+    ROM_TYPE_27128,
+    ROM_TYPE_27256,
+    ROM_TYPE_27512,
 } sdrr_rom_type_t;
 
 // CS state enumeration
@@ -299,13 +311,11 @@ typedef enum {
 
 // ROM information structure
 typedef struct {
-    const sdrr_rom_type_t rom_type;   // ROM type
-    const sdrr_cs_state_t cs1_state;  // CS1 state
-    const sdrr_cs_state_t cs2_state;  // CS2 state
-    const sdrr_cs_state_t cs3_state;  // CS3 state
-#if defined(BOOT_LOGGING)
-    const char* filename;       // Source filename (BOOT_LOGGING only)
-#endif // BOOT_LOGGING
+    const sdrr_rom_type_t rom_type;     // ROM type
+    const sdrr_cs_state_t cs1_state;    // CS1 state
+    const sdrr_cs_state_t cs2_state;    // CS2 state
+    const sdrr_cs_state_t cs3_state;    // CS3 state
+    const char* filename;               // Source filename (May be NULL)
 } sdrr_rom_info_t;
 
 // ROM set information structure

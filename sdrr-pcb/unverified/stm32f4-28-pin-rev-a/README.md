@@ -1,5 +1,7 @@
 # STM32F4 28 Pin Revision A
 
+**Likely to be rejected** - This first 28 pin prototype does work, but is likely to be replaced by a later revision, and support for this revision may be removed in a future release.
+
 **Unverified** - this revision has not yet been tested or confirmed to work.  Order PCBs at your own risk.
 
 23xxx (STM32F4 28 pin) ROM replacement SDRR PCB.

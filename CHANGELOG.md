@@ -2,15 +2,32 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.5.1 - 2025-??-??
+## v0.5.1 - 2025-10-13
+
+For the average user, there are no particularly notable changes in this release, except the addition of the [Atari 800XL BASIC ROM config](/config/atari800xl.mk).
+
+The firmware generator process underwent a major overhaul in this release:
+- Support ROM types and hardware (PCB) revisions are now parsed at build time, which can be included in Web Assembly code.
+- `sdrr-common` has been retired and mostly replaced with `onerom-config`
+- Much of `sdrr-gen` has been moved out to `onerom-gen` crate, which can be used in other Rust projects, including Web Assembly.
+- There is a new `onerom-wasm` crate at https://github.com/piersfinlayson/one-rom-wasm, which can be used to build Web Assembly code to generate One ROM firmware images in the browser.  Web Assembly packages, documentation and examples are located at https://wasm.onerom.org/.
+- A metadata and ROM-less firmware can be built with `EXCLUDE_METADATA=1`.  When flashed with ths firmware, One ROM blinks its status LED slowly.  It can subsequently have metadata and ROM image fragments flashed, and, when reset, serves the newly flashed images.  This is expected to be useful for release artifacts and manufacturing, as a single firmware per hardware variant per release can be built, with metadata and ROM images added later, rather than the current need to build a firmware per hardware variant **per configuration** per release.
+
+There is more work planned to the firmware upgrade process, including multi-stage USB device updates using the new capabilities, but this release has laid the groundwork and enabled some exciting new web-based features.
+
+Also, the first, prototype 28 pin ROM support using hardware revision `ice-28-a` is in this release.  It successfully emulates a 27128 ROM (i.e. without the 3rd CS line on a 23128).  It has been tested successfully on a C64C, replacing the combined KERNAL/BASIC ROM with a One ROM Ice 28 A, clocked at just 55MHz using an STM32F446RCT6. This hardware revision is unlikely to be taken forwards - a different hardware layout is required to support 23128 with the 3rd CS line being used, as well as 32KB and 64KB ROMs.
+
+Some default firmware configuration has been changed:
+- BOOT_LOGGING is now disabled by default to improve boot times.
 
 ### New
 
-- [Atari 800XL BASIC ROM config](/config/atari800xl.mk) included
+- [Atari 800XL BASIC ROM config](/config/atari800xl.mk) included (and tested and working!)
 
 ### Changes
 
 - Call out from sdrr-gen to wget to retrieve images located on sourceforge, as cloudfare seems to spot and block Rust TLS.
+- Moved the PCB config/property files from `/hw-config` to `/rust/config/json`.
 
 ### Fixes
 

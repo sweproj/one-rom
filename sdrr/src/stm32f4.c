@@ -393,11 +393,6 @@ void check_config(
     const sdrr_info_t *info,
     const sdrr_rom_set_t *set
 ) {
-    // Currently only support emulating a 24 pin ROM
-    if (info->pins->rom_pins != 24) {
-        LOG("!!! Have been told to emulate unsupported %d pin ROM", info->pins->rom_pins);
-    }
-
     // Check ports (banks on RP235X) are as expected
     if (info->pins->data_port != PORT_A) {
         LOG("!!! Data pins not using port A");
@@ -445,23 +440,18 @@ void check_config(
     }
 
     // Check CS pins
-    if (info->pins->cs1_2364 > 15) {
-        LOG("!!! CS1 pin for 2364 ROM invalid");
-    }
-    if (info->pins->cs1_2332 > 15) {
-        LOG("!!! CS1 pin for 2332 ROM invalid");
-    }
-    if (info->pins->cs1_2316 > 15) {
-        LOG("!!! CS1 pin for 2316 ROM invalid");
-    }
-    if (info->pins->cs2_2332 > 15) {
-        LOG("!!! CS2 pin for 2332 ROM invalid");
-    }
-    if (info->pins->cs2_2316 > 15) {
-        LOG("!!! CS2 pin for 2316 ROM invalid");
-    }
-    if (info->pins->cs3_2316 > 15) {
-        LOG("!!! CS3 pin for 2316 ROM invalid");
+    if (info->pins->rom_pins == 24) {
+        if (info->pins->cs1 > 15) {
+            LOG("!!! CS1 pin invalid");
+        }
+        if (info->pins->cs2 > 15) {
+            LOG("!!! CS2 pin invalid");
+        }
+        if (info->pins->cs3 > 15) {
+            LOG("!!! CS3 pin invalid");
+        }
+    } else {
+        LOG("!!! Not yet checking CS pins for 28 pin ROMs");
     }
 
     // Check sel jumper pull value

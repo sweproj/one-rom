@@ -2,12 +2,17 @@
 //
 // MIT License
 
-use crate::preprocessor::{RomImage, RomSet};
-use sdrr_common::HwConfig;
-use sdrr_common::hardware::Port;
-use sdrr_common::{CsLogic, McuVariant, RomType, ServeAlg};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+
+use onerom_config::fw::ServeAlg;
+use onerom_config::hw::Board;
+use onerom_config::mcu::{Port, Variant as McuVariant};
+use onerom_config::rom::RomType;
+
+use onerom_gen::image::{CsConfig, Rom, RomSet, RomSetType, SizeHandling};
+
+use crate::fw::PllConfig;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -24,7 +29,7 @@ pub struct Config {
     pub debug_logging: bool,
     pub overwrite: bool,
     pub hse: bool,
-    pub hw: HwConfig,
+    pub board: Board,
     pub freq: u32,
     pub status_led: bool,
     pub overclock: bool,
@@ -32,13 +37,6 @@ pub struct Config {
     pub preload_to_ram: bool,
     pub auto_yes: bool,
     pub serve_alg: ServeAlg,
-}
-
-#[derive(Debug, Clone)]
-pub enum SizeHandling {
-    None,
-    Duplicate,
-    Pad,
 }
 
 #[derive(Debug, Clone)]
@@ -54,80 +52,8 @@ pub struct RomConfig {
     pub bank: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
-pub struct RomInSet {
-    pub config: RomConfig,
-    pub image: RomImage,
-    pub original_index: usize,
-}
-
-#[derive(Debug, Clone)]
-pub struct CsConfig {
-    pub cs1: CsLogic,
-    pub cs2: Option<CsLogic>,
-    pub cs3: Option<CsLogic>,
-}
-
-impl CsConfig {
-    pub fn new(cs1: CsLogic, cs2: Option<CsLogic>, cs3: Option<CsLogic>) -> Self {
-        Self { cs1, cs2, cs3 }
-    }
-
-    pub fn validate(&self, rom_type: &RomType) -> Result<(), String> {
-        // Check CS1 isn't ignore
-        if self.cs1 == CsLogic::Ignore {
-            return Err(
-                "CS1 cannot be set to 'ignore' - it must be active high or low".to_string(),
-            );
-        }
-
-        match match rom_type {
-            RomType::Rom2364 => {
-                // 2364 requires only CS1 (1 CS line)
-                if self.cs2.is_some() || self.cs3.is_some() {
-                    Err(())
-                } else {
-                    Ok(())
-                }
-            }
-            RomType::Rom2332 => {
-                // 2332 requires CS1 and CS2 (2 CS lines)
-                if self.cs3.is_some() {
-                    return Err(format!("ROM type {} does not support CS3", rom_type.name()));
-                }
-                if self.cs2.is_none() { Err(()) } else { Ok(()) }
-            }
-            RomType::Rom2316 => {
-                // 2316 requires CS1, CS2, and CS3 (3 CS lines)
-                if self.cs2.is_none() || self.cs3.is_none() {
-                    Err(())
-                } else {
-                    Ok(())
-                }
-            }
-            RomType::Rom23128 => {
-                unreachable!("23128 not yet supported");
-            }
-        } {
-            Ok(()) => Ok(()),
-            Err(()) => Err(format!(
-                "ROM type {} requires {} CS line(s)",
-                rom_type.name(),
-                rom_type.cs_lines_count()
-            )),
-        }
-    }
-}
-
 impl Config {
     pub fn validate(&mut self) -> Result<(), String> {
-        // Validate each ROM configuration
-        for rom in &self.roms {
-            rom.cs_config
-                .validate(&rom.rom_type)
-                .inspect_err(|_| println!("Failed to process ROM {}", rom.file.display()))?;
-        }
-
         // Validate output directory
         if !self.overwrite && self.output_dir.exists() {
             for file_name in &["roms.h", "roms.c", "config.h", "sdrr_config.h"] {
@@ -143,47 +69,53 @@ impl Config {
 
         // Validate status LED settings
         if self.status_led
-            && ((self.hw.port_status() == Port::None) || (self.hw.pin_status() == 255))
+            && ((self.board.port_status() == Port::None) || (self.board.pin_status() == 255))
         {
             return Err(
-                "Status LED enabled but no status LED pin configured for selected hardware"
+                "Status LED enabled but no status LED pin configured for selected hardware revision."
                     .to_string(),
             );
         }
 
         // Validate processor against family
-        if self.mcu_variant.family() != self.hw.mcu.family {
+        if self.mcu_variant.family() != self.board.mcu_family() {
             return Err(format!(
-                "STM32 variant {} does not match hardware family {}",
+                "MCU variant {} does not match hardware revision MCU family {}.\nSpecify a different hardware revision or MCU variant.",
                 self.mcu_variant.makefile_var(),
-                self.hw.mcu.family
+                self.board.mcu_family()
             ));
         }
 
         // Validate and set frequency
         #[allow(clippy::match_single_binding)]
-        match self.mcu_variant.processor() {
-            _ => {
-                if !self
-                    .mcu_variant
-                    .is_frequency_valid(self.freq, self.overclock)
-                {
-                    return Err(format!(
-                        "Frequency {}MHz is not valid for variant {}. Valid range: 16-{}MHz",
-                        self.freq,
-                        self.mcu_variant.makefile_var(),
-                        self.mcu_variant.processor().max_sysclk_mhz()
-                    ));
-                }
-            }
+        let pll = PllConfig::new(self.mcu_variant.processor());
+        if !pll.is_frequency_valid(self.freq, self.overclock) {
+            return Err(format!(
+                "Frequency {}MHz is not valid for variant {}. Valid range: 16-{}MHz.",
+                self.freq,
+                self.mcu_variant.makefile_var(),
+                self.mcu_variant.processor().max_sysclk_mhz()
+            ));
         }
 
         // Check USB DFU support
-        if self.hw.has_usb() && !self.mcu_variant.supports_usb_dfu() {
+        if self.board.has_usb() && !self.mcu_variant.supports_usb_dfu() {
             return Err(format!(
-                "Selected hardware {} has USB, but variant {:?} does not support USB",
-                self.hw.name, self.mcu_variant,
+                "Selected hardware {} has USB, but chosen MCU variant {:?} does not support USB.",
+                self.board.name(),
+                self.mcu_variant,
             ));
+        }
+
+        // Check all ROMs are compatible with the selected board
+        for rom in &self.roms {
+            if self.board.rom_pins() != rom.rom_type.rom_pins() {
+                return Err(format!(
+                    "ROM type {} is not supported on selected hardware revision {}",
+                    rom.rom_type.name(),
+                    self.board.name()
+                ));
+            }
         }
 
         // Validate ROM sets (basic validation that doesn't need ROM images)
@@ -229,7 +161,7 @@ impl Config {
                     // Banking mode validation
 
                     // Check hardware variant supports banked sets
-                    if !self.hw.supports_banked_roms() {
+                    if !self.board.supports_banked_roms() {
                         return Err(
                             "Bank switched sets of ROMs are only supported on hardware revision F onwards".to_string(),
                         );
@@ -292,10 +224,7 @@ impl Config {
                     // All ROMs must have same CS configuration
                     let first_cs_config = &roms_in_set[0].cs_config;
                     for rom in &roms_in_set[1..] {
-                        if rom.cs_config.cs1 != first_cs_config.cs1
-                            || rom.cs_config.cs2 != first_cs_config.cs2
-                            || rom.cs_config.cs3 != first_cs_config.cs3
-                        {
+                        if rom.cs_config != *first_cs_config {
                             return Err(format!(
                                 "Set {}: all ROMs in a banked set must have the same CS configuration",
                                 set_id
@@ -306,7 +235,7 @@ impl Config {
                     // Multi-ROM mode validation
 
                     // Check hardware variant supports multi-rom sets
-                    if !self.hw.supports_multi_rom_sets() {
+                    if !self.board.supports_multi_rom_sets() {
                         return Err(
                             "Multi-ROM sets of ROMs are only supported on hardware revision F onwards".to_string(),
                         );
@@ -349,84 +278,61 @@ impl Config {
         Ok(())
     }
 
-    pub fn create_rom_sets(&self, rom_images: &[RomImage]) -> Result<Vec<RomSet>, String> {
+    pub fn create_rom_sets(
+        &self,
+        roms: Vec<Rom>,
+        serve_alg: ServeAlg,
+    ) -> Result<Vec<RomSet>, String> {
         let sets: Vec<usize> = self.roms.iter().filter_map(|rom| rom.set).collect();
 
         if sets.is_empty() {
-            let rom_sets: Vec<RomSet> = self
-                .roms
-                .iter()
-                .zip(rom_images.iter())
+            let rom_sets: Vec<RomSet> = roms
+                .into_iter()
                 .enumerate()
-                .map(|(ii, (rom_config, rom_image))| RomSet {
-                    id: ii,
-                    roms: vec![RomInSet {
-                        config: rom_config.clone(),
-                        image: rom_image.clone(),
-                        original_index: ii,
-                    }],
-                    is_banked: false,
-                })
-                .collect();
+                .map(|(ii, rom)| RomSet::new(ii, RomSetType::Single, serve_alg, vec![rom]))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("Error creating ROM sets: {:?}", e))?;
             return Ok(rom_sets);
         }
 
-        let mut unique_sets: Vec<usize> = sets.clone();
-        unique_sets.sort();
-        unique_sets.dedup();
+        let mut sets_map: BTreeMap<usize, Vec<(usize, &RomConfig, Rom)>> = BTreeMap::new();
 
-        let mut rom_sets_map = BTreeMap::new();
-
-        for &set_id in &unique_sets {
-            let roms_in_set: Vec<_> = self
-                .roms
-                .iter()
-                .zip(rom_images.iter())
-                .enumerate()
-                .filter(|(_, (rom_config, _))| rom_config.set == Some(set_id))
-                .collect();
-
-            let is_banked = roms_in_set
-                .iter()
-                .any(|(_, (rom_config, _))| rom_config.bank.is_some());
-
-            let mut rom_set_entries = Vec::new();
-
-            if is_banked {
-                let mut banked_roms: Vec<_> = roms_in_set.into_iter().collect();
-                banked_roms.sort_by_key(|(_, (rom_config, _))| rom_config.bank.unwrap());
-
-                for (original_index, (rom_config, rom_image)) in banked_roms {
-                    rom_set_entries.push(RomInSet {
-                        config: rom_config.clone(),
-                        image: rom_image.clone(),
-                        original_index,
-                    });
-                }
-            } else {
-                for (original_index, (rom_config, rom_image)) in roms_in_set {
-                    rom_set_entries.push(RomInSet {
-                        config: rom_config.clone(),
-                        image: rom_image.clone(),
-                        original_index,
-                    });
-                }
+        for (ii, (rom_config, rom)) in self.roms.iter().zip(roms.into_iter()).enumerate() {
+            if let Some(set_id) = rom_config.set {
+                sets_map
+                    .entry(set_id)
+                    .or_insert_with(Vec::new)
+                    .push((ii, rom_config, rom));
             }
-
-            rom_sets_map.insert(
-                set_id,
-                RomSet {
-                    id: set_id,
-                    roms: rom_set_entries,
-                    is_banked,
-                },
-            );
         }
 
-        let rom_sets: Vec<RomSet> = unique_sets
-            .into_iter()
-            .map(|set_id| rom_sets_map.remove(&set_id).unwrap())
-            .collect();
+        let mut rom_sets: Vec<RomSet> = Vec::new();
+
+        for (set_id, mut roms_in_set) in sets_map {
+            let is_banked = roms_in_set
+                .iter()
+                .any(|(_, config, _)| config.bank.is_some());
+
+            if is_banked {
+                roms_in_set.sort_by_key(|(_, config, _)| config.bank.unwrap());
+            }
+
+            let rom_vec: Vec<Rom> = roms_in_set.into_iter().map(|(_, _, rom)| rom).collect();
+
+            let rom_set = RomSet::new(
+                set_id,
+                if is_banked {
+                    RomSetType::Banked
+                } else {
+                    RomSetType::Multi
+                },
+                serve_alg,
+                rom_vec,
+            )
+            .map_err(|e| format!("Error creating ROM sets: {:?}", e))?;
+
+            rom_sets.push(rom_set);
+        }
 
         Ok(rom_sets)
     }

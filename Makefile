@@ -16,7 +16,7 @@
 
 VERSION_MAJOR := 0
 VERSION_MINOR := 5
-VERSION_PATCH := 0
+VERSION_PATCH := 1
 BUILD_NUMBER := 1
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 export VERSION_MAJOR VERSION_MINOR VERSION_PATCH BUILD_NUMBER GIT_COMMIT
@@ -61,7 +61,7 @@ MCU ?= f411re
 
 # Hardware revision
 #
-# Hardware revisions are contained in sdrr-hw-config and sub-directories, and
+# Hardware revisions are contained in hw-config and sub-directories, and
 # are defined as .json files.  The value to use here is the filename, without
 # the .json extension.
 #
@@ -72,9 +72,9 @@ MCU ?= f411re
 # 24-f respectively.
 #
 # You can add your own hardware revisions by creating the appropriate file in
-# sdrr-hw-config/user, or, if you plan to submit a pull request for it and your
-# hardware files, sdrr-hw-config/third-party. 
-HW_REV ?= 24-f
+# hw-config/user, or, if you plan to submit a pull request for it and your
+# hardware files, hw-config/third-party. 
+HW_REV ?= ice-24-f
 
 # ROM configurations - each ROM can have its own type and CS settings
 #
@@ -163,8 +163,8 @@ SWD ?= 1
 #
 # SWD is required for this option to work.
 
-# BOOT_LOGGING ?= 0
-BOOT_LOGGING ?= 1
+BOOT_LOGGING ?= 0
+# BOOT_LOGGING ?= 1
 
 # Main loop logging configuration
 #
@@ -352,6 +352,11 @@ CARGO_PROFILE ?= release
 
 EXTRA_C_FLAGS ?=
 
+# Do not include Metadata or ROM imags
+
+EXCLUDE_METADATA ?= 0
+# EXCLUDE_METADATA ?= 1
+
 #
 # End of settings
 #
@@ -374,7 +379,7 @@ ifneq ($(MCU),)
   endif
 else ifneq ($(STM),)
 ifneq ($(SUPPRESS_OUTPUT),1)
-  $(warning STM variable is deprecated, use MCU instead)
+  $(info STM variable is deprecated, use MCU instead)
 endif
   MCU := $(STM)
 endif
@@ -421,6 +426,12 @@ ifneq ($(SUPPRESS_OUTPUT),1)
 endif
 endif
 
+# Exclude metadata
+ifeq ($(EXCLUDE_METADATA),1)
+ifneq ($(SUPPRESS_OUTPUT),1)
+  $(info - $(COLOUR_YELLOW)EXCLUDE_METADATA=$(EXCLUDE_METADATA)$(COLOUR_RESET))
+endif
+endif
 
 # Set hardware revision flag
 ifneq ($(HW_REV),)
@@ -580,7 +591,7 @@ ifneq ($(SUPPRESS_OUTPUT),1)
 endif
   SERVE_ALG_FLAG =
 else
-  $(info - $(COLOUR_RED)Invalid SERVE_ALG value$(COLOUR_RESET) - please set it to a valid value, e.g. a or b)
+  $(error - $(COLOUR_RED)Invalid SERVE_ALG value$(COLOUR_RESET) - please set it to a valid value, e.g. a or b)
   exit 1
 endif
 
@@ -724,7 +735,7 @@ firmware: gen
 	@echo "- MCU variant: $(shell echo $(MCU) | tr '[:lower:]' '[:upper:]')"
 	@echo "- HW revision: $(HW_REV)"
 	@echo "-----"
-	@GEN_OUTPUT_DIR=$(GEN_OUTPUT_DIR) EXTRA_C_FLAGS="$(EXTRA_C_FLAGS)" make --no-print-directory -C sdrr
+	@GEN_OUTPUT_DIR=$(GEN_OUTPUT_DIR) EXCLUDE_METADATA="$(EXCLUDE_METADATA)" EXTRA_C_FLAGS="$(EXTRA_C_FLAGS)" make --no-print-directory -C sdrr
 
 # Call make run-actual - this causes a new instance of make to be invoked and generated.mk exists, so it can load PROBE_RS_CHIP_ID
 run: firmware info
@@ -759,7 +770,7 @@ run-actual:
 	@probe-rs run --chip $(PROBE_RS_CHIP_ID) sdrr/build/$(BIN_PREFIX).elf
 
 flash-actual:
-	@probe-rs download --chip $(PROBE_RS_CHIP_ID) sdrr/build/$(BIN_PREFIX).bin
+	@probe-rs download --chip $(PROBE_RS_CHIP_ID) --binary-format bin --base-address $(FLASH_BASE) sdrr/build/$(BIN_PREFIX).bin
 
 dfu-binary: firmware
 ifeq ($(DFU_SUPPORTED),1)

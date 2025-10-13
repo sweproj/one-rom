@@ -10,14 +10,14 @@
 mod args;
 mod config;
 mod file;
+mod fw;
 mod generator;
-mod preprocessor;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::io::{self, Write};
 
-use sdrr_common::hardware::list_available_configs;
+use onerom_config::hw::BOARDS;
 
 use args::Args;
 use config::Config;
@@ -47,17 +47,18 @@ fn main() -> Result<()> {
     confirm_licences(&config)?;
 
     // Load ROM files into RAM
-    let rom_images = load_rom_files(&config).with_context(|| "Failed to load ROM files")?;
+    let roms = load_rom_files(&config).with_context(|| "Failed to load ROM files")?;
+    let num_roms = roms.len();
 
     // Create ROM sets - validation already done in config.validate()
     let rom_sets = config
-        .create_rom_sets(&rom_images)
+        .create_rom_sets(roms, config.serve_alg)
         .map_err(|e| anyhow::anyhow!("ROM set creation error: {}", e))?;
 
     // Log some progress
     println!(
         "- Successfully loaded {} ROM file(s) in {} set(s)",
-        rom_images.len(),
+        num_roms,
         rom_sets.len()
     );
 
@@ -74,13 +75,13 @@ fn main() -> Result<()> {
 
 fn list_hw_revs() -> Result<()> {
     // List available hardware revisions
-    let hw_revs = list_available_configs()?;
-    if hw_revs.is_empty() {
+    let boards = BOARDS;
+    if boards.is_empty() {
         println!("No hardware revisions found.");
     } else {
         println!("Available hardware revisions:");
-        for (name, description) in hw_revs {
-            println!("  {}: {}", name, description);
+        for board in boards {
+            println!("  {}: {}", board.name(), board.description());
         }
     }
     Ok(())

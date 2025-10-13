@@ -39,7 +39,7 @@ use airfrog_rpc::io::Reader;
 /// Maximum SDRR firmware versions supported by this version of`sdrr-fw-parser`
 pub const MAX_VERSION_MAJOR: u16 = 0;
 pub const MAX_VERSION_MINOR: u16 = 5;
-pub const MAX_VERSION_PATCH: u16 = 0;
+pub const MAX_VERSION_PATCH: u16 = 1;
 
 // lib.rs - Public API and core traits
 pub mod info;
@@ -412,10 +412,8 @@ impl<'a, R: Reader> Parser<'a, R> {
         // Parse ROM sets with error collection
         let rom_sets = match parsing::read_rom_sets(
             self.reader,
+            &header,
             header.rom_sets_ptr,
-            header.rom_set_count,
-            self.base_flash_address,
-            header.boot_logging_enabled != 0,
         )
         .await
         {
@@ -599,4 +597,8 @@ async fn read_str_at_ptr<R: Reader>(reader: &mut R, len: u32, ptr: u32) -> Resul
         .map_err(|_| format!("Failed to read string at 0x{ptr:08X}"))?;
 
     String::from_utf8(buf).map_err(|_| "Invalid UTF-8 string".into())
+}
+
+pub fn crate_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
 }

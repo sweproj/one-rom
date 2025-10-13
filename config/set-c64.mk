@@ -11,7 +11,7 @@
 # Image details:
 #
 # Set 0:
-# a. Kernal ROM 901227-03, Basic ROM, 901
+# a. Kernal ROM 901227-03
 # b. Basic ROM 901226-01
 # c. Character ROM 901225-01
 #

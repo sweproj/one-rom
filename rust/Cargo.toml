@@ -1,19 +1,19 @@
 # Workspace configuration for the Rust elements of the SDRR project
 [workspace]
 members = [
-    "sdrr-gen",
-    "sdrr-info", 
-    "sdrr-common",
-    "sdrr-fw-parser",
-    "sdrr-check",
-    "lab",
+    "config",
     "database",
-    "wasm"
+    "gen",
+    "lab",
+    "sdrr-check",
+    "sdrr-fw-parser",
+    "sdrr-gen",
+    "sdrr-info" 
 ]
 default-members = [
+    "config",
+    "sdrr-fw-parser",
     "sdrr-gen",
-    "sdrr-info", 
-    "sdrr-common",
-    "sdrr-fw-parser"
+    "sdrr-info"
 ]
 resolver = "2"

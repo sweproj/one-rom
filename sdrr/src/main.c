@@ -102,6 +102,33 @@ void check_enter_bootloader(void) {
     }
 }
 
+// Check the metadata is present
+uint8_t metadata_present(const sdrr_info_t *info) {
+    onerom_metadata_header_t *metadata = (onerom_metadata_header_t *)info->metadata_header;
+    uint8_t present = 1;
+
+    // Check for magic in metadata
+    for (int ii = 0; ii < 16; ii++) {
+        if (metadata->magic[ii] != "ONEROM_METADATA"[ii]) {
+            present = 0;
+            break;
+        }
+    }
+
+    if (present) {
+        if (metadata->version == 1) {
+            LOG("Metadata version 1 present, %d ROM sets", metadata->rom_set_count);
+        } else {
+            LOG("!!! Unsupported metadata version: %d", metadata->version);
+            present = 0;
+        }
+    } else {
+        LOG("Valid metadata header not found");
+    }
+
+    return present;
+}
+
 // Needs to do the following:
 // - Set up the clock to 68.8Mhz
 // - Set up GPIO ports A, B and C to inputs
@@ -152,7 +179,8 @@ int main(void) {
 #endif // STM32F4
 
     const sdrr_rom_set_t *set = NULL;
-    if (sdrr_info.metadata_header->rom_set_count > 0) {
+    uint8_t md = metadata_present(&sdrr_info);
+    if (md && (sdrr_info.metadata_header->rom_set_count > 0)) {
         sdrr_runtime_info.rom_set_index = get_rom_set_index();
         set = sdrr_info.metadata_header->rom_sets + sdrr_runtime_info.rom_set_index;
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)
@@ -166,6 +194,8 @@ int main(void) {
         }
         sdrr_runtime_info.rom_table_size = set->size;
 #endif // !TIMER_TEST && !TOGGLE_PA4
+    } else if (!md) {
+        LOG("No metadata present (valid state for fresh One ROM");
     } else {
         LOG("!!! No ROM sets in this firmware");
     }
@@ -182,10 +212,11 @@ int main(void) {
         setup_status_led();
     }
 
-    if (sdrr_info.metadata_header->rom_set_count == 0) {
+    if (set == NULL) {
         // Brief blink pattern to indicate no ROM being served.  Stays off for
         // a fifth of the time as it is on.  Exact timings depend on clock
         // speed.  At 100MHz this is roughly 0.5s on 2.5s off.
+        LOG("No ROM set to serve - halting");
         while (1) {
             blink_pattern(5000000, 25000000, 1);
         }

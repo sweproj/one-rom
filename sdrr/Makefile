@@ -3,11 +3,13 @@
 # To build, use the top-level /Makefile, which generates the required files and
 # configuration to build One ROM, then calls this Makefile.
 
+COLOUR_YELLOW := $(shell echo -e '\033[33m')
+COLOUR_RESET := $(shell echo -e '\033[0m')
+COLOUR_RED := $(shell echo -e '\033[31m')
+
 # sdrr-gen Output directory
 GEN_OUTPUT_DIR ?= output
 OUTPUT_DIR := ../$(GEN_OUTPUT_DIR)
-
-# sdrr-gen 
 
 # Include the auto-generated Makefile fragment
 # Only include generated.mk if we're not doing a clean target
@@ -17,6 +19,14 @@ ifeq ($(filter clean clean-% distclean,$(MAKECMDGOALS)),)
   else
 $(error sdrr-gen generated.mk Makefile fragment not found. Please run the sdrr-gen tool first.)
   endif
+endif
+
+# Exclude metadata if requested
+ifeq ($(EXCLUDE_METADATA),1)
+OBJCOPY_EXTRA = --set-section-flags .metadata=contents,readonly -R .metadata -R .rom_data -R .padding_to_rom_data
+  $(info - $(COLOUR_YELLOW)Excluding metadata and ROM images from binary$(COLOUR_RESET))
+else
+OBJCOPY_EXTRA =
 endif
 
 # Default variant - this is set in generated.mk
@@ -131,7 +141,7 @@ $(ELF): $(OBJS) $(ROMS_OBJ) $(SDRR_CONFIG_OBJ) $(SEGGER_OBJS) $(LDSCRIPT) | $(BU
 # Generate binary
 $(BIN): $(ELF)
 	@echo "- Generating binary from sdrr/$< -> sdrr/$@"
-	@$(OBJCOPY) -O binary --gap-fill=0xff $< $@
+	@$(OBJCOPY) -O binary $(OBJCOPY_EXTRA) --gap-fill=0xff $< $@
 	@$(OBJDUMP) -D -m arm -S -t -h $< > $(DISASM)
 	@echo "----"
 	@echo "Build complete:"

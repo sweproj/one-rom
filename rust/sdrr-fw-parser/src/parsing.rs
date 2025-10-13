@@ -111,6 +111,17 @@ impl SdrrInfoHeader {
     pub(crate) const fn size() -> usize {
         Self::SDRR_INFO_HEADER_SIZE
     }
+
+    // Indicates whether filenames present on ROM info structures
+    // Always true for v0.5.1 and later
+    // For earlier versions, depends on boot_logging_enabled flag
+    pub(crate) fn filenames_enabled(&self) -> bool {
+        if (self.major_version > 0) || ((self.minor_version == 5) && (self.patch_version >= 1)){
+            true
+        } else {
+            self.boot_logging_enabled != 0
+        }
+    }
 }
 
 // Used internally to construct SdrrExtraInfo
@@ -399,11 +410,12 @@ pub(crate) async fn read_one_rom_metadata_header_info<R: Reader>(
 /// Read ROM sets from firmware
 pub(crate) async fn read_rom_sets<R: Reader>(
     reader: &mut R,
-    ptr: u32,
-    count: u8,
+    info_header: &SdrrInfoHeader,
     base_addr: u32,
-    boot_logging_enabled: bool,
 ) -> Result<Vec<SdrrRomSet>, String> {
+    let ptr = info_header.rom_sets_ptr;
+    let count = info_header.rom_set_count;
+
     if count == 0 {
         return Ok(Vec::new());
     }
@@ -432,10 +444,9 @@ pub(crate) async fn read_rom_sets<R: Reader>(
         // Read ROM infos
         let roms = read_rom_infos(
             reader,
-            header.roms_ptr,
-            header.rom_count,
+            info_header,
+            &header,
             base_addr,
-            boot_logging_enabled,
         )
         .await?;
 
@@ -456,11 +467,13 @@ pub(crate) async fn read_rom_sets<R: Reader>(
 // Read ROM info structures
 async fn read_rom_infos<R: Reader>(
     reader: &mut R,
-    ptr: u32,
-    count: u8,
+    info_header: &SdrrInfoHeader,
+    rom_set_header: &SdrrRomSetHeader,
     base_addr: u32,
-    boot_logging_enabled: bool,
 ) -> Result<Vec<SdrrRomInfo>, String> {
+    let ptr = rom_set_header.roms_ptr;
+    let count = rom_set_header.rom_count;
+
     if count == 0 {
         return Ok(Vec::new());
     }
@@ -485,7 +498,7 @@ async fn read_rom_infos<R: Reader>(
         let rom_info_ptr = u32::from_le_bytes(ptr_buf);
 
         // Read the ROM info itself
-        let info_size = if boot_logging_enabled {
+        let info_size = if info_header.filenames_enabled() {
             SdrrRomInfoWithLogging::size()
         } else {
             SdrrRomInfoBasic::size()
@@ -496,10 +509,11 @@ async fn read_rom_infos<R: Reader>(
             .await
             .map_err(|_| format!("Failed to read ROM info {}", i))?;
 
-        let rom_info = if boot_logging_enabled {
+        let rom_info = if info_header.filenames_enabled() {
             let (_, info) = SdrrRomInfoWithLogging::from_bytes((&info_buf, 0))
                 .map_err(|e| format!("Failed to parse ROM info with logging {}: {}", i, e))?;
 
+            // This test sets filename to None if pointer invalid (for example 0)
             let filename = if info.filename_ptr >= base_addr {
                 read_string_at_ptr(reader, info.filename_ptr, base_addr)
                     .await

@@ -793,7 +793,7 @@ generate_manifest() {
         local hw_rev=$(basename "$hw_rev_dir")
         
         # Read hardware config JSON if it exists
-        local hw_config_file="${PROJECT_ROOT}/sdrr-hw-config/${hw_rev}.json"
+        local hw_config_file="${PROJECT_ROOT}/hw-config/${hw_rev}.json"
         if [[ -f "$hw_config_file" ]]; then
             local description=$(jq -r '.description // ""' "$hw_config_file")
             local usb_support=$(jq -r '.mcu.usb.present // false' "$hw_config_file")

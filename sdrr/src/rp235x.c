@@ -478,23 +478,14 @@ void check_config(
     }
 
     // Check CS pins
-    if (info->pins->cs1_2364 > 15) {
-        LOG("!!! CS1 pin for 2364 ROM invalid");
+    if (info->pins->cs1 > 15) {
+        LOG("!!! CS1 pin invalid");
     }
-    if (info->pins->cs1_2332 > 15) {
-        LOG("!!! CS1 pin for 2332 ROM invalid");
+    if (info->pins->cs2 > 15) {
+        LOG("!!! CS2 pin invalid");
     }
-    if (info->pins->cs1_2316 > 15) {
-        LOG("!!! CS1 pin for 2316 ROM invalid");
-    }
-    if (info->pins->cs2_2332 > 15) {
-        LOG("!!! CS2 pin for 2332 ROM invalid");
-    }
-    if (info->pins->cs2_2316 > 15) {
-        LOG("!!! CS2 pin for 2316 ROM invalid");
-    }
-    if (info->pins->cs3_2316 > 15) {
-        LOG("!!! CS3 pin for 2316 ROM invalid");
+    if (info->pins->cs3 > 15) {
+        LOG("!!! CS3 pin invalid");
     }
 
     // Check sel jumper pull value
