@@ -3,6 +3,7 @@
 members = [
     "config",
     "database",
+    "fw",
     "gen",
     "lab",
     "sdrr-check",

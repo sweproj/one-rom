@@ -259,6 +259,46 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         ),
     }
 
+    // Validate data pins are contiguous within 8-bit window on 8-boundary
+    {
+        let min_data_pin = *config.mcu.pins.data.iter().min().unwrap();
+        let max_data_pin = *config.mcu.pins.data.iter().max().unwrap();
+        
+        if min_data_pin % 8 != 0 {
+            panic!(
+                "{}: data pins must start on 8-byte boundary, got min pin {}",
+                name, min_data_pin
+            );
+        }
+        
+        if max_data_pin >= min_data_pin + 8 {
+            panic!(
+                "{}: data pins must be within 8-bit window, got range {}-{}",
+                name, min_data_pin, max_data_pin
+            );
+        }
+    }
+
+    // Validate address pins are contiguous within 16-bit window on 8-boundary
+    {
+        let min_addr_pin = *config.mcu.pins.addr.iter().min().unwrap();
+        let max_addr_pin = *config.mcu.pins.addr.iter().max().unwrap();
+        
+        if min_addr_pin % 8 != 0 {
+            panic!(
+                "{}: address pins must start on 8-byte boundary, got min pin {}",
+                name, min_addr_pin
+            );
+        }
+        
+        if max_addr_pin >= min_addr_pin + 16 {
+            panic!(
+                "{}: address pins must be within 16-bit window, got range {}-{}",
+                name, min_addr_pin, max_addr_pin
+            );
+        }
+    }
+
     // Validate ports
     if config.mcu.ports.data_port != config.mcu.family.allowed_data_port() {
         panic!(

@@ -39,7 +39,7 @@ use airfrog_rpc::io::Reader;
 /// Maximum SDRR firmware versions supported by this version of`sdrr-fw-parser`
 pub const MAX_VERSION_MAJOR: u16 = 0;
 pub const MAX_VERSION_MINOR: u16 = 5;
-pub const MAX_VERSION_PATCH: u16 = 1;
+pub const MAX_VERSION_PATCH: u16 = 2;
 
 // lib.rs - Public API and core traits
 pub mod info;
@@ -413,7 +413,7 @@ impl<'a, R: Reader> Parser<'a, R> {
         let rom_sets = match parsing::read_rom_sets(
             self.reader,
             &header,
-            header.rom_sets_ptr,
+            self.base_flash_address,
         )
         .await
         {

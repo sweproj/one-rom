@@ -2,6 +2,37 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.5.2 - 2025-??-??
+
+New in this release is a command line firmware image creation tool `rust/fw`.  This dynamically creates a custom One ROM firmware image from a specified:
+- set of ROM images (specified as a JSON config file)
+- model, board and MCU type (specified as command line arguments)
+- optional firmware version (defaults to the latest version available)
+
+To build:
+```bash
+cd rust/fw
+cargo build --release --bin onerom-fw
+# Binary is located at /rust/target/release/onerom-fw
+```
+
+This is a precursor to simplifying the CI builds to avoid having to create every combination of hardware/ROM config as build artifacts.  The hardware combinations can be pre-built with empty metadata and ROM image data, and this tool then composes a complete firmware image, ready for flashing.
+
+As v0.5.1, and empty firmware image can also be flashed - One ROM then blinks its status LED slowly, and can have metadata and ROM images flashed to it later.
+
+The complete list of available "empty" hardware configuration firmwares can be found at https://images.onerom.org/releases.json.
+
+This command line tool may also be augmented with a native GUI, in parallel to the web-based tool at https://onerom.org/prog/.
+
+### Changes
+
+- Improved `onerom-gen` testing, and improved `onerom-config` and `onerom-gen` validation.
+
+### Fixes
+
+- Fix rust/gen/tests for boards with address lines all >=8.
+- Fix `sdrr-info` processing of firmware from v0.5.1 onwards with detailed metadata content in a valid, but unexpected, order.
+
 ## v0.5.1 - 2025-10-13
 
 For the average user, there are no particularly notable changes in this release, except the addition of the [Atari 800XL BASIC ROM config](/config/atari800xl.mk).

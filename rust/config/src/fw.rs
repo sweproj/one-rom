@@ -4,7 +4,9 @@
 
 //! One ROM Firmware objects
 
+use crate::Error;
 use crate::hw::Board;
+use crate::mcu::Variant as McuVariant;
 
 /// Represents a One ROM Firmware Version
 #[derive(
@@ -46,6 +48,42 @@ impl FirmwareVersion {
     /// Get the build version
     pub const fn build(&self) -> u16 {
         self.build
+    }
+
+    // Create from a string like "1.2.3" or "v1.2.3.4"
+    pub fn try_from_str(s: &str) -> Result<Self, Error> {
+        let s = s.strip_prefix('v').unwrap_or(s);
+        let mut parts = s.split('.');
+        
+        let major = parts
+            .next()
+            .ok_or(Error::InvalidFirmwareVersion)?
+            .parse::<u16>()
+            .map_err(|_| Error::InvalidFirmwareVersion)?;
+        
+        let minor = parts
+            .next()
+            .ok_or(Error::InvalidFirmwareVersion)?
+            .parse::<u16>()
+            .map_err(|_| Error::InvalidFirmwareVersion)?;
+        
+        let patch = parts
+            .next()
+            .ok_or(Error::InvalidFirmwareVersion)?
+            .parse::<u16>()
+            .map_err(|_| Error::InvalidFirmwareVersion)?;
+        
+        let build = match parts.next() {
+            Some(s) => s.parse::<u16>().map_err(|_| Error::InvalidFirmwareVersion)?,
+            None => 0,
+        };
+        
+        // Ensure no extra parts
+        if parts.next().is_some() {
+            return Err(Error::InvalidFirmwareVersion);
+        }
+        
+        Ok(Self::new(major, minor, patch, build))
     }
 }
 
@@ -107,24 +145,32 @@ impl ServeAlg {
 pub struct FirmwareProperties {
     version: FirmwareVersion,
     board: Board,
+    mcu_variant: McuVariant,
     serve_alg: ServeAlg,
     boot_logging: bool,
 }
 
 impl FirmwareProperties {
     /// Create a new firmware properties object
-    pub const fn new(
+    pub fn new(
         version: FirmwareVersion,
         board: Board,
+        mcu_variant: McuVariant,
         serve_alg: ServeAlg,
         boot_logging: bool,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Error> {
+        let mcu_family = mcu_variant.family();
+        let board_mcu_family = board.mcu_family();
+        if mcu_family != board_mcu_family {
+            return Err(Error::InvalidMcuVariant { variant: mcu_variant });
+        }
+        Ok(Self {
             version,
             board,
+            mcu_variant,
             serve_alg,
             boot_logging,
-        }
+        })
     }
 
     /// Get the firmware version
@@ -145,6 +191,11 @@ impl FirmwareProperties {
     /// Does this firmware support boot logging?
     pub const fn boot_logging(&self) -> bool {
         self.boot_logging
+    }
+
+    /// Get the MCU variant
+    pub const fn mcu_variant(&self) -> McuVariant {
+        self.mcu_variant
     }
 }
 

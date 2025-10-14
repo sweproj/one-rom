@@ -11,20 +11,20 @@ use alloc::vec::Vec;
 
 use onerom_config::hw::Board;
 
-use crate::{METADATA_VERSION, Error, Result, RomSet};
+use crate::{METADATA_VERSION, FIRMWARE_SIZE, Error, Result, RomSet};
 
 pub const PAD_METADATA_BYTE: u8 = 0xFF;
 
 const HEADER_MAGIC: &[u8; 16] = b"ONEROM_METADATA\0";
 
 // Metadata starts at 48KB from the start of flash.
-const METADATA_START: u32 = 49152;
+const METADATA_START: u32 = FIRMWARE_SIZE as u32;
 
 // ROM images start at 64KB from the start of flash.
 const ROM_IMAGE_DATA_START: u32 = 65536;
 
-// Metadata cannot be longer than 16KB
-const MAX_METADATA_LEN: usize = 16384;
+/// Metadata max length
+pub const MAX_METADATA_LEN: usize = 16384;
 
 const METADATA_HEADER_LEN: usize = 256; // onerom_metadata_header_t
 

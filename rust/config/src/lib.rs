@@ -30,6 +30,29 @@ pub mod hw;
 pub mod mcu;
 pub mod rom;
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum Error {
+    InvalidMcuVariant {
+        variant: mcu::Variant,
+    },
+    InvalidFirmwareVersion,
+}
+
 pub fn crate_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum Model {
+    Fire,
+    Ice,
+}
+
+impl Model {
+    pub fn mcu_family(&self) -> mcu::Family {
+        match self {
+            Model::Fire => mcu::Family::Rp2350,
+            Model::Ice => mcu::Family::Stm32f4,
+        }
+    }
 }

@@ -12,17 +12,21 @@ pub mod builder;
 pub mod image;
 pub mod meta;
 
-pub use builder::{Builder, Config, FileData, FileSpec, RomConfig, RomSetConfig};
+pub use builder::{Builder, Config, FileData, FileSpec, License, RomConfig, RomSetConfig};
 pub use image::{CsConfig, CsLogic, SizeHandling, Rom, RomSet, RomSetType};
 pub use image::{PAD_NO_ROM_BYTE, PAD_BLANK_BYTE};
-pub use meta::{Metadata, PAD_METADATA_BYTE};
+pub use meta::{Metadata, PAD_METADATA_BYTE, MAX_METADATA_LEN};
 
 use alloc::string::String;
 use onerom_config::fw::ServeAlg;
+use onerom_config::rom::RomType;
 
 /// Version of metadata produced by this version of the crate
 pub const METADATA_VERSION: u32 = 1;
 const METADATA_VERSION_STR: &str = "1";
+
+/// Firmware size reserved at the start of flash, before metadata
+pub const FIRMWARE_SIZE: usize = 48 * 1024; // 48KB
 
 /// Error type
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -80,6 +84,15 @@ pub enum Error {
         total: usize,
     },
     MissingFile {
+        id: usize,
+    },
+    UnsupportedRomType {
+        rom_type: RomType,
+    },
+    InvalidLicense {
+        id: usize,
+    },
+    UnvalidatedLicense {
         id: usize,
     },
 }

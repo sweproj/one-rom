@@ -47,6 +47,7 @@ At this point, you can choose to install the dependencies locally, or use the [D
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
     source $HOME/.cargo/env
     cargo install wasm-pack
+    cargo install cross
     ```
 
 5. Install [probe-rs](https://probe.rs/) for flashing the firmware to One ROM.

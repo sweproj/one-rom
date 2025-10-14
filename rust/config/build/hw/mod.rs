@@ -400,8 +400,11 @@ fn generate_hw_config_impl(configs: &[HwConfigData]) -> String {
     code.push_str("\n\n");
 
     code.push_str(&generate_capability_methods(configs));
+    code.push_str("\n\n");
 
+    code.push_str(&generate_supports_rom_type_method(configs));
     code.push_str("}\n");
+
     code
 }
 
@@ -921,6 +924,19 @@ fn generate_capability_methods(configs: &[HwConfigData]) -> String {
 
     code.push_str("        }\n");
     code.push_str("    }\n");
+
+    code
+}
+
+fn generate_supports_rom_type_method(_configs: &[HwConfigData]) -> String {
+    let mut code = String::new();
+
+    code.push_str("    /// Check if this board supports a given ROM type\n");
+    code.push_str("    pub const fn supports_rom_type(&self, rom_type: RomType) -> bool {\n");
+    code.push_str("        let board_pins = self.rom_pins();\n");
+    code.push_str("        let rom_pins = rom_type.rom_pins();\n");
+    code.push_str("        rom_pins == board_pins\n");
+    code.push_str("    }");
 
     code
 }

@@ -303,7 +303,7 @@ pub(crate) fn parse_and_validate_header(data: &[u8]) -> Result<SdrrInfoHeader, S
             && header.patch_version > MAX_VERSION_PATCH)
     {
         return Err(format!(
-            "SDRR firmware version v{}.{}.{} unsupported - max version v{}.{}.{}",
+            "One ROM firmware version v{}.{}.{} unsupported - max version v{}.{}.{}",
             header.major_version,
             header.minor_version,
             header.patch_version,

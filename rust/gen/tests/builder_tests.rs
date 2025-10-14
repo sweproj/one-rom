@@ -66,11 +66,95 @@
 //! - [x] Adding files out of order
 //! - [x] Adding duplicate files (should error)
 //! - [x] Missing files at build time (should error)
+//! 
+//! ## Phase 9: Board Configuration Variations
+//! - [ ] Build for RP2350 board (different MCU family)
+//! - [ ] Board with address pins on GPIO 8-23 (high window)
+//! - [ ] Board without X1/X2 pins - verify banked/multi sets fail
+//! - [ ] Board with different data pin block (e.g., GPIO 16-23)
+//! - [ ] Verify pin mapping assertions fire for invalid board configs
+//! 
+//! ## Phase 10: Flash Capacity and Resource Limits
+//! - [ ] Maximum ROM sets that fit in metadata (find actual limit)
+//! - [ ] ROM images exceeding available flash space (should error)
+//! - [ ] Metadata buffer overflow (too many ROM sets/filenames)
+//! - [ ] Maximum ROMs per banked set
+//! - [ ] Maximum ROMs per multi set
+//! - [ ] Verify size calculations account for all metadata structures
+//! 
+//! ## Phase 11: JSON Parsing and Validation Errors
+//! - [x] Malformed JSON (should error)
+//! - [x] Missing required fields (rom_sets, type, file, etc.)
+//! - [x] Invalid ROM type string (should error)
+//! - [x] Invalid CS logic string (should error)
+//! - [x] Invalid set type string (should error)
+//! - [x] CS2 specified for 2364 (should error or ignore?)
+//! - [x] CS3 specified for 2332 (should error or ignore?)
+//! - [x] No CS1 specified (should error)
+//! - [x] Invalid size_handling value (should error)
+//! - [x] ROM type mismatch within multi set (all ROMs same type?)
+//! - [x] Negative or invalid version number
+//! 
+//! ## Phase 12: Filename and Boot Logging Edge Cases
+//! - [x] Maximum length filename (find limit)
+//! - [x] Empty filename string
+//! - [x] Filename with special characters (spaces, quotes, slashes)
+//! - [x] Filename with unicode characters
+//! - [x] Very long filenames causing metadata overflow
+//! - [x] Duplicate filenames in different ROM sets
+//! - [x] Null bytes in filename (should terminate properly)
+//! 
+//! ## Phase 13: ServeAlg Automatic Selection
+//! - [x] Single ROM uses FirmwareProperties serve_alg
+//! - [x] Banked ROM uses FirmwareProperties serve_alg
+//! - [x] Multi ROM set automatically overrides to AddrOnAnyCs
+//! - [x] Mixed config (single + multi) uses correct serve_alg for each set
+//! - [x] Different FirmwareProperties serve_alg values (TwoCsOneAddr, AddrOnCs)
+//! - [x] Verify multi set always uses AddrOnAnyCs regardless of FirmwareProperties
+//! 
+//! ## Phase 14: File Size Edge Cases
+//! - [x] Zero-byte file (should error)
+//! - [x] Single-byte file
+//! - [x] File size 2047 bytes (just under 2KB boundary)
+//! - [x] File size 2049 bytes (just over 2KB, requires size_handling)
+//! - [x] File size exactly 1KB for 2KB ROM with duplicate
+//! - [x] File size exactly 2KB for 8KB ROM with duplicate
+//! - [x] Very small file with pad (1 byte padded to 8KB)
+//! 
+//! ## Phase 15: Complex ROM Set Configurations
+//! - [ ] Multi set with mixed ROM types (if allowed)
+//! - [ ] Multi set with different CS configurations per ROM
+//! - [ ] Banked set with mixed ROM types (if allowed)
+//! - [ ] Multiple banked sets in one config
+//! - [ ] Multiple multi sets in one config
+//! - [ ] Mix of single, banked, and multi sets
+//! - [ ] Maximum complexity config (many sets, many ROMs, boot logging)
+//! 
+//! ## Phase 16: CS Configuration Validation
+//! - [x] 2316 with only CS1 and CS2 (missing CS3, should error)
+//! - [x] 2332 with CS3 specified (should error or ignore?)
+//! - [x] All three CS as ignore (should error)
+//! - [x] CS1 as ignore but CS2 active (should error?)
+//! - [x] Invalid CS logic combination for multi set
+//! - [x] Banked set where ROMs have different CS1 states (should error?)
+//! 
+//! ## Phase 17: Licenses
+//! 
+//! ## Phase 18: ROM Images Correctness
+//! - [ ] Verify duplicate correctly duplicates data (check both copies)
+//! - [ ] Verify pad fills with correct byte value (0xFF or 0x00?)
+//! - [ ] Multi set with 4+ ROMs (test X1/X2 bit combinations)
+//! - [ ] Banked set with 8 ROMs (if supported)
+//! - [ ] Verify unused/invalid addresses contain correct fill byte
+//! - [ ] Different board pin mappings produce correct transformations
+//! 
+//! ## Phase 19: Descriptions
 
 #[cfg(test)]
 mod tests {
     use onerom_config::fw::{FirmwareProperties, FirmwareVersion, ServeAlg};
     use onerom_config::hw::Board;
+    use onerom_config::mcu::Variant as McuVariant;
     use onerom_gen::builder::{Builder, FileData};
     use onerom_gen::image::CsLogic;
 
@@ -316,18 +400,20 @@ mod tests {
         FirmwareProperties::new(
             FirmwareVersion::new(0, 5, 1, 0),
             Board::Ice24UsbH,
+            McuVariant::F411RE,
             ServeAlg::Default,
             false, // boot_logging disabled
-        )
+        ).unwrap()
     }
     
     fn fw_props_with_logging() -> FirmwareProperties {
         FirmwareProperties::new(
             FirmwareVersion::new(0, 5, 1, 0),
             Board::Ice24UsbH,
+            McuVariant::F411RE,
             ServeAlg::Default,
             true, // boot_logging enabled
-        )
+        ).unwrap()
     }
 
     // ========================================================================
@@ -1641,16 +1727,12 @@ mod tests {
                     {
                         "file": "rom0.bin",
                         "type": "2364",
-                        "cs1": "active_low",
-                        "cs2": "ignore",
-                        "cs3": "ignore"
+                        "cs1": "active_low"
                     },
                     {
                         "file": "rom1.bin",
                         "type": "2364",
-                        "cs1": "active_low",
-                        "cs2": "ignore",
-                        "cs3": "ignore"
+                        "cs1": "active_low"
                     }
                 ]
             }]
@@ -1981,7 +2063,13 @@ mod tests {
             }).expect(&format!("Failed to add file {}", i));
         }
         
-        let props = default_fw_props();
+        let props = FirmwareProperties::new(
+            FirmwareVersion::new(0, 5, 1, 0),
+            Board::Ice24UsbH,
+            McuVariant::F405RG,
+            ServeAlg::Default,
+            false, // boot_logging disabled
+        ).unwrap();
         let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
         
         // Validate
@@ -2000,20 +2088,32 @@ mod tests {
     // Helper: Transform logical address to physical address based on board pin mapping
     fn logical_to_physical_address(logical_addr: usize, board: onerom_config::hw::Board) -> usize {
         let addr_pins = board.addr_pins();
+
+        // Address pins must be within a contiguous 16-bit window starting on an 8-boundary
+        let min_pin = *addr_pins.iter().min().unwrap() as usize;
+        let max_pin = *addr_pins.iter().max().unwrap() as usize;
+        assert!(min_pin % 8 == 0, "Address pins must start on 8-byte boundary, got min pin {}", min_pin);
+        assert!(max_pin < min_pin + 16, "Address pins must be within 16-bit window, got range {}-{}", min_pin, max_pin);
+    
         let mut physical_address = 0;
         
         // For each address line, if the bit is set in logical address,
         // set the corresponding physical pin bit
-        for (addr_line, &phys_pin) in addr_pins.iter().enumerate() {
+        let mut normalized_addr_pins = vec![0u8; addr_pins.len()];
+        if addr_pins.iter().all(|&p| p >= 8) {
+            for (ii, &p) in addr_pins.iter().enumerate() {
+                normalized_addr_pins[ii] = p - 8;
+            }
+        } else {
+            for (ii, &p) in addr_pins.iter().enumerate() {
+                normalized_addr_pins[ii] = p;
+            }
+        }
+        for (addr_line, &phys_pin) in normalized_addr_pins.iter().enumerate() {
             if logical_addr & (1 << addr_line) != 0 {
                 let pin = phys_pin as usize;
                 // Handle boards where address pins are shifted
-                let bit_position = if pin >= 8 && addr_pins.iter().all(|&p| p >= 8 || p < 8) {
-                    // All pins either <8 or >=8, use adjusted position
-                    if addr_pins[0] >= 8 { pin - 8 } else { pin }
-                } else {
-                    pin
-                };
+                let bit_position = pin;
                 physical_address |= 1 << bit_position;
             }
         }
@@ -2024,6 +2124,14 @@ mod tests {
     // Helper: Transform logical data byte to physical byte based on board pin mapping
     fn logical_to_physical_byte(logical_byte: u8, board: onerom_config::hw::Board) -> u8 {
         let data_pins = board.data_pins();
+
+        // Data pins must be within a contiguous 8-bit window starting on an 8-boundary
+        let min_pin = *data_pins.iter().min().unwrap();
+        let max_pin = *data_pins.iter().max().unwrap();
+        assert_eq!(data_pins.len(), 8, "Must have exactly 8 data pins");
+        assert!(min_pin % 8 == 0, "Data pins must start on 8-byte boundary, got min pin {}", min_pin);
+        assert!(max_pin < min_pin + 8, "Data pins must be within 8-bit window, got range {}-{}", min_pin, max_pin);
+        
         let mut physical_byte = 0;
         
         // For each data line, if the bit is set in logical byte,
@@ -2111,7 +2219,7 @@ mod tests {
     
     // Helper: Unscramble physical byte to logical byte based on board pin mapping
     fn unscramble_physical_byte(physical_byte: u8, board: onerom_config::hw::Board) -> u8 {
-        let data_pins = board.data_pins();
+        let data_pins = board.phys_pin_to_data_map();
         let mut logical_byte = 0;
         
         // For each physical pin, if the bit is set, set the corresponding logical data line bit
@@ -2245,23 +2353,17 @@ mod tests {
                     {
                         "file": "rom0.bin",
                         "type": "2364",
-                        "cs1": "active_low",
-                        "cs2": "ignore",
-                        "cs3": "ignore"
+                        "cs1": "active_low"
                     },
                     {
                         "file": "rom1.bin",
                         "type": "2364",
-                        "cs1": "active_low",
-                        "cs2": "ignore",
-                        "cs3": "ignore"
+                        "cs1": "active_low"
                     },
                     {
                         "file": "rom2.bin",
                         "type": "2364",
-                        "cs1": "active_low",
-                        "cs2": "ignore",
-                        "cs3": "ignore"
+                        "cs1": "active_low"
                     }
                 ]
             }]
@@ -2474,5 +2576,2590 @@ mod tests {
         println!("✓ Phase 7 Test 4: Banked ROM set images passed");
         println!("  - Verified all 64KB with {} ROMs in banks", rom_data.len());
         println!("  - Validated X1/X2 bit values select correct ROM");
+    }
+
+    // ========================================================================
+    // PHASE 11: JSON Parsing and Validation Errors
+    // ========================================================================
+
+    // ========================================================================
+    // TEST 29: Malformed JSON
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_malformed_json() {
+        let json = r#"{
+            "version": 1,
+            "description": "Missing closing brace",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        "#; // Intentionally missing closing brace
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Malformed JSON should fail to parse");
+        
+        println!("✓ Phase 11 Test 1: Malformed JSON correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 30: Missing Required Fields - rom_sets
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_missing_rom_sets() {
+        let json = r#"{
+            "version": 1,
+            "description": "Missing rom_sets field"
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "JSON missing rom_sets should fail");
+        
+        println!("✓ Phase 11 Test 2: Missing rom_sets field correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 31: Missing Required Fields - type
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_missing_set_type() {
+        let json = r#"{
+            "version": 1,
+            "description": "Missing set type",
+            "rom_sets": [{
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "JSON missing set type should fail");
+        
+        println!("✓ Phase 11 Test 3: Missing set type correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 32: Missing Required Fields - file
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_missing_file() {
+        let json = r#"{
+            "version": 1,
+            "description": "Missing file field",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "JSON missing file field should fail");
+        
+        println!("✓ Phase 11 Test 4: Missing file field correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 33: Invalid ROM Type String
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_invalid_rom_type() {
+        let json = r#"{
+            "version": 1,
+            "description": "Invalid ROM type",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "9999",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Invalid ROM type should fail");
+        
+        println!("✓ Phase 11 Test 5: Invalid ROM type correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 34: Invalid CS Logic String
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_invalid_cs_logic() {
+        let json = r#"{
+            "version": 1,
+            "description": "Invalid CS logic",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "maybe_active"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Invalid CS logic should fail");
+        
+        println!("✓ Phase 11 Test 6: Invalid CS logic correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 35: Invalid Set Type String
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_invalid_set_type() {
+        let json = r#"{
+            "version": 1,
+            "description": "Invalid set type",
+            "rom_sets": [{
+                "type": "triple",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Invalid set type should fail");
+        
+        println!("✓ Phase 11 Test 7: Invalid set type correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 36: CS2 Specified for 2364
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_cs2_for_2364() {
+        let json = r#"{
+            "version": 1,
+            "description": "CS2 specified for 2364",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "cs2": "active_high"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        // This test documents behavior - either should error or succeed
+        // but we're asserting it should error for now
+        assert!(result.is_err(), "CS2 specified for 2364 should fail");
+        
+        println!("✓ Phase 11 Test 8: CS2 for 2364 correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 37: CS3 Specified for 2332
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_cs3_for_2332() {
+        let json = r#"{
+            "version": 1,
+            "description": "CS3 specified for 2332",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2332",
+                    "cs1": "active_low",
+                    "cs2": "active_high",
+                    "cs3": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        // This test documents behavior - either should error or succeed
+        assert!(result.is_err(), "CS3 specified for 2332 should fail");
+        
+        println!("✓ Phase 11 Test 9: CS3 for 2332 correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 38: No CS1 Specified
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_missing_cs1() {
+        let json = r#"{
+            "version": 1,
+            "description": "Missing CS1",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Missing CS1 should fail");
+        
+        println!("✓ Phase 11 Test 10: Missing CS1 correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 39: Invalid size_handling Value
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_invalid_size_handling() {
+        let json = r#"{
+            "version": 1,
+            "description": "Invalid size_handling",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "size_handling": "stretch"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Invalid size_handling should fail");
+        
+        println!("✓ Phase 11 Test 11: Invalid size_handling correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 40: ROM Type Mismatch in Multi Set
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_rom_type_mismatch_multi_set() {
+        let json = r#"{
+            "version": 1,
+            "description": "Mixed ROM types in multi set",
+            "rom_sets": [{
+                "type": "multi",
+                "roms": [
+                    {
+                        "file": "rom0.bin",
+                        "type": "2364",
+                        "cs1": "active_low",
+                        "cs2": "ignore",
+                        "cs3": "ignore"
+                    },
+                    {
+                        "file": "rom1.bin",
+                        "type": "2332",
+                        "cs1": "active_low",
+                        "cs2": "ignore",
+                        "cs3": "ignore"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        // This documents expected behavior - mixed types might be allowed or not
+        // For now, assuming it should fail
+        assert!(result.is_err(), "Mixed ROM types in multi set should fail");
+        
+        println!("✓ Phase 11 Test 12: ROM type mismatch in multi set correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 41: ROM Type Mismatch in Banked Set
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_rom_type_mismatch_banked_set() {
+        let json = r#"{
+            "version": 1,
+            "description": "Mixed ROM types in banked set",
+            "rom_sets": [{
+                "type": "banked",
+                "roms": [
+                    {
+                        "file": "bank0.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "bank1.rom",
+                        "type": "2332",
+                        "cs1": "active_low",
+                        "cs2": "active_high"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Mixed ROM types in banked set should fail");
+        
+        println!("✓ Phase 11 Test 13: ROM type mismatch in banked set correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 42: Negative Version Number
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_negative_version() {
+        let json = r#"{
+            "version": -1,
+            "description": "Negative version",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Negative version should fail");
+        
+        println!("✓ Phase 11 Test 14: Negative version correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 43: Invalid Version Number (Zero)
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_zero_version() {
+        let json = r#"{
+            "version": 0,
+            "description": "Zero version",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Zero version should fail");
+        
+        println!("✓ Phase 11 Test 15: Zero version correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 44: Invalid Version Number (Too High)
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_invalid_high_version() {
+        let json = r#"{
+            "version": 999,
+            "description": "Version too high",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Version 999 should fail");
+        
+        println!("✓ Phase 11 Test 16: Invalid high version correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 45: Empty ROM Sets Array (Allowed)
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_empty_rom_sets() {
+        let json = r#"{
+            "version": 1,
+            "description": "Empty ROM sets array",
+            "rom_sets": []
+        }"#;
+        
+        let builder = Builder::from_json(json).expect("Empty rom_sets should be allowed");
+        
+        let props = default_fw_props();
+        let (metadata_buf, rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Validate header shows 0 ROM sets
+        let header = MetadataHeader::parse(&metadata_buf);
+        assert_eq!(header.rom_set_count, 0, "Should have 0 ROM sets");
+        
+        // ROM images buffer should be minimal/empty
+        assert!(rom_images_buf.is_empty() || rom_images_buf.len() < 1024, 
+                "ROM images should be minimal for empty config");
+        
+        println!("✓ Phase 11 Test 17: Empty rom_sets array allowed");
+        println!("  - Metadata size: {} bytes", metadata_buf.len());
+        println!("  - ROM images size: {} bytes", rom_images_buf.len());
+    }
+    // ========================================================================
+    // TEST 46: Empty ROMs Array in Set
+    // ========================================================================
+
+    #[test]
+    fn test_phase11_empty_roms_array() {
+        let json = r#"{
+            "version": 1,
+            "description": "Empty roms array",
+            "rom_sets": [{
+                "type": "single",
+                "roms": []
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Empty roms array should fail");
+        
+        println!("✓ Phase 11 Test 18: Empty roms array correctly rejected");
+    }
+
+    // ========================================================================
+    // PHASE 12: Filename and Boot Logging Edge Cases
+    // ========================================================================
+
+    // ========================================================================
+    // TEST 47: Empty Filename String
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_empty_filename() {
+        let json = r#"{
+            "version": 1,
+            "description": "Empty filename",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Empty filename should fail");
+        
+        println!("✓ Phase 12 Test 1: Empty filename correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 48: Filename with Spaces
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_filename_with_spaces() {
+        let json = r#"{
+            "version": 1,
+            "description": "Filename with spaces",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "my test rom.bin",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Filename with spaces should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file");
+        
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Parse and verify filename
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+        let rom_info_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array_offset],
+            metadata_buf[rom_array_offset + 1],
+            metadata_buf[rom_array_offset + 2],
+            metadata_buf[rom_array_offset + 3],
+        ]);
+        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+        
+        let filename_ptr = rom_info.filename_ptr.unwrap();
+        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+        
+        assert_eq!(filename, "my test rom.bin", "Filename with spaces should be preserved");
+        
+        println!("✓ Phase 12 Test 2: Filename with spaces correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 49: Filename with Special Characters
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_filename_special_chars() {
+        let json = r#"{
+            "version": 1,
+            "description": "Filename with special characters",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "rom-v1.0_test[final].bin",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Filename with special chars should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file");
+        
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Parse and verify filename
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+        let rom_info_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array_offset],
+            metadata_buf[rom_array_offset + 1],
+            metadata_buf[rom_array_offset + 2],
+            metadata_buf[rom_array_offset + 3],
+        ]);
+        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+        
+        let filename_ptr = rom_info.filename_ptr.unwrap();
+        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+        
+        assert_eq!(filename, "rom-v1.0_test[final].bin", "Special characters should be preserved");
+        
+        println!("✓ Phase 12 Test 3: Filename with special characters correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 50: Filename with Unicode
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_filename_unicode() {
+        let json = r#"{
+            "version": 1,
+            "description": "Filename with unicode",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "röm_tëst_🎮.bin",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Filename with unicode should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file");
+        
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Parse and verify filename
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+        let rom_info_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array_offset],
+            metadata_buf[rom_array_offset + 1],
+            metadata_buf[rom_array_offset + 2],
+            metadata_buf[rom_array_offset + 3],
+        ]);
+        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+        
+        let filename_ptr = rom_info.filename_ptr.unwrap();
+        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+        
+        assert_eq!(filename, "röm_tëst_🎮.bin", "Unicode characters should be preserved");
+        
+        println!("✓ Phase 12 Test 4: Filename with unicode correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 51: Maximum Length Filename (255 chars)
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_max_length_filename() {
+        // Create a 255-character filename (255 is common max for filesystem names)
+        let long_filename = "a".repeat(251) + ".bin"; // 251 + 4 = 255
+        
+        let json = format!(r#"{{
+            "version": 1,
+            "description": "Maximum length filename",
+            "rom_sets": [{{
+                "type": "single",
+                "roms": [{{
+                    "file": "{}",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }}]
+            }}]
+        }}"#, long_filename);
+        
+        let mut builder = Builder::from_json(&json).expect("Max length filename should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file");
+        
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Parse and verify filename
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+        let rom_info_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array_offset],
+            metadata_buf[rom_array_offset + 1],
+            metadata_buf[rom_array_offset + 2],
+            metadata_buf[rom_array_offset + 3],
+        ]);
+        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+        
+        let filename_ptr = rom_info.filename_ptr.unwrap();
+        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+        
+        assert_eq!(filename.len(), 255, "Filename length should be 255");
+        assert_eq!(filename, long_filename, "Long filename should be preserved");
+        
+        println!("✓ Phase 12 Test 5: Maximum length filename (255 chars) correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 52: Very Long Filename (Potential Overflow)
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_very_long_filename() {
+        // Create a 1000-character filename to test limits
+        let very_long_filename = "a".repeat(996) + ".bin";
+        
+        let json = format!(r#"{{
+            "version": 1,
+            "description": "Very long filename",
+            "rom_sets": [{{
+                "type": "single",
+                "roms": [{{
+                    "file": "{}",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }}]
+            }}]
+        }}"#, very_long_filename);
+        
+        let result = Builder::from_json(&json);
+        
+        // This might succeed or fail depending on implementation
+        // If it succeeds, verify the filename is stored correctly
+        // If it fails, that's also acceptable behavior
+        match result {
+            Ok(mut builder) => {
+                builder.add_file(FileData {
+                    id: 0,
+                    data: create_test_rom_data(8192, 0xAA),
+                }).expect("Failed to add file");
+                
+                let props = fw_props_with_logging();
+                let board = props.board();
+                let flash_base = board.mcu_family().get_flash_base();
+                let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+                
+                let build_result = builder.build(props);
+                
+                match build_result {
+                    Ok((metadata_buf, _rom_images_buf)) => {
+                        // Verify filename if build succeeded
+                        let header = MetadataHeader::parse(&metadata_buf);
+                        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+                        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+                        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+                        let rom_info_ptr = u32::from_le_bytes([
+                            metadata_buf[rom_array_offset],
+                            metadata_buf[rom_array_offset + 1],
+                            metadata_buf[rom_array_offset + 2],
+                            metadata_buf[rom_array_offset + 3],
+                        ]);
+                        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+                        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+                        
+                        let filename_ptr = rom_info.filename_ptr.unwrap();
+                        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+                        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+                        
+                        assert_eq!(filename, very_long_filename, "Very long filename should be preserved");
+                        println!("✓ Phase 12 Test 6: Very long filename (1000 chars) handled - stored successfully");
+                    }
+                    Err(_) => {
+                        println!("✓ Phase 12 Test 6: Very long filename (1000 chars) handled - rejected at build time");
+                    }
+                }
+            }
+            Err(_) => {
+                println!("✓ Phase 12 Test 6: Very long filename (1000 chars) handled - rejected at parse time");
+            }
+        }
+    }
+
+    // ========================================================================
+    // TEST 53: Duplicate Filenames in Different ROM Sets
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_duplicate_filenames() {
+        let json = r#"{
+            "version": 1,
+            "description": "Duplicate filenames in different sets",
+            "rom_sets": [
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }]
+                },
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test.rom",
+                        "type": "2332",
+                        "cs1": "active_low",
+                        "cs2": "active_high"
+                    }]
+                }
+            ]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Duplicate filenames should be allowed across different sets");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file 0");
+        
+        builder.add_file(FileData {
+            id: 1,
+            data: create_test_rom_data(4096, 0x55),
+        }).expect("Failed to add file 1");
+        
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Verify both filenames are stored
+        let header = MetadataHeader::parse(&metadata_buf);
+        assert_eq!(header.rom_set_count, 2);
+        
+        // Check first ROM set
+        let rom_set0_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set0 = RomSetStruct::parse(&metadata_buf, rom_set0_offset);
+        let rom_array0_offset = (rom_set0.roms_ptr - metadata_flash_start) as usize;
+        let rom_info0_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array0_offset],
+            metadata_buf[rom_array0_offset + 1],
+            metadata_buf[rom_array0_offset + 2],
+            metadata_buf[rom_array0_offset + 3],
+        ]);
+        let rom_info0 = RomInfoStruct::parse_with_filename(&metadata_buf, (rom_info0_ptr - metadata_flash_start) as usize);
+        let filename0 = parse_null_terminated_string(&metadata_buf, (rom_info0.filename_ptr.unwrap() - metadata_flash_start) as usize);
+        
+        // Check second ROM set
+        let rom_set1_offset = rom_set0_offset + ROM_SET_METADATA_LEN;
+        let rom_set1 = RomSetStruct::parse(&metadata_buf, rom_set1_offset);
+        let rom_array1_offset = (rom_set1.roms_ptr - metadata_flash_start) as usize;
+        let rom_info1_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array1_offset],
+            metadata_buf[rom_array1_offset + 1],
+            metadata_buf[rom_array1_offset + 2],
+            metadata_buf[rom_array1_offset + 3],
+        ]);
+        let rom_info1 = RomInfoStruct::parse_with_filename(&metadata_buf, (rom_info1_ptr - metadata_flash_start) as usize);
+        let filename1 = parse_null_terminated_string(&metadata_buf, (rom_info1.filename_ptr.unwrap() - metadata_flash_start) as usize);
+        
+        assert_eq!(filename0, "test.rom");
+        assert_eq!(filename1, "test.rom");
+        
+        println!("✓ Phase 12 Test 7: Duplicate filenames in different ROM sets correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 54: Filename with Path Separators
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_filename_with_path() {
+        let json = r#"{
+            "version": 1,
+            "description": "Filename with path separators",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "path/to/my/rom.bin",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Filename with path should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file");
+        
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Parse and verify filename
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+        let rom_info_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array_offset],
+            metadata_buf[rom_array_offset + 1],
+            metadata_buf[rom_array_offset + 2],
+            metadata_buf[rom_array_offset + 3],
+        ]);
+        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+        
+        let filename_ptr = rom_info.filename_ptr.unwrap();
+        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+        
+        assert_eq!(filename, "path/to/my/rom.bin", "Path separators should be preserved");
+        
+        println!("✓ Phase 12 Test 8: Filename with path separators correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 55: Filename with Quotes
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_filename_with_quotes() {
+        let json = r#"{
+            "version": 1,
+            "description": "Filename with quotes",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "rom\"with'quotes\".bin",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Filename with quotes should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file");
+        
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Parse and verify filename
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+        let rom_info_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array_offset],
+            metadata_buf[rom_array_offset + 1],
+            metadata_buf[rom_array_offset + 2],
+            metadata_buf[rom_array_offset + 3],
+        ]);
+        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+        
+        let filename_ptr = rom_info.filename_ptr.unwrap();
+        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+        
+        assert_eq!(filename, "rom\"with'quotes\".bin", "Quotes should be preserved");
+        
+        println!("✓ Phase 12 Test 9: Filename with quotes correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 56: Filename with Embedded Null Byte
+    // ========================================================================
+
+    #[test]
+    fn test_phase12_filename_with_null_byte() {
+        // In JSON, null bytes are represented as \u0000
+        let json = r#"{
+            "version": 1,
+            "description": "Filename with null byte",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "rom\u0000hidden.bin",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        // This should either:
+        // 1. Reject at parse time (preferred), OR
+        // 2. Accept but truncate at null byte when storing
+        
+        match result {
+            Err(_) => {
+                println!("✓ Phase 12 Test 10: Filename with null byte rejected at parse time");
+            }
+            Ok(mut builder) => {
+                builder.add_file(FileData {
+                    id: 0,
+                    data: create_test_rom_data(8192, 0xAA),
+                }).expect("Failed to add file");
+                
+                let props = fw_props_with_logging();
+                let board = props.board();
+                let flash_base = board.mcu_family().get_flash_base();
+                let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+                
+                let build_result = builder.build(props);
+                
+                match build_result {
+                    Ok((metadata_buf, _rom_images_buf)) => {
+                        // If build succeeded, verify null byte handling
+                        let header = MetadataHeader::parse(&metadata_buf);
+                        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+                        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+                        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+                        let rom_info_ptr = u32::from_le_bytes([
+                            metadata_buf[rom_array_offset],
+                            metadata_buf[rom_array_offset + 1],
+                            metadata_buf[rom_array_offset + 2],
+                            metadata_buf[rom_array_offset + 3],
+                        ]);
+                        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+                        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+                        
+                        let filename_ptr = rom_info.filename_ptr.unwrap();
+                        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+                        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+                        
+                        // Should be truncated at null byte
+                        assert_eq!(filename, "rom", "Filename should be truncated at null byte");
+                        println!("✓ Phase 12 Test 10: Filename with null byte handled - truncated at null");
+                    }
+                    Err(_) => {
+                        println!("✓ Phase 12 Test 10: Filename with null byte rejected at build time");
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // PHASE 13: ServeAlg Automatic Selection
+    // ========================================================================
+
+    // ========================================================================
+    // TEST 57: Single ROM Uses Default ServeAlg from FirmwareProperties
+    // ========================================================================
+
+    #[test]
+    fn test_phase13_single_rom_uses_fw_serve_alg() {
+        let json = r#"{
+            "version": 1,
+            "description": "Single ROM with default serve_alg",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file");
+        
+        // Build with different ServeAlg in FirmwareProperties
+        let props = FirmwareProperties::new(
+            FirmwareVersion::new(0, 5, 1, 0),
+            Board::Ice24UsbH,
+            McuVariant::F411RE,
+            ServeAlg::TwoCsOneAddr,  // Explicitly set different algorithm
+            false,
+        ).unwrap();
+        
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Verify single ROM uses the FirmwareProperties serve_alg
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        
+        assert_eq!(
+            rom_set.serve_alg,
+            ServeAlg::TwoCsOneAddr.c_enum_value(),
+            "Single ROM should use FirmwareProperties serve_alg"
+        );
+        
+        println!("✓ Phase 13 Test 1: Single ROM uses FirmwareProperties serve_alg");
+    }
+
+    // ========================================================================
+    // TEST 58: Multi ROM Set Overrides to AddrOnAnyCs
+    // ========================================================================
+
+    #[test]
+    fn test_phase13_multi_set_overrides_serve_alg() {
+        let json = r#"{
+            "version": 1,
+            "description": "Multi set should override serve_alg",
+            "rom_sets": [{
+                "type": "multi",
+                "roms": [
+                    {
+                        "file": "rom0.bin",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "rom1.bin",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file 0");
+        
+        builder.add_file(FileData {
+            id: 1,
+            data: create_test_rom_data(8192, 0x55),
+        }).expect("Failed to add file 1");
+        
+        // Build with TwoCsOneAddr in FirmwareProperties
+        let props = FirmwareProperties::new(
+            FirmwareVersion::new(0, 5, 1, 0),
+            Board::Ice24UsbH,
+            McuVariant::F411RE,
+            ServeAlg::TwoCsOneAddr,  // This should be overridden for multi sets
+            false,
+        ).unwrap();
+        
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Verify multi set overrides to AddrOnAnyCs
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        
+        assert_eq!(
+            rom_set.serve_alg,
+            ServeAlg::AddrOnAnyCs.c_enum_value(),
+            "Multi ROM set should override to AddrOnAnyCs"
+        );
+        
+        println!("✓ Phase 13 Test 2: Multi ROM set overrides serve_alg to AddrOnAnyCs");
+    }
+
+    // ========================================================================
+    // TEST 59: Banked ROM Set Uses FirmwareProperties ServeAlg
+    // ========================================================================
+
+    #[test]
+    fn test_phase13_banked_set_uses_fw_serve_alg() {
+        let json = r#"{
+            "version": 1,
+            "description": "Banked set with serve_alg",
+            "rom_sets": [{
+                "type": "banked",
+                "roms": [
+                    {
+                        "file": "bank0.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "bank1.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file 0");
+        
+        builder.add_file(FileData {
+            id: 1,
+            data: create_test_rom_data(8192, 0x55),
+        }).expect("Failed to add file 1");
+        
+        // Build with TwoCsOneAddr
+        let props = FirmwareProperties::new(
+            FirmwareVersion::new(0, 5, 1, 0),
+            Board::Ice24UsbH,
+            McuVariant::F411RE,
+            ServeAlg::TwoCsOneAddr,
+            false,
+        ).unwrap();
+        
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Verify banked set uses FirmwareProperties serve_alg
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+        
+        assert_eq!(
+            rom_set.serve_alg,
+            ServeAlg::TwoCsOneAddr.c_enum_value(),
+            "Banked ROM set should use FirmwareProperties serve_alg"
+        );
+        
+        println!("✓ Phase 13 Test 3: Banked ROM set uses FirmwareProperties serve_alg");
+    }
+
+    // ========================================================================
+    // TEST 60: Mixed Set Types with Different ServeAlgs
+    // ========================================================================
+
+    #[test]
+    fn test_phase13_mixed_sets_different_serve_algs() {
+        let json = r#"{
+            "version": 1,
+            "description": "Mixed set types",
+            "rom_sets": [
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "single.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }]
+                },
+                {
+                    "type": "multi",
+                    "roms": [
+                        {
+                            "file": "multi0.bin",
+                            "type": "2364",
+                            "cs1": "active_low"
+                        },
+                        {
+                            "file": "multi1.bin",
+                            "type": "2364",
+                            "cs1": "active_low"
+                        }
+                    ]
+                }
+            ]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAA),
+        }).expect("Failed to add file 0");
+        
+        builder.add_file(FileData {
+            id: 1,
+            data: create_test_rom_data(8192, 0x55),
+        }).expect("Failed to add file 1");
+        
+        builder.add_file(FileData {
+            id: 2,
+            data: create_test_rom_data(8192, 0x33),
+        }).expect("Failed to add file 2");
+        
+        let props = FirmwareProperties::new(
+            FirmwareVersion::new(0, 5, 1, 0),
+            Board::Ice24UsbH,
+            McuVariant::F411RE,
+            ServeAlg::AddrOnCs,
+            false,
+        ).unwrap();
+        
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        let header = MetadataHeader::parse(&metadata_buf);
+        assert_eq!(header.rom_set_count, 2);
+        
+        // Check single ROM set uses FW serve_alg
+        let rom_set0_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set0 = RomSetStruct::parse(&metadata_buf, rom_set0_offset);
+        
+        assert_eq!(
+            rom_set0.serve_alg,
+            ServeAlg::AddrOnCs.c_enum_value(),
+            "Single ROM should use FirmwareProperties serve_alg"
+        );
+        
+        // Check multi ROM set overrides to AddrOnAnyCs
+        let rom_set1_offset = rom_set0_offset + ROM_SET_METADATA_LEN;
+        let rom_set1 = RomSetStruct::parse(&metadata_buf, rom_set1_offset);
+        
+        assert_eq!(
+            rom_set1.serve_alg,
+            ServeAlg::AddrOnAnyCs.c_enum_value(),
+            "Multi ROM set should override to AddrOnAnyCs"
+        );
+        
+        println!("✓ Phase 13 Test 4: Mixed set types correctly use different serve algorithms");
+    }
+
+    // ========================================================================
+    // PHASE 14: File Size Edge Cases
+    // ========================================================================
+
+    // ========================================================================
+    // TEST 61: Zero-Byte File
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_zero_byte_file() {
+        let json = r#"{
+            "version": 1,
+            "description": "Zero-byte file",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add zero-byte file
+        builder.add_file(FileData {
+            id: 0,
+            data: Vec::new(),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let result = builder.build(props);
+        
+        assert!(result.is_err(), "Zero-byte file should fail");
+        
+        println!("✓ Phase 14 Test 1: Zero-byte file correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 62: Single-Byte File
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_single_byte_file() {
+        let json = r#"{
+            "version": 1,
+            "description": "Single-byte file",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2316",
+                    "cs1": "active_low",
+                    "cs2": "active_low",
+                    "cs3": "active_low",
+                    "size_handling": "pad"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add single-byte file (should be padded to 2KB)
+        builder.add_file(FileData {
+            id: 0,
+            data: vec![0x42],
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (metadata_buf, rom_images_buf) = builder.build(props).expect("Build should succeed with pad");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        // ROM images should contain the padded data
+        assert!(!rom_images_buf.is_empty(), "ROM images should not be empty");
+        
+        println!("✓ Phase 14 Test 2: Single-byte file with pad correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 63: File Size 2047 Bytes (Just Under 2KB)
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_file_2047_bytes() {
+        let json = r#"{
+            "version": 1,
+            "description": "2047 byte file",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2316",
+                    "cs1": "active_low",
+                    "cs2": "active_low",
+                    "cs3": "active_low",
+                    "size_handling": "pad"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add 2047-byte file (1 byte short of 2KB)
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(2047, 0xAB),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed with pad");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        println!("✓ Phase 14 Test 3: 2047-byte file (just under 2KB) with pad correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 64: File Size 2049 Bytes (Just Over 2KB)
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_file_2049_bytes() {
+        let json = r#"{
+            "version": 1,
+            "description": "2049 byte file",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2332",
+                    "cs1": "active_low",
+                    "cs2": "active_low",
+                    "size_handling": "pad"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add 2049-byte file (1 byte over 2KB, needs padding to 4KB)
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(2049, 0xCD),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed with pad");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        println!("✓ Phase 14 Test 4: 2049-byte file (just over 2KB) with pad correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 65: File Exactly 1KB for 2KB ROM with Duplicate
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_1kb_for_2kb_duplicate() {
+        let json = r#"{
+            "version": 1,
+            "description": "1KB file for 2KB ROM with duplicate",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2316",
+                    "cs1": "active_low",
+                    "cs2": "active_low",
+                    "cs3": "active_low",
+                    "size_handling": "duplicate"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add exactly 1KB file (should duplicate to 2KB)
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(1024, 0xEF),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed with duplicate");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        println!("✓ Phase 14 Test 5: 1KB file for 2KB ROM with duplicate correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 66: File Exactly 2KB for 8KB ROM with Duplicate
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_2kb_for_8kb_duplicate() {
+        let json = r#"{
+            "version": 1,
+            "description": "2KB file for 8KB ROM with duplicate",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "size_handling": "duplicate"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add exactly 2KB file (should duplicate 4 times to 8KB)
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(2048, 0x12),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed with duplicate");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        println!("✓ Phase 14 Test 6: 2KB file for 8KB ROM with duplicate correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 67: Very Small File (1 byte) Padded to 8KB
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_1_byte_padded_to_8kb() {
+        let json = r#"{
+            "version": 1,
+            "description": "1 byte file padded to 8KB",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "size_handling": "pad"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add 1-byte file (should pad to 8KB)
+        builder.add_file(FileData {
+            id: 0,
+            data: vec![0x99],
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let board = props.board();
+        let (metadata_buf, rom_images_buf) = builder.build(props).expect("Build should succeed with pad");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        // Verify the single byte is in the ROM images
+        let first_byte = read_rom_byte(&rom_images_buf, 0, board);
+        assert_eq!(first_byte, 0x99, "First byte should be 0x99");
+        
+        // Verify padding (exact pad value depends on implementation, but it should be consistent)
+        let last_byte = read_rom_byte(&rom_images_buf, 8191, board);
+        println!("  First byte: 0x{:02X}, Last byte (padding): 0x{:02X}", first_byte, last_byte);
+        
+        println!("✓ Phase 14 Test 7: 1 byte file padded to 8KB correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 68: File Size Not a Power of 2 Without size_handling
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_odd_size_no_handling() {
+        let json = r#"{
+            "version": 1,
+            "description": "Odd size without size_handling",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add 3KB file without size_handling (should error)
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(3072, 0x33),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let result = builder.build(props);
+        
+        assert!(result.is_err(), "Odd size without size_handling should fail");
+        
+        println!("✓ Phase 14 Test 8: Odd size without size_handling correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 69: Maximum ROM Size (8KB for 2364)
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_maximum_rom_size() {
+        let json = r#"{
+            "version": 1,
+            "description": "Maximum ROM size",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add exactly 8KB (maximum for 2364)
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xFF),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        println!("✓ Phase 14 Test 9: Maximum ROM size (8KB) correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 70: Minimum ROM Size (2KB for 2316)
+    // ========================================================================
+
+    #[test]
+    fn test_phase14_minimum_rom_size() {
+        let json = r#"{
+            "version": 1,
+            "description": "Minimum ROM size",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2316",
+                    "cs1": "active_low",
+                    "cs2": "active_low",
+                    "cs3": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Add exactly 2KB (minimum/exact size for 2316)
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(2048, 0x00),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        // Basic validation
+        let header = MetadataHeader::parse(&metadata_buf);
+        header.validate_basic();
+        assert_eq!(header.rom_set_count, 1);
+        
+        println!("✓ Phase 14 Test 10: Minimum ROM size (2KB) correctly handled");
+    }
+
+    // ========================================================================
+    // PHASE 16: CS Configuration Validation
+    // ========================================================================
+
+    // ========================================================================
+    // TEST 71: 2316 with Only CS1 and CS2 (Missing CS3)
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_2316_missing_cs3() {
+        let json = r#"{
+            "version": 1,
+            "description": "2316 with missing CS3",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2316",
+                    "cs1": "active_low",
+                    "cs2": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "2316 missing CS3 should fail");
+        
+        println!("✓ Phase 16 Test 1: 2316 with missing CS3 correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 72: 2332 with CS3 Specified (Already tested in Phase 11)
+    // ========================================================================
+    // This was TEST 37 in Phase 11 - no need to duplicate
+
+    // ========================================================================
+    // TEST 73: All Three CS as Ignore
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_all_cs_ignore() {
+        let json = r#"{
+            "version": 1,
+            "description": "All CS lines as ignore",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2316",
+                    "cs1": "ignore",
+                    "cs2": "ignore",
+                    "cs3": "ignore"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "All CS as ignore should fail");
+        
+        println!("✓ Phase 16 Test 2: All CS lines as ignore correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 74: CS1 as Ignore but CS2 Active
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_cs1_ignore_cs2_active() {
+        let json = r#"{
+            "version": 1,
+            "description": "CS1 ignore but CS2 active",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2332",
+                    "cs1": "ignore",
+                    "cs2": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "CS1 as ignore with CS2 active should fail");
+        
+        println!("✓ Phase 16 Test 3: CS1 ignore with CS2 active correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 75: Multi Set with Inconsistent CS States Between ROMs
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_multi_set_inconsistent_cs() {
+        let json = r#"{
+            "version": 1,
+            "description": "Multi set with inconsistent CS states",
+            "rom_sets": [{
+                "type": "multi",
+                "roms": [
+                    {
+                        "file": "rom0.bin",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "rom1.bin",
+                        "type": "2364",
+                        "cs1": "active_high"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Multi set with inconsistent CS1 states should fail");
+        
+        println!("✓ Phase 16 Test 4: Multi set with inconsistent CS states correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 76: Banked Set with Different CS1 States
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_banked_set_different_cs1() {
+        let json = r#"{
+            "version": 1,
+            "description": "Banked set with different CS1 states",
+            "rom_sets": [{
+                "type": "banked",
+                "roms": [
+                    {
+                        "file": "bank0.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "bank1.rom",
+                        "type": "2364",
+                        "cs1": "active_high"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Banked set with different CS1 states should fail");
+        
+        println!("✓ Phase 16 Test 5: Banked set with different CS1 states correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 77: 2332 with CS1 Ignore and CS2 Ignore
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_2332_both_cs_ignore() {
+        let json = r#"{
+            "version": 1,
+            "description": "2332 with both CS ignore",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2332",
+                    "cs1": "ignore",
+                    "cs2": "ignore"
+                }]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "2332 with both CS as ignore should fail");
+        
+        println!("✓ Phase 16 Test 6: 2332 with both CS ignore correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 78: Valid CS Configuration - 2316 with All CS Active
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_2316_all_cs_active_valid() {
+        let json = r#"{
+            "version": 1,
+            "description": "Valid 2316 with all CS active",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2316",
+                    "cs1": "active_low",
+                    "cs2": "active_low",
+                    "cs3": "active_low"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Valid CS config should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(2048, 0xAA),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (_metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        println!("✓ Phase 16 Test 7: Valid 2316 with all CS active correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 79: Valid CS Configuration - 2332 with Mixed CS States
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_2332_mixed_cs_valid() {
+        let json = r#"{
+            "version": 1,
+            "description": "Valid 2332 with mixed CS states",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2332",
+                    "cs1": "active_low",
+                    "cs2": "active_high"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Valid CS config should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(4096, 0xBB),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let (_metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        println!("✓ Phase 16 Test 8: Valid 2332 with mixed CS states correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 80: Multi Set with All ROMs Having Same CS Configuration (Valid)
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_multi_set_same_cs_valid() {
+        let json = r#"{
+            "version": 1,
+            "description": "Multi set with same CS config",
+            "rom_sets": [{
+                "type": "multi",
+                "roms": [
+                    {
+                        "file": "rom0.bin",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "rom1.bin",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "rom2.bin",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Same CS config should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0x11),
+        }).expect("Failed to add file 0");
+        
+        builder.add_file(FileData {
+            id: 1,
+            data: create_test_rom_data(8192, 0x22),
+        }).expect("Failed to add file 1");
+        
+        builder.add_file(FileData {
+            id: 2,
+            data: create_test_rom_data(8192, 0x33),
+        }).expect("Failed to add file 2");
+        
+        let props = default_fw_props();
+        let (_metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        println!("✓ Phase 16 Test 9: Multi set with same CS config correctly handled");
+    }
+
+    // ========================================================================
+    // TEST 81: Banked Set with All ROMs Having Same CS Configuration (Valid)
+    // ========================================================================
+
+    #[test]
+    fn test_phase16_banked_set_same_cs_valid() {
+        let json = r#"{
+            "version": 1,
+            "description": "Banked set with same CS config",
+            "rom_sets": [{
+                "type": "banked",
+                "roms": [
+                    {
+                        "file": "bank0.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "bank1.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    },
+                    {
+                        "file": "bank2.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }
+                ]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Same CS config should be allowed");
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0x44),
+        }).expect("Failed to add file 0");
+        
+        builder.add_file(FileData {
+            id: 1,
+            data: create_test_rom_data(8192, 0x55),
+        }).expect("Failed to add file 1");
+        
+        builder.add_file(FileData {
+            id: 2,
+            data: create_test_rom_data(8192, 0x66),
+        }).expect("Failed to add file 2");
+        
+        let props = default_fw_props();
+        let (_metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
+        
+        println!("✓ Phase 16 Test 10: Banked set with same CS config correctly handled");
+    }
+
+    // ========================================================================
+    // PHASE 18: ROM Images Correctness
+    // ========================================================================
+
+    // ========================================================================
+    // TEST 82: Verify Duplicate Correctly Duplicates Data (Check Both Copies)
+    // ========================================================================
+
+    #[test]
+    fn test_phase18_duplicate_both_copies() {
+        let json = r#"{
+            "version": 1,
+            "description": "Verify duplicate creates identical copies",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "size_handling": "duplicate"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Create 4KB of test data with unique pattern
+        let mut test_data = Vec::with_capacity(4096);
+        for i in 0..4096 {
+            test_data.push((i & 0xFF) as u8);
+        }
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: test_data.clone(),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let board = props.board();
+        let (_metadata_buf, rom_images_buf) = builder.build(props).expect("Build failed");
+        
+        // Verify first copy (addresses 0-4095)
+        let mut errors_first = 0;
+        for addr in 0..4096 {
+            let expected = test_data[addr];
+            let actual = read_rom_byte(&rom_images_buf, addr, board);
+            if actual != expected {
+                errors_first += 1;
+                if errors_first <= 5 {
+                    println!("  First copy mismatch at 0x{:04X}: expected 0x{:02X}, got 0x{:02X}",
+                            addr, expected, actual);
+                }
+            }
+        }
+        
+        // Verify second copy (addresses 4096-8191)
+        let mut errors_second = 0;
+        for addr in 4096..8192 {
+            let expected = test_data[addr - 4096];
+            let actual = read_rom_byte(&rom_images_buf, addr, board);
+            if actual != expected {
+                errors_second += 1;
+                if errors_second <= 5 {
+                    println!("  Second copy mismatch at 0x{:04X}: expected 0x{:02X}, got 0x{:02X}",
+                            addr, expected, actual);
+                }
+            }
+        }
+        
+        assert_eq!(errors_first, 0, "First copy has {} errors", errors_first);
+        assert_eq!(errors_second, 0, "Second copy has {} errors", errors_second);
+        
+        println!("✓ Phase 18 Test 1: Duplicate correctly creates two identical copies");
+    }
+
+    // ========================================================================
+    // TEST 83: Verify Pad Fills with PAD_BLANK_BYTE
+    // ========================================================================
+
+    #[test]
+    fn test_phase18_pad_fill_value() {
+        let json = r#"{
+            "version": 1,
+            "description": "Verify pad fill byte",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "size_handling": "pad"
+                }]
+            }]
+        }"#;
+        
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        
+        // Create 2KB of test data (will be padded to 8KB)
+        let test_data = create_test_rom_data(2048, 0x42);
+        
+        builder.add_file(FileData {
+            id: 0,
+            data: test_data.clone(),
+        }).expect("Failed to add file");
+        
+        let props = default_fw_props();
+        let board = props.board();
+        let (_metadata_buf, rom_images_buf) = builder.build(props).expect("Build failed");
+        
+        // Verify original data (addresses 0-2047)
+        for addr in 0..2048 {
+            let expected = 0x42;
+            let actual = read_rom_byte(&rom_images_buf, addr, board);
+            assert_eq!(actual, expected, "Original data mismatch at 0x{:04X}", addr);
+        }
+        
+        // Verify all padding uses PAD_BLANK_BYTE (addresses 2048-8191)
+        for addr in 2048..8192 {
+            let actual = read_rom_byte(&rom_images_buf, addr, board);
+            assert_eq!(actual, onerom_gen::PAD_BLANK_BYTE, 
+                    "Pad byte mismatch at 0x{:04X}: expected 0x{:02X}, got 0x{:02X}",
+                    addr, onerom_gen::PAD_BLANK_BYTE, actual);
+        }
+        
+        println!("✓ Phase 18 Test 2: Pad fills with PAD_BLANK_BYTE (0x{:02X})", onerom_gen::PAD_BLANK_BYTE);
+    }
+
+    // ========================================================================
+    // TEST 85: Set with 4 multi-set ROMs (Should Fail - Max is 3)
+    // ========================================================================
+
+    #[test]
+    fn test_phase18_multi_rom_set_4_roms_fails() {
+        let json = r#"{
+            "version": 1,
+            "description": "Multi-ROM set with 4 ROMs (exceeds max)",
+            "rom_sets": [{
+                "type": "multi",
+                "roms": [
+                    { "file": "bank0.rom", "type": "2364", "cs1": "active_low" },
+                    { "file": "bank1.rom", "type": "2364", "cs1": "active_low" },
+                    { "file": "bank2.rom", "type": "2364", "cs1": "active_low" },
+                    { "file": "bank3.rom", "type": "2364", "cs1": "active_low" },
+                ]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Banked set with 8 ROMs should fail (max is 4)");
+        
+        println!("✓ Phase 18 Test 4: Banked set with 8 ROMs correctly rejected (max is 4)");
+    }
+
+    // ========================================================================
+    // TEST 85: Banked Set with 8 ROMs (Should Fail - Max is 4)
+    // ========================================================================
+
+    #[test]
+    fn test_phase18_banked_set_8_roms_fails() {
+        let json = r#"{
+            "version": 1,
+            "description": "Banked set with 8 ROMs (exceeds max)",
+            "rom_sets": [{
+                "type": "banked",
+                "roms": [
+                    { "file": "bank0.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" },
+                    { "file": "bank1.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" },
+                    { "file": "bank2.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" },
+                    { "file": "bank3.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" },
+                    { "file": "bank4.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" },
+                    { "file": "bank5.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" },
+                    { "file": "bank6.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" },
+                    { "file": "bank7.rom", "type": "2316", "cs1": "active_low", "cs2": "active_low", "cs3": "active_low" }
+                ]
+            }]
+        }"#;
+        
+        let result = Builder::from_json(json);
+        
+        assert!(result.is_err(), "Banked set with 8 ROMs should fail (max is 4)");
+        
+        println!("✓ Phase 18 Test 4: Banked set with 8 ROMs correctly rejected (max is 4)");
+    }
+
+    // ========================================================================
+    // TEST 86: Invalid, removed
+    // ========================================================================
+
+    // ========================================================================
+    // TEST 87: Different Board Pin Mappings Produce Correct Transformations
+    // ========================================================================
+
+    #[test]
+    fn test_phase18_different_board_pin_mappings() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test different board pin mappings",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+        
+        // Test with multiple boards that have different pin mappings
+        let boards_to_test = [
+            (Board::Ice24D, McuVariant::F411RE),
+            (Board::Ice24E, McuVariant::F411RE),
+            (Board::Ice24F, McuVariant::F411RE),
+            (Board::Ice24G, McuVariant::F411RE),
+            (Board::Ice24UsbH, McuVariant::F411RE),
+            (Board::Fire24A, McuVariant::RP2350),
+            (Board::Fire24UsbB, McuVariant::RP2350),
+        ];
+        
+        for (board_type, mcu_variant) in boards_to_test.iter() {
+            let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+            
+            // Create test data with unique pattern
+            let mut test_data = Vec::with_capacity(8192);
+            for i in 0..8192 {
+                test_data.push((i & 0xFF) as u8);
+            }
+            
+            builder.add_file(FileData {
+                id: 0,
+                data: test_data.clone(),
+            }).expect("Failed to add file");
+            
+            let props = FirmwareProperties::new(
+                FirmwareVersion::new(0, 5, 1, 0),
+                *board_type,
+                *mcu_variant,
+                ServeAlg::Default,
+                false,
+            ).unwrap();
+            
+            let board = props.board();
+            let (_metadata_buf, rom_images_buf) = builder.build(props).expect("Build failed");
+            
+            // Verify address/data transformations work correctly for this board
+            let mut errors = 0;
+            let max_errors = 10;
+            
+            for addr in 0..8192 {
+                let expected = test_data[addr];
+                let actual = read_rom_byte(&rom_images_buf, addr, board);
+                if actual != expected {
+                    errors += 1;
+                    if errors <= max_errors {
+                        println!("  {:?} mismatch at 0x{:04X}: expected 0x{:02X}, got 0x{:02X}",
+                                board_type, addr, expected, actual);
+                    }
+                }
+            }
+            
+            if errors > max_errors {
+                println!("  ... and {} more errors", errors - max_errors);
+            }
+            
+            assert_eq!(errors, 0, "Found {} transformation errors for {:?}", errors, board_type);
+            
+            println!("  ✓ {:?} pin mapping transformations correct", board_type);
+        }
+        
+        println!("✓ Phase 18 Test 6: Different board pin mappings produce correct transformations");
+    }
+
+    // ========================================================================
+    // Test license presence
+    // ========================================================================
+    #[test]
+    fn test_phase17_license_presence() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test license presence",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "license": "license.url",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAB),
+        }).expect("Failed to add file");
+
+        let licenses = builder.licenses();
+        assert_eq!(licenses.len(), 1, "There should be one license entry");
+        assert_eq!(licenses[0].url, "license.url", "License URL should match");
+        assert_eq!(licenses[0].id, 0, "License ID should be 0");
+        assert_eq!(licenses[0].file_id, 0, "File ID should be 0");
+
+        builder.accept_license(&licenses[0]).expect("License acceptance should pass");
+
+        println!("✓ License presence test passed");
+    }
+
+    // ========================================================================
+    // Test no license
+    // ========================================================================
+    #[test]
+    fn test_phase17_no_license_presence() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test license presence",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        builder.add_file(FileData {
+            id: 0,
+            data: create_test_rom_data(8192, 0xAB),
+        }).expect("Failed to add file");
+
+        let licenses = builder.licenses();
+        assert_eq!(licenses.len(), 0, "There should be no license entry");
+
+        // Should fail
+        let license = onerom_gen::builder::License::new(0, 0, "license.url".to_string());
+        builder.accept_license(&license).expect_err("License acceptance should fail");
+
+        println!("✓ License presence test passed");
+    }
+
+    // ========================================================================
+    // Test descriptions
+    // ========================================================================
+    #[test]
+    fn test_phase19_basic() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test description",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let desc = builder.description();
+        assert_eq!(desc, "Test description\n\nImages:\n0: test.rom", "Description should match");
+    }
+
+    #[test]
+    fn test_phase19_detail() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test description",
+            "detail": "Detailed description",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let desc = builder.description();
+        assert_eq!(desc, "Test description\n\nDetailed description\n\nImages:\n0: test.rom", "Description should match");
+    }
+
+    #[test]
+    fn test_phase19_image() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test description",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "description": "an image",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let desc = builder.description();
+        assert_eq!(desc, "Test description\n\nImages:\n0: an image", "Description should match");
+    }
+
+    #[test]
+    fn test_phase19_notes() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test description",
+            "notes": "Some notes here",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "description": "an image",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let desc = builder.description();
+        assert_eq!(desc, "Test description\n\nImages:\n0: an image\n\nSome notes here", "Description should match");
+    }
+
+    #[test]
+    fn test_phase19_set() {
+        let json = r#"{
+            "version": 1,
+            "description": "Test description",
+            "rom_sets": [{
+                "type": "banked",
+                "roms": [{
+                    "file": "test0.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                },{
+                    "file": "test1.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let desc = builder.description();
+        assert_eq!(desc, "Test description\n\nSets:\n0: Banked\n  0: test0.rom\n  1: test1.rom", "Description should match");
     }
 }
