@@ -6,9 +6,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - uses: actions/checkout@v4
       
@@ -21,7 +18,7 @@ jobs:
       
       - name: Build MSI
         working-directory: rust/studio
-        run: cargo wix -p onerom-studio --target x86_64-pc-windows-msvc --nocapture
+        run: cargo wix --target x86_64-pc-windows-msvc --nocapture
         
       - name: Upload MSI
         uses: actions/upload-artifact@v4
