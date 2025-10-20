@@ -16,14 +16,11 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
       
-      - name: Build project
-        run: cargo build --release --target x86_64-pc-windows-msvc -p onerom-studio
-      
       - name: Install cargo-wix
         run: cargo install cargo-wix
       
       - name: Build MSI
-        run: cargo wix -p onerom-studio --no-build --target x86_64-pc-windows-msvc
+        run: cargo wix -p onerom-studio --target x86_64-pc-windows-msvc --nocapture
         
       - name: Upload MSI
         uses: actions/upload-artifact@v4
