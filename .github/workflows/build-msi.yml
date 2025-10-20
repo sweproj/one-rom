@@ -1,0 +1,29 @@
+name: Build Windows MSI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      
+      - name: Install cargo-wix
+        run: cargo install cargo-wix
+      
+      - name: Build MSI
+        run: cargo wix -p onerom-studio
+        
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: onerom-studio-msi
+          path: rust/target/wix/*.msi
