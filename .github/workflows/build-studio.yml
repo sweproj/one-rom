@@ -1,0 +1,97 @@
+name: Build Studio
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+      
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --locked
+      
+      - name: Build Windows NSIS installer
+        working-directory: rust/studio
+        run: cargo packager --release --target x86_64-pc-windows-msvc --formats nsis
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-installer
+          path: rust/studio/dist/*.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+      
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --locked
+      
+      - name: Build Linux deb package
+        working-directory: rust/studio
+        run: cargo packager --release --target x86_64-unknown-linux-gnu --formats deb
+      
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64-deb
+          path: rust/studio/dist/*.deb
+
+  build-mac-intel:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+      
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --locked
+      
+      - name: Build Mac Intel dmg
+        working-directory: rust/studio
+        run: cargo packager --release --target x86_64-apple-darwin --formats dmg
+      
+      - name: Upload Mac Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-intel-dmg
+          path: rust/studio/dist/*.dmg
+
+  build-mac-apple-silicon:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-apple-darwin
+      
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --locked
+      
+      - name: Build Mac Apple Silicon dmg
+        working-directory: rust/studio
+        run: cargo packager --release --target aarch64-apple-darwin --formats dmg
+      
+      - name: Upload Mac Apple Silicon artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-apple-silicon-dmg
+          path: rust/studio/dist/*.dmg
