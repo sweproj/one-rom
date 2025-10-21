@@ -1,4 +1,4 @@
-name: Build Studio
+name: Build One ROM Studio
 
 on:
   workflow_dispatch:
@@ -19,7 +19,9 @@ jobs:
       
       - name: Build Windows NSIS installer
         working-directory: rust/studio
-        run: cargo packager --release --target x86_64-pc-windows-msvc --formats nsis
+        env:
+          PACKAGER_TARGET: x86_64-pc-windows-msvc
+        run: cargo packager --release --target $PACKAGER_TARGET --formats nsis
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -36,16 +38,15 @@ jobs:
         with:
           toolchain: stable
           target: x86_64-unknown-linux-gnu
-
-      - name: Install dependencies
-        run: sudo apt-get install -y libudev-dev
       
       - name: Install cargo-packager
         run: cargo install cargo-packager --locked
       
       - name: Build Linux deb package
         working-directory: rust/studio
-        run: cargo packager --release --target x86_64-unknown-linux-gnu --formats deb
+        env:
+          PACKAGER_TARGET: x86_64-unknown-linux-gnu
+        run: cargo packager --release --target $PACKAGER_TARGET --formats deb
       
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -68,7 +69,9 @@ jobs:
       
       - name: Build Mac Intel dmg
         working-directory: rust/studio
-        run: cargo packager --release --target x86_64-apple-darwin --formats dmg
+        env:
+          PACKAGER_TARGET: x86_64-apple-darwin
+        run: cargo packager --release --target $PACKAGER_TARGET --formats dmg
       
       - name: Upload Mac Intel artifact
         uses: actions/upload-artifact@v4
@@ -91,7 +94,9 @@ jobs:
       
       - name: Build Mac Apple Silicon dmg
         working-directory: rust/studio
-        run: cargo packager --release --target aarch64-apple-darwin --formats dmg
+        env:
+          PACKAGER_TARGET: aarch64-apple-darwin
+        run: cargo packager --release --target $PACKAGER_TARGET --formats dmg
       
       - name: Upload Mac Apple Silicon artifact
         uses: actions/upload-artifact@v4
