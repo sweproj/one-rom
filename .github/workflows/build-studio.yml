@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Builds Windows (x86_64) installer
   build-windows:
     runs-on: windows-latest
     steps:
@@ -14,14 +15,9 @@ jobs:
           toolchain: stable
           target: x86_64-pc-windows-msvc
       
-      - name: Install cargo-packager
-        run: cargo install cargo-packager --locked
-      
-      - name: Build Windows NSIS installer
+      - name: Build Windows installer
         working-directory: rust/studio
-        env:
-          PACKAGER_TARGET: x86_64-pc-windows-msvc
-        run: cargo packager --release --target $PACKAGER_TARGET --formats nsis
+        run: .\scripts\build-win.ps1
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -29,8 +25,11 @@ jobs:
           name: windows-x64-installer
           path: rust/studio/dist/*.exe
 
+  # Builds both Intel and ARM Linux debs
+  # Deliberately built on an older image to ensure compatibility with older
+  # glibc
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       
@@ -39,47 +38,20 @@ jobs:
           toolchain: stable
           target: x86_64-unknown-linux-gnu
       
-      - name: Install cargo-packager
-        run: cargo install cargo-packager --locked
-      
-      - name: Build Linux deb package
+      - name: Build Intel and ARM debs
         working-directory: rust/studio
-        env:
-          PACKAGER_TARGET: x86_64-unknown-linux-gnu
-        run: cargo packager --release --target $PACKAGER_TARGET --formats deb
-      
+        run: scripts/build-linux.sh
+
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x64-deb
+          name: linux-debs
           path: rust/studio/dist/*.deb
 
-  build-mac-intel:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-apple-darwin
-      
-      - name: Install cargo-packager
-        run: cargo install cargo-packager --locked
-      
-      - name: Build Mac Intel dmg
-        working-directory: rust/studio
-        env:
-          PACKAGER_TARGET: x86_64-apple-darwin
-        run: cargo packager --release --target $PACKAGER_TARGET --formats dmg
-      
-      - name: Upload Mac Intel artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: mac-intel-dmg
-          path: rust/studio/dist/*.dmg
-
-  build-mac-apple-silicon:
+  # Builds both Intel and Apple silicon dmgs
+  # DO NOT RELEASE THESE VERSIONS
+  # The dmg file icon cannot be properly set using headless CI
+  build-mac:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -89,17 +61,12 @@ jobs:
           toolchain: stable
           target: aarch64-apple-darwin
       
-      - name: Install cargo-packager
-        run: cargo install cargo-packager --locked
-      
-      - name: Build Mac Apple Silicon dmg
+      - name: Build Intel and Apple silicon dmgs
         working-directory: rust/studio
-        env:
-          PACKAGER_TARGET: aarch64-apple-darwin
-        run: cargo packager --release --target $PACKAGER_TARGET --formats dmg
-      
+        run: scripts/build-mac.sh
+
       - name: Upload Mac Apple Silicon artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mac-apple-silicon-dmg
+          name: mac-dmgs
           path: rust/studio/dist/*.dmg

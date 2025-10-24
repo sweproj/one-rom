@@ -18,13 +18,22 @@ use onerom_gen::{FIRMWARE_SIZE, MAX_METADATA_LEN};
 
 use net::fetch_rom_file;
 
-pub fn validate_sizes(fw_props: &FirmwareProperties, firmware_data: &[u8], metadata: &Option<Vec<u8>>, image_data: &Option<Vec<u8>>) -> Result<(), Error> {
+pub fn validate_sizes(
+    fw_props: &FirmwareProperties,
+    firmware_data: &[u8],
+    metadata: &Option<Vec<u8>>,
+    image_data: &Option<Vec<u8>>,
+) -> Result<(), Error> {
     let mut total_size = 0;
 
     let fw_size = firmware_data.len();
     debug!("Firmware size: {} bytes", fw_size);
     if fw_size > FIRMWARE_SIZE {
-        return Err(Error::too_large("Firmware".to_string(), fw_size, FIRMWARE_SIZE));
+        return Err(Error::too_large(
+            "Firmware".to_string(),
+            fw_size,
+            FIRMWARE_SIZE,
+        ));
     }
     total_size += fw_size;
 
@@ -35,7 +44,11 @@ pub fn validate_sizes(fw_props: &FirmwareProperties, firmware_data: &[u8], metad
         let meta_size = meta.len();
         debug!("Metadata size: {} bytes", meta_size);
         if meta_size > MAX_METADATA_LEN {
-            return Err(Error::too_large("Metadata".to_string(), meta_size, MAX_METADATA_LEN));
+            return Err(Error::too_large(
+                "Metadata".to_string(),
+                meta_size,
+                MAX_METADATA_LEN,
+            ));
         }
         total_size += meta_size;
     }
@@ -50,10 +63,17 @@ pub fn validate_sizes(fw_props: &FirmwareProperties, firmware_data: &[u8], metad
     }
 
     let max_size = fw_props.mcu_variant().flash_storage_bytes();
-    debug!("Total firmware size: {} bytes (max {})", total_size, max_size);
+    debug!(
+        "Total firmware size: {} bytes (max {})",
+        total_size, max_size
+    );
     debug!("MCU flash size: {} bytes", max_size);
     if total_size > max_size {
-        return Err(Error::too_large("Total firmware".to_string(), total_size, max_size));
+        return Err(Error::too_large(
+            "Total firmware".to_string(),
+            total_size,
+            max_size,
+        ));
     }
 
     Ok(())
@@ -85,7 +105,9 @@ pub fn create_firmware(
     }
 
     // Pad to beginning of metadata
-    out_file.write_all(&vec![0xFF; pad_size]).map_err(Error::write)?;
+    out_file
+        .write_all(&vec![0xFF; pad_size])
+        .map_err(Error::write)?;
     total_size += pad_size;
     debug!("Wrote {} bytes of padding after firmware", pad_size);
 
@@ -105,7 +127,9 @@ pub fn create_firmware(
     // Pad to beginning of image data
     let pad_size = MAX_METADATA_LEN - metadata_size;
     debug!("Adding {} bytes of padding before image data", pad_size);
-    out_file.write_all(&vec![0xFF; pad_size]).map_err(Error::write)?;
+    out_file
+        .write_all(&vec![0xFF; pad_size])
+        .map_err(Error::write)?;
     total_size += pad_size;
     debug!("Wrote {} bytes of padding after metadata", pad_size);
 
@@ -127,11 +151,10 @@ pub fn get_rom_files(builder: &mut Builder) -> Result<(), Error> {
         let source = spec.source;
         let extract = spec.extract;
         let data = fetch_rom_file(&source, extract)?;
-        
-        builder.add_file(FileData {
-            id: spec.id,
-            data,
-        }).map_err(Error::build)?;
+
+        builder
+            .add_file(FileData { id: spec.id, data })
+            .map_err(Error::build)?;
     }
 
     Ok(())

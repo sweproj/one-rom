@@ -20,9 +20,26 @@ static void trim_hsi(uint8_t trim);
 #endif // HSI_TRIM
 static void set_bus_clks(void);
 static void set_flash_ws(void);
+static uint32_t get_idcode(void);
+static uint8_t check_idcode(void);
 
 void platform_specific_init(void) {
-    // Nothing required
+    // Check that the firmware was built for this MCU
+    if (check_idcode()) {
+        LOG("!!! MCU IDCODE does not match firmware - entering limp mode");
+
+        // Set up USB DFU if supported first
+        if (sdrr_info.extra->usb_dfu) {
+            LOG("USB DFU supported - setting up VBUS detect before halting");
+            RCC_AHB1ENR |= (1 << 0);  // Enable GPIOA
+            setup_vbus_interrupt();
+        }
+
+        if (sdrr_info.status_led_enabled) {
+            setup_status_led();
+        }
+        limp_mode(LIMP_MODE_INVALID_CONFIG);
+    }
 }
 
 // Set up interrupt to fire when VBUS sensed on PA9
@@ -75,7 +92,7 @@ void vbus_connect_handler(void) {
 }
 
 void setup_clock(void) {
-        if ((sdrr_info.mcu_line == F405) ||
+    if ((sdrr_info.mcu_line == F405) ||
         (sdrr_info.mcu_line == F411) || 
         (sdrr_info.mcu_line == F446)) {
         if (sdrr_info.freq > 84) {
@@ -467,11 +484,75 @@ void check_config(
     }
 }
 
+// Get this MCU's IDCODE (type of STM32)
+uint32_t get_idcode(void) {
+    return DBGMCU_IDCODE & DBGMCU_IDCODE_DEV_ID_MASK;
+}
+
+// Returns 1 if IDCODE mismatch, 0 if match
+uint8_t check_idcode(void) {
+    uint32_t idcode = get_idcode();
+    int mismatch = 1;
+    switch (sdrr_info.mcu_line) {
+        // Allow F401BC firmware to work with F401BC, F401DE, F411XCE and F446.
+        // Also F405 as it's equivalent <= 84MHz so will run at F401 speeds.
+        case F401BC:
+            if ((idcode == IDCODE_F401XBC) ||
+                (idcode == IDCODE_F401XDE) ||
+                (idcode == IDCODE_F4X5) ||
+                (idcode == IDCODE_F411XCE) ||
+                (idcode == IDCODE_F446)) {
+                mismatch = 0;
+            }
+            break;
+
+        // Allow F401DE firmware to work with F401DE, F411XCE, and F446.
+        // Also F405 as it's equivalent <= 84MHz so will run at F401 speeds.
+        case F401DE:
+            if ((idcode == IDCODE_F401XDE) ||
+                (idcode == IDCODE_F4X5) ||
+                (idcode == IDCODE_F411XCE) ||
+                (idcode == IDCODE_F446)) {
+                mismatch = 0;
+            }
+            break;
+
+        // F405 is a somewhat special case.  Only allow F405 fw to work with
+        // F405.  Specifically, F405 has different VOS settings to other F4
+        // MCUs
+        case F405:
+            if (idcode == IDCODE_F4X5) {
+                mismatch = 0;
+            }
+            break;
+        
+        // Allow F411 firmware to work with F411 and F446
+        case F411:
+            if ((idcode == IDCODE_F411XCE) ||
+                (idcode == IDCODE_F446)) {
+                mismatch = 0;
+            }
+            break;
+
+        // Allow F446 firmware to work with F446 only
+        case F446:
+            if (idcode == IDCODE_F446) {
+                mismatch = 0;
+            }
+            break;
+        default:
+            break;
+    }
+    if (mismatch) {
+        LOG("!!! MCU mismatch: actual %s, firmware expected %s", idcode, sdrr_info.mcu_line);
+    }
+    return mismatch;
+}
+
 void platform_logging(void) {
 #if defined(BOOT_LOGGING)
-    uint32_t idcode = DBGMCU_IDCODE;
+    uint32_t idcode = get_idcode();
     const char *idcode_mcu_variant;
-    idcode = idcode & DBGMCU_IDCODE_DEV_ID_MASK; 
     switch (idcode) {
         case IDCODE_F401XBC:
             idcode_mcu_variant = "F401XBC";
@@ -504,43 +585,6 @@ void platform_logging(void) {
     LOG("%s", log_divider);
     LOG("Firmware hardware info ...");
     LOG("%s", mcu_variant);
-    int mismatch = 1;
-    switch (sdrr_info.mcu_line) {
-        case F401BC:
-            if (idcode == IDCODE_F401XBC) {
-                mismatch = 0;
-            }
-            break;
-
-        case F401DE:
-            if (idcode == IDCODE_F401XDE) {
-                mismatch = 0;
-            }
-            break;
-
-        case F405:
-            if (idcode == IDCODE_F4X5) {
-                mismatch = 0;
-            }
-            break;
-        
-        case F411:
-            if (idcode == IDCODE_F411XCE) {
-                mismatch = 0;
-            }
-            break;
-
-        case F446:
-            if (idcode == IDCODE_F446) {
-                mismatch = 0;
-            }
-            break;
-        default:
-            break;
-    }
-    if (mismatch) {
-        LOG("!!! MCU mismatch: actual %s, firmware expected %s", idcode_mcu_variant, mcu_variant);
-    }
 
     LOG("PCB rev: %s", sdrr_info.hw_rev);
     uint32_t flash_bytes = (uint32_t)(&_flash_end) - (uint32_t)(&_flash_start);

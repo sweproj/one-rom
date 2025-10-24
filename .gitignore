@@ -1,3 +1,4 @@
+*.DS_Store
 *.o
 *.bin
 *.elf
@@ -16,6 +17,7 @@ config/docker/*
 images/users/*
 !images/user/README.md
 
+dist/
 output/
 
 # Rust build artifacts

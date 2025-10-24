@@ -15,7 +15,7 @@ use onerom_config::rom::RomType;
 
 use crate::image::{CsConfig, CsLogic, Rom, RomSet, RomSetType, SizeHandling};
 use crate::meta::Metadata;
-use crate::{Error, Result, FIRMWARE_SIZE, MAX_METADATA_LEN};
+use crate::{Error, FIRMWARE_SIZE, MAX_METADATA_LEN, Result};
 
 /// Main Builder object
 ///
@@ -56,14 +56,14 @@ use crate::{Error, Result, FIRMWARE_SIZE, MAX_METADATA_LEN};
 ///
 /// // Create builder from JSON
 /// let mut builder = Builder::from_json(json)?;
-/// 
+///
 /// // Get list of licenses to be validated
 /// let licenses = builder.licenses();
-/// 
+///
 /// // Accept licenses as required
 /// for license in licenses {
 ///     accept_license(&license)?; // Your implementation
-/// 
+///
 ///     builder.accept_license(&license)?; // Mark as validated
 /// }
 ///
@@ -79,10 +79,10 @@ use crate::{Error, Result, FIRMWARE_SIZE, MAX_METADATA_LEN};
 ///         data,
 ///     })?;
 /// }
-/// 
+///
 /// // Get config description (optional)
 /// let description = builder.description();
-/// 
+///
 /// // Define firmware properties
 /// let props = FirmwareProperties::new(
 ///     FirmwareVersion::new(0, 5, 1, 0),
@@ -179,8 +179,11 @@ impl Builder {
                 // Check all ROMs in a bank are same type
                 if set.set_type == RomSetType::Banked && rom.rom_type != rom0.rom_type {
                     return Err(Error::InvalidConfig {
-                        error: format!("All ROMs in a banked set must be of the same type ({} != {})",
-                                    rom.rom_type.name(), rom0.rom_type.name()),
+                        error: format!(
+                            "All ROMs in a banked set must be of the same type ({} != {})",
+                            rom.rom_type.name(),
+                            rom0.rom_type.name()
+                        ),
                     });
                 }
 
@@ -202,22 +205,34 @@ impl Builder {
                         }
                     }
                 }
-                
+
                 // Check that invalid CS lines are NOT specified
-                let has_cs2 = rom.rom_type.control_lines().iter().any(|line| line.name == "cs2");
-                let has_cs3 = rom.rom_type.control_lines().iter().any(|line| line.name == "cs3");
-                
+                let has_cs2 = rom
+                    .rom_type
+                    .control_lines()
+                    .iter()
+                    .any(|line| line.name == "cs2");
+                let has_cs3 = rom
+                    .rom_type
+                    .control_lines()
+                    .iter()
+                    .any(|line| line.name == "cs3");
+
                 if rom.cs2.is_some() && !has_cs2 {
                     return Err(Error::InvalidConfig {
-                        error: format!("CS2 specified for ROM type {} which does not use CS2", 
-                                    rom.rom_type.name()),
+                        error: format!(
+                            "CS2 specified for ROM type {} which does not use CS2",
+                            rom.rom_type.name()
+                        ),
                     });
                 }
-                
+
                 if rom.cs3.is_some() && !has_cs3 {
                     return Err(Error::InvalidConfig {
-                        error: format!("CS3 specified for ROM type {} which does not use CS3", 
-                                    rom.rom_type.name()),
+                        error: format!(
+                            "CS3 specified for ROM type {} which does not use CS3",
+                            rom.rom_type.name()
+                        ),
                     });
                 }
 
@@ -228,8 +243,10 @@ impl Builder {
 
                 if !cs1_active && !cs2_active && !cs3_active {
                     return Err(Error::InvalidConfig {
-                        error: format!("ROM type {} must have at least one active CS line (not all ignore)", 
-                                    rom.rom_type.name()),
+                        error: format!(
+                            "ROM type {} must have at least one active CS line (not all ignore)",
+                            rom.rom_type.name()
+                        ),
                     });
                 }
 
@@ -250,7 +267,7 @@ impl Builder {
                     let first_cs1 = set.roms[0].cs1;
                     let first_cs2 = set.roms[0].cs2;
                     let first_cs3 = set.roms[0].cs3;
-                    
+
                     // Check all other ROMs have the same CS configuration
                     for (idx, rom) in set.roms.iter().enumerate().skip(1) {
                         if rom.cs1 != first_cs1 || rom.cs2 != first_cs2 || rom.cs3 != first_cs3 {
@@ -258,9 +275,13 @@ impl Builder {
                                 error: format!(
                                     "{:?} set requires all ROMs to have identical CS configuration. ROM 0 has cs1={:?}/cs2={:?}/cs3={:?}, but ROM {} has cs1={:?}/cs2={:?}/cs3={:?}",
                                     set.set_type,
-                                    first_cs1, first_cs2, first_cs3,
+                                    first_cs1,
+                                    first_cs2,
+                                    first_cs3,
                                     idx,
-                                    rom.cs1, rom.cs2, rom.cs3
+                                    rom.cs1,
+                                    rom.cs2,
+                                    rom.cs3
                                 ),
                             });
                         }
@@ -408,7 +429,11 @@ impl Builder {
                 let data = self.files.get(&rom_id).unwrap();
 
                 let filename = if rom_config.extract.is_some() {
-                    format!("{}|{}", rom_config.file, rom_config.extract.as_ref().unwrap())
+                    format!(
+                        "{}|{}",
+                        rom_config.file,
+                        rom_config.extract.as_ref().unwrap()
+                    )
                 } else {
                     rom_config.file.clone()
                 };
@@ -456,7 +481,7 @@ impl Builder {
                 expected: rom_data_size,
                 actual: rom_space,
             });
-        } 
+        }
 
         // Allocate buffers
         let mut metadata_buf = vec![0u8; metadata_size];
@@ -483,33 +508,33 @@ impl Builder {
     }
 
     /// Build config description
-    /// 
+    ///
     /// Returns a string like:
-    /// 
+    ///
     /// No multi-set/banked ROMS:
-    /// 
+    ///
     /// ```text
     /// Description of config
-    /// 
+    ///
     /// Detailed description
-    /// 
+    ///
     /// Images:
     /// 0: Image 0
     /// 1: Image 1
-    /// 
+    ///
     /// Notes```
-    /// 
+    ///
     /// Multi-set/banked ROMs:
-    /// 
+    ///
     /// ```text
     /// Description of config
-    /// 
+    ///
     /// Detailed description
-    /// 
+    ///
     /// Sets:
     /// 0: Image 0
     /// 1: Image 1
-    /// 
+    ///
     /// Notes```
     pub fn description(&self) -> String {
         let mut desc = String::new();

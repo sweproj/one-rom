@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 use onerom_config::hw::Board;
 
-use crate::{METADATA_VERSION, FIRMWARE_SIZE, Error, Result, RomSet};
+use crate::{Error, FIRMWARE_SIZE, METADATA_VERSION, Result, RomSet};
 
 pub const PAD_METADATA_BYTE: u8 = 0xFF;
 
@@ -35,15 +35,15 @@ const METADATA_ROM_SET_OFFSET: usize = 24; // Offset of rom_set pointer in heade
 pub struct Metadata {
     board: Board,
     rom_sets: Vec<RomSet>,
-    boot_logging: bool,
+    filenames: bool,
 }
 
 impl Metadata {
-    pub fn new(board: Board, rom_sets: Vec<RomSet>, boot_logging: bool) -> Self {
+    pub fn new(board: Board, rom_sets: Vec<RomSet>, filenames: bool) -> Self {
         Self {
             board,
             rom_sets,
-            boot_logging,
+            filenames,
         }
     }
 
@@ -90,7 +90,7 @@ impl Metadata {
 
     // Total length, including null terminators, of all filenames
     fn filenames_metadata_len(&self) -> usize {
-        let len = if !self.boot_logging {
+        let len = if !self.filenames {
             0
         } else {
             self.rom_sets
@@ -115,7 +115,7 @@ impl Metadata {
     fn sets_len(&self) -> usize {
         let mut total = 0;
         for set in &self.rom_sets {
-            total += set.roms_metadata_len(self.boot_logging);
+            total += set.roms_metadata_len(self.filenames);
             total += set.roms().len() * 4;
         }
 
@@ -151,8 +151,8 @@ impl Metadata {
         offset += self.write_header(&mut buf[offset..])?;
 
         // Write the filenames.
-        let mut filename_ptrs = vec![0u32; self.total_rom_count()];
-        if self.boot_logging {
+        let mut filename_ptrs = vec![0xFF_u32; self.total_rom_count()];
+        if self.filenames {
             // Store off the offset where filenames start
             let filename_offset = offset;
 
@@ -175,7 +175,11 @@ impl Metadata {
                 }
             }
 
-            assert_eq!(offset % 4, 0, "Metadata offset not 4 byte aligned after writing filenames");
+            assert_eq!(
+                offset % 4,
+                0,
+                "Metadata offset not 4 byte aligned after writing filenames"
+            );
         }
 
         // Pre-compute where the ROM set image data will live for each rom set
@@ -204,7 +208,7 @@ impl Metadata {
                 &mut buf[offset..],
                 &filename_ptrs,
                 &mut rom_metadata_ptrs,
-                self.boot_logging,
+                self.filenames,
             )?;
 
             // Now update this set's array of ROM pointers
@@ -245,7 +249,7 @@ impl Metadata {
 
     // Writes all ROM filenames to provided buffer.
     fn write_filenames(&self, buf: &mut [u8], ptrs: &mut [u32]) -> Result<usize> {
-        if !self.boot_logging {
+        if !self.filenames {
             return Ok(0);
         }
 

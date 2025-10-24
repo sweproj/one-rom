@@ -35,11 +35,14 @@
 use esp_println as _;
 
 use airfrog_rpc::io::Reader;
+use onerom_config::fw::FirmwareVersion;
+use onerom_config::hw::Board;
+use onerom_config::mcu::Variant as McuVariant;
 
 /// Maximum SDRR firmware versions supported by this version of`sdrr-fw-parser`
 pub const MAX_VERSION_MAJOR: u16 = 0;
 pub const MAX_VERSION_MINOR: u16 = 5;
-pub const MAX_VERSION_PATCH: u16 = 2;
+pub const MAX_VERSION_PATCH: u16 = 3;
 
 // lib.rs - Public API and core traits
 pub mod info;
@@ -410,31 +413,26 @@ impl<'a, R: Reader> Parser<'a, R> {
         };
 
         // Parse ROM sets with error collection
-        let rom_sets = match parsing::read_rom_sets(
-            self.reader,
-            &header,
-            self.base_flash_address,
-        )
-        .await
-        {
-            Ok(sets) => {
-                if sets.len() != header.rom_set_count as usize {
-                    parse_errors.push(ParseError::new(
-                        "Rom Sets",
-                        format!(
-                            "Incorrect number of ROM sets found: Found {}, expected {}",
-                            sets.len(),
-                            header.rom_set_count
-                        ),
-                    ));
+        let rom_sets =
+            match parsing::read_rom_sets(self.reader, &header, self.base_flash_address).await {
+                Ok(sets) => {
+                    if sets.len() != header.rom_set_count as usize {
+                        parse_errors.push(ParseError::new(
+                            "Rom Sets",
+                            format!(
+                                "Incorrect number of ROM sets found: Found {}, expected {}",
+                                sets.len(),
+                                header.rom_set_count
+                            ),
+                        ));
+                    }
+                    sets
                 }
-                sets
-            }
-            Err(e) => {
-                parse_errors.push(ParseError::new("ROM Sets", e));
-                Vec::new()
-            }
-        };
+                Err(e) => {
+                    parse_errors.push(ParseError::new("ROM Sets", e));
+                    Vec::new()
+                }
+            };
 
         // Parse pins
         let pins =
@@ -445,6 +443,34 @@ impl<'a, R: Reader> Parser<'a, R> {
                     None
                 }
             };
+
+        // Try to decode board, model and MCU variant from hw_rev
+        let board = hw_rev.as_ref().and_then(|s| Board::try_from_str(s));
+        let model = board.as_ref().and_then(|b| Some(b.model()));
+        let mcu_lookup_str = format!(
+            "{}{}",
+            header.stm_line.chip_suffix(),
+            header.stm_storage.stm32_suffix()
+        );
+        let mcu_variant = McuVariant::try_from_str(&mcu_lookup_str);
+        if board.is_none() {
+            parse_errors.push(ParseError::new(
+                "Board",
+                format!(
+                    "Could not decode board from hardware revision string: {:?}",
+                    hw_rev
+                ),
+            ));
+        }
+        if mcu_variant.is_none() {
+            parse_errors.push(ParseError::new(
+                "MCU Variant",
+                format!(
+                    "Could not decode MCU variant from string: {}",
+                    mcu_lookup_str
+                ),
+            ));
+        }
 
         Ok(SdrrInfo {
             major_version: header.major_version,
@@ -472,6 +498,15 @@ impl<'a, R: Reader> Parser<'a, R> {
             parse_errors,
             extra_info,
             metadata_present,
+            version: FirmwareVersion::new(
+                header.major_version,
+                header.minor_version,
+                header.patch_version,
+                header.build_number,
+            ),
+            board,
+            model,
+            mcu_variant,
         })
     }
 

@@ -22,6 +22,14 @@ pub fn fetch_license(url: &str) -> Result<String, Error> {
     Ok(body)
 }
 
+/// Retrieves a license from a URL
+pub async fn fetch_license_async(url: &str) -> Result<String, Error> {
+    debug!("Fetching license from {}", url);
+    let response = reqwest::get(url).await.map_err(Error::network)?;
+    let body = response.text().await.map_err(Error::network)?;
+    Ok(body)
+}
+
 /// Retrieves a ROM file from a URL, extracting it from a zip file if needed
 pub fn fetch_rom_file(url: &str, extract: Option<String>) -> Result<Vec<u8>, Error> {
     // Get the file itself
@@ -31,27 +39,50 @@ pub fn fetch_rom_file(url: &str, extract: Option<String>) -> Result<Vec<u8>, Err
 
     // Now extract if needed
     if let Some(extract) = extract {
-        debug!("Extracting file `{}` from zip", extract);
-        let reader = std::io::Cursor::new(bytes);
-        let mut zip = zip::ZipArchive::new(reader).map_err(Error::zip)?;
-        let mut file = zip.by_name(&extract).map_err(Error::zip)?;
-        let mut data = Vec::new();
-        std::io::copy(&mut file, &mut data).map_err(Error::read)?;
-        Ok(data)
+        extract_file(&bytes, &extract)
     } else {
         Ok(bytes.to_vec())
     }
 }
 
+/// Retrieves a ROM file from a URL, extracting it from a zip file if needed
+pub async fn fetch_rom_file_async(url: &str, extract: Option<String>) -> Result<Vec<u8>, Error> {
+    // Get the file itself
+    debug!("Fetching ROM file from {}", url);
+    let response = reqwest::get(url).await.map_err(Error::network)?;
+    let bytes = response.bytes().await.map_err(Error::network)?;
+
+    // Now extract if needed
+    if let Some(extract) = extract {
+        extract_file(&bytes, &extract)
+    } else {
+        Ok(bytes.to_vec())
+    }
+}
+
+fn extract_file(data: &[u8], extract: &str) -> Result<Vec<u8>, Error> {
+    debug!("Extracting file `{}` from zip", extract);
+    let reader = std::io::Cursor::new(data);
+    let mut zip = zip::ZipArchive::new(reader).map_err(Error::zip)?;
+    let mut file = zip.by_name(extract).map_err(Error::zip)?;
+    let mut data = Vec::new();
+    std::io::copy(&mut file, &mut data).map_err(Error::read)?;
+    Ok(data)
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Releases {
+    version: usize,
     pub latest: String,
     releases: Vec<Release>,
 }
 
 impl Releases {
     pub fn manifest_url() -> String {
-        format!("https://{}/{}", FIRMWARE_SITE_BASE, FIRMWARE_RELEASE_MANIFEST)
+        format!(
+            "https://{}/{}",
+            FIRMWARE_SITE_BASE, FIRMWARE_RELEASE_MANIFEST
+        )
     }
 
     pub fn from_network() -> Result<Self, Error> {
@@ -62,12 +93,25 @@ impl Releases {
         Self::from_json(&body)
     }
 
+    pub async fn from_network_async() -> Result<Self, Error> {
+        let url = Self::manifest_url();
+        debug!("Fetching releases manifest from {}", url);
+        let response = reqwest::get(&url).await.map_err(Error::network)?;
+        let body = response.text().await.map_err(Error::network)?;
+        Self::from_json(&body)
+    }
+
     pub fn from_json(data: &str) -> Result<Releases, Error> {
         serde_json::from_str(data).map_err(Error::json)
     }
 
     pub fn version_str(version: &FirmwareVersion) -> String {
-        format!("{}.{}.{}", version.major(), version.minor(), version.patch())
+        format!(
+            "{}.{}.{}",
+            version.major(),
+            version.minor(),
+            version.patch()
+        )
     }
 
     pub fn release(&self, version: &FirmwareVersion) -> Option<&Release> {
@@ -80,14 +124,27 @@ impl Releases {
     }
 
     pub fn releases_str(&self) -> String {
-        self.releases.iter().map(|r| r.version.as_str()).collect::<Vec<_>>().join(", ")
+        self.releases
+            .iter()
+            .map(|r| r.version.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    pub fn vec_str(&self) -> Vec<&str> {
+        self.releases.iter().map(|r| r.version.as_str()).collect()
     }
 
     pub fn latest(&self) -> &str {
         &self.latest
     }
 
-    pub fn download_firmware(&self, version: &FirmwareVersion, board: &HwBoard, mcu: &McuVariant) -> Result<Vec<u8>, Error> {
+    fn download_firmware_prep(
+        &self,
+        version: &FirmwareVersion,
+        board: &HwBoard,
+        mcu: &McuVariant,
+    ) -> Result<String, Error> {
         let board = board.name();
         let mcu = mcu.to_string();
 
@@ -100,6 +157,16 @@ impl Releases {
         // Get the firmware path
         let path = release.path(board, &mcu)?;
         let url = format!("https://{}/{}/firmware.bin", FIRMWARE_SITE_BASE, path);
+        Ok(url)
+    }
+
+    pub fn download_firmware(
+        &self,
+        version: &FirmwareVersion,
+        board: &HwBoard,
+        mcu: &McuVariant,
+    ) -> Result<Vec<u8>, Error> {
+        let url = self.download_firmware_prep(version, board, mcu)?;
 
         // Download the firmware
         debug!("Downloading firmware from {}", url);
@@ -107,14 +174,44 @@ impl Releases {
         let bytes = response.bytes().map_err(Error::network)?;
         Ok(bytes.to_vec())
     }
+
+    pub async fn download_firmware_async(
+        &self,
+        version: &FirmwareVersion,
+        board: &HwBoard,
+        mcu: &McuVariant,
+    ) -> Result<Vec<u8>, Error> {
+        let url = self.download_firmware_prep(version, board, mcu)?;
+
+        // Download the firmware
+        debug!("Downloading firmware from {}", url);
+        let response = reqwest::get(&url).await.map_err(Error::network)?;
+        let bytes = response.bytes().await.map_err(Error::network)?;
+        Ok(bytes.to_vec())
+    }
+
+    pub fn release_from_string(&self, release: &str) -> Option<&Release> {
+        let release = if let Some(release) = release.strip_prefix('v') {
+            release
+        } else {
+            release
+        };
+        self.releases.iter().find(|r| r.version == release)
+    }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Release {
     pub version: String,
     pub path: Option<String>,
     pub notes: Option<String>,
     pub boards: Vec<Board>,
+}
+
+impl core::fmt::Display for Release {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "v{}", self.version)
+    }
 }
 
 impl Release {
@@ -131,9 +228,16 @@ impl Release {
     fn board(&self, board: &str) -> Option<&Board> {
         self.boards.iter().find(|b| b.name == board)
     }
+
+    pub fn firmware_version(&self) -> Result<FirmwareVersion, Error> {
+        FirmwareVersion::try_from_str(&self.version).map_err(|_| {
+            debug!("Failed to parse firmware version from {:?}", self.version);
+            Error::release_not_found()
+        })
+    }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Board {
     pub name: String,
     pub path: Option<String>,
@@ -156,7 +260,7 @@ impl Board {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Mcu {
     name: String,
     path: Option<String>,

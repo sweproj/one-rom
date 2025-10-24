@@ -301,7 +301,7 @@ impl Config {
             if let Some(set_id) = rom_config.set {
                 sets_map
                     .entry(set_id)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push((ii, rom_config, rom));
             }
         }

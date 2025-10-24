@@ -310,6 +310,10 @@ fn generate_rust_code(configs: &[HwConfigData]) -> String {
     code.push_str("use crate::rom::RomType;\n");
     code.push_str("use crate::mcu::{Port, Family};\n\n");
 
+    // Generate models
+    code.push_str(&generate_hw_models(configs));
+    code.push_str("\n\n");
+
     // Generate HwConfig enum
     code.push_str(&generate_hw_config_enum(configs));
     code.push_str("\n\n");
@@ -350,7 +354,14 @@ fn generate_hw_config_enum(configs: &[HwConfigData]) -> String {
     for config in configs {
         code.push_str(&format!("    Board::{},\n", config.variant_name));
     }
-    code.push_str("];");
+    code.push_str("];\n\n");
+
+    // Implement Display for Board
+    code.push_str("impl core::fmt::Display for Board {\n");
+    code.push_str("    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {\n");
+    code.push_str("        write!(f, \"{}\", self.name())\n");
+    code.push_str("    }\n");
+    code.push_str("}");
 
     code
 }
@@ -400,6 +411,9 @@ fn generate_hw_config_impl(configs: &[HwConfigData]) -> String {
     code.push_str("\n\n");
 
     code.push_str(&generate_capability_methods(configs));
+    code.push_str("\n\n");
+
+    code.push_str(&generate_model_method(configs));
     code.push_str("\n\n");
 
     code.push_str(&generate_supports_rom_type_method(configs));
@@ -928,6 +942,33 @@ fn generate_capability_methods(configs: &[HwConfigData]) -> String {
     code
 }
 
+fn generate_model_method(configs: &[HwConfigData]) -> String {
+    let mut code = String::new();
+
+    code.push_str("    /// Get the hardware model (Fire or Ice)\n");
+    code.push_str("    pub const fn model(&self) -> Model {\n");
+    code.push_str("        match self {\n");
+
+    for config in configs {
+        let model = if config.variant_name.starts_with("Fire") {
+            "Model::Fire"
+        } else if config.variant_name.starts_with("Ice") {
+            "Model::Ice"
+        } else {
+            panic!("Unknown model for board: {}", config.variant_name);
+        };
+        code.push_str(&format!(
+            "            Board::{} => {},\n",
+            config.variant_name, model
+        ));
+    }
+
+    code.push_str("        }\n");
+    code.push_str("    }");
+
+    code
+}
+
 fn generate_supports_rom_type_method(_configs: &[HwConfigData]) -> String {
     let mut code = String::new();
 
@@ -937,6 +978,84 @@ fn generate_supports_rom_type_method(_configs: &[HwConfigData]) -> String {
     code.push_str("        let rom_pins = rom_type.rom_pins();\n");
     code.push_str("        rom_pins == board_pins\n");
     code.push_str("    }");
+
+    code
+}
+
+fn generate_hw_models(configs: &[HwConfigData]) -> String {
+    let mut code = String::new();
+
+    code.push_str("/// Hardware models\n");
+    code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]\n");
+    code.push_str("pub enum Model {\n");
+    code.push_str("    /// Fire (RP2350) Model\n");
+    code.push_str("    Fire,\n");
+    code.push_str("    /// Ice (STM32F4) Model\n");
+    code.push_str("    Ice,\n");
+    code.push_str("}\n\n");
+
+    code.push_str("/// All hardware models\n");
+    code.push_str("pub const MODELS: [Model; 2] = [Model::Fire, Model::Ice];\n\n");
+
+    code.push_str("impl core::fmt::Display for Model {\n");
+    code.push_str("    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {\n");
+    code.push_str("        write!(f, \"{}\", self.name())\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
+    code.push_str("impl Model {\n");
+    code.push_str("    /// Get the model name\n");
+    code.push_str("    pub fn name(&self) -> &'static str {\n");
+    code.push_str("        match self {\n");
+    code.push_str("            Model::Fire => \"Fire\",\n");
+    code.push_str("            Model::Ice => \"Ice\",\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+
+    code.push_str("    /// Try to create a model from a string\n");
+    code.push_str("    pub fn try_from_str(s: &str) -> Option<Self> {\n");
+    code.push_str("        if s.eq_ignore_ascii_case(\"fire\") {\n");
+    code.push_str("            Some(Self::Fire)\n");
+    code.push_str("        } else if s.eq_ignore_ascii_case(\"ice\") {\n");
+    code.push_str("            Some(Self::Ice)\n");
+    code.push_str("        } else {\n");
+    code.push_str("            None\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+
+    // Separate configs by model
+    let mut fire_boards = Vec::new();
+    let mut ice_boards = Vec::new();
+
+    for config in configs {
+        if config.variant_name.starts_with("Fire") {
+            fire_boards.push(&config.variant_name);
+        } else if config.variant_name.starts_with("Ice") {
+            ice_boards.push(&config.variant_name);
+        }
+    }
+
+    code.push_str("    /// Get the boards for this model\n");
+    code.push_str("    pub fn boards(self) -> &'static [Board] {\n");
+    code.push_str("        match self {\n");
+
+    // Generate Fire boards
+    code.push_str("            Model::Fire => &[\n");
+    for board in &fire_boards {
+        code.push_str(&format!("                Board::{},\n", board));
+    }
+    code.push_str("            ],\n");
+
+    // Generate Ice boards
+    code.push_str("            Model::Ice => &[\n");
+    for board in &ice_boards {
+        code.push_str(&format!("                Board::{},\n", board));
+    }
+    code.push_str("            ],\n");
+
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    code.push_str("}");
 
     code
 }

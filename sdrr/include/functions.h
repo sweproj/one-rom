@@ -11,6 +11,7 @@
 extern uint32_t check_sel_pins(uint32_t *sel_mask);
 extern void check_enter_bootloader(void);
 extern uint8_t metadata_present(const sdrr_info_t *info);
+extern void limp_mode(limp_mode_pattern_t pattern);
 extern int main(void);
 
 // utils.c

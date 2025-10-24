@@ -32,9 +32,7 @@ pub mod rom;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Error {
-    InvalidMcuVariant {
-        variant: mcu::Variant,
-    },
+    InvalidMcuVariant { variant: mcu::Variant },
     InvalidFirmwareVersion,
 }
 

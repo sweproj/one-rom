@@ -12,10 +12,10 @@ use std::io::Write;
 use onerom_config::fw::{FirmwareProperties, ServeAlg};
 use onerom_gen::{Builder, License};
 
-use onerom_fw::{create_firmware, get_rom_files, read_rom_config, validate_sizes};
 use onerom_fw::Error;
 use onerom_fw::args::Args;
-use onerom_fw::net::{fetch_license, Releases};
+use onerom_fw::net::{Releases, fetch_license};
+use onerom_fw::{create_firmware, get_rom_files, read_rom_config, validate_sizes};
 
 fn main() {
     if let Err(e) = sub_main() {
@@ -36,11 +36,14 @@ fn sub_main() -> Result<(), Error> {
 
     // Validate args
     if args.validate()? {
-        return Ok(())
+        return Ok(());
     }
 
     // Output version
-    debug!("One ROM CLI Firmware Generator v{}", env!("CARGO_PKG_VERSION"));
+    debug!(
+        "One ROM CLI Firmware Generator v{}",
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Get CLI args
     let version = args.fw.unwrap();
@@ -59,18 +62,12 @@ fn sub_main() -> Result<(), Error> {
     let firmware_data = releases.download_firmware(&version, &board, &mcu)?;
 
     // Build firmware properties
-    let fw_props = FirmwareProperties::new(
-        version,
-        board,
-        mcu,
-        ServeAlg::default(),
-        true,
-    ).unwrap();
+    let fw_props = FirmwareProperties::new(version, board, mcu, ServeAlg::default(), true).unwrap();
 
     // Load the config file
     let (metadata, image_data, desc) = if let Some(rom_config_filename) = rom_config_filename {
         debug!("Using ROM config file: {}", rom_config_filename);
-        
+
         // Read ROM config file
         let config = read_rom_config(&rom_config_filename)?;
 
@@ -104,12 +101,7 @@ fn sub_main() -> Result<(), Error> {
     validate_sizes(&fw_props, &firmware_data, &metadata, &image_data)?;
 
     // Create the firmware file
-    let size = create_firmware(
-        &out_filename,
-        firmware_data,
-        metadata,
-        image_data,
-    )?;
+    let size = create_firmware(&out_filename, firmware_data, metadata, image_data)?;
 
     // Output success
     println!("---");
@@ -150,7 +142,9 @@ fn propose_license(license: &License) -> Result<(), Error> {
     print!("Do you accept this license? (y/N): ");
     std::io::stdout().flush().map_err(Error::write)?;
     let mut input = String::new();
-    std::io::stdin().read_line(&mut input).map_err(Error::read)?;
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(Error::read)?;
     let input = input.trim().to_lowercase();
     if input == "y" || input == "yes" {
         Ok(())

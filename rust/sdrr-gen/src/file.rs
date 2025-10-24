@@ -199,7 +199,7 @@ pub fn load_rom_files(config: &Config) -> Result<Vec<Rom>> {
                 .original_source
                 .clone()
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or("unknown")
                 .to_string(),
             &src,

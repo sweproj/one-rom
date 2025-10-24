@@ -190,7 +190,6 @@ impl Args {
     /// Returns the hardware configuration
     fn hw_config(&self) -> Board {
         self.hw
-            .clone()
             .expect("Internal error - hardware configuration must be set")
     }
 

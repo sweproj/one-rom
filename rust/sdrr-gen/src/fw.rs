@@ -78,7 +78,7 @@ impl PllConfig {
                 if vco_mhz >= self.proc.vco_min_mhz() && vco_mhz <= self.proc.vco_max_mhz(overclock)
                 {
                     let fbdiv = vco_mhz / XOSC_MHZ;
-                    if (16..=320).contains(&fbdiv) && (vco_mhz % XOSC_MHZ == 0) {
+                    if (16..=320).contains(&fbdiv) && (vco_mhz.is_multiple_of(XOSC_MHZ)) {
                         return Some((REFDIV, fbdiv as u16, pd1, pd2));
                     }
                 }

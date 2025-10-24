@@ -76,6 +76,17 @@ impl McuLine {
             McuLine::Rp2350 => "520",
         }
     }
+
+    pub fn chip_suffix(&self) -> &str {
+        match self {
+            McuLine::F401DE => "f401",
+            McuLine::F401BC => "f401",
+            McuLine::F405 => "f405",
+            McuLine::F411 => "f411",
+            McuLine::F446 => "f446",
+            McuLine::Rp2350 => "rp2350",
+        }
+    }
 }
 
 /// STM32F4 package flash storage code
@@ -122,6 +133,20 @@ pub enum McuStorage {
 }
 
 impl McuStorage {
+    /// Returns storage size in KB as a usize
+    pub fn size_kb(&self) -> usize {
+        match self {
+            McuStorage::Storage8 => 64,
+            McuStorage::StorageB => 128,
+            McuStorage::StorageC => 256,
+            McuStorage::StorageD => 384,
+            McuStorage::StorageE => 512,
+            McuStorage::StorageF => 768,
+            McuStorage::StorageG => 1024,
+            McuStorage::Storage2MB => 2048,
+        }
+    }
+
     /// Returns the storage size in kilobytes
     pub fn kb(&self) -> &str {
         match self {
@@ -147,6 +172,19 @@ impl McuStorage {
             McuStorage::StorageF => "F",
             McuStorage::StorageG => "G",
             McuStorage::Storage2MB => "2MB",
+        }
+    }
+
+    pub fn stm32_suffix(&self) -> &str {
+        match self {
+            McuStorage::Storage8 => "R8",
+            McuStorage::StorageB => "RB",
+            McuStorage::StorageC => "RC",
+            McuStorage::StorageD => "RD",
+            McuStorage::StorageE => "RE",
+            McuStorage::StorageF => "RF",
+            McuStorage::StorageG => "RG",
+            McuStorage::Storage2MB => "",
         }
     }
 }

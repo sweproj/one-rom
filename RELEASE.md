@@ -15,7 +15,6 @@ To update the version:
 - Update the version in [database/Cargo.toml](/rust/database/Cargo.toml).
 - Update the version in [config/Cargo.toml](/rust/config/Cargo.toml).
 - Update the version in [gen/Cargo.toml](/rust/gen/Cargo.toml).
-- Update the version in [wasm/Cargo.toml](/rust/gen/Cargo.toml).
 - Update the version in [fw/Cargo.toml](/rust/fw/Cargo.toml).
 - Update the version consts `MAX_VERSION_*` in [rust/sdrr-fw-parser/src/lib.rs](/rust/sdrr-fw-parser/src/lib.rs).
 

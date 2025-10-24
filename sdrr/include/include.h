@@ -68,6 +68,7 @@
 #include "roms.h"
 
 // Include the standard SDRR header files 
+#include "types.h"
 #include "constants.h"
 #include "registers.h"
 #include "functions.h"

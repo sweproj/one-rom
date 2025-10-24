@@ -48,6 +48,7 @@ At this point, you can choose to install the dependencies locally, or use the [D
     source $HOME/.cargo/env
     cargo install wasm-pack
     cargo install cross
+    cargo install cargo-dist
     ```
 
 5. Install [probe-rs](https://probe.rs/) for flashing the firmware to One ROM.

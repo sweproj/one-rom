@@ -54,35 +54,37 @@ impl FirmwareVersion {
     pub fn try_from_str(s: &str) -> Result<Self, Error> {
         let s = s.strip_prefix('v').unwrap_or(s);
         let mut parts = s.split('.');
-        
+
         let major = parts
             .next()
             .ok_or(Error::InvalidFirmwareVersion)?
             .parse::<u16>()
             .map_err(|_| Error::InvalidFirmwareVersion)?;
-        
+
         let minor = parts
             .next()
             .ok_or(Error::InvalidFirmwareVersion)?
             .parse::<u16>()
             .map_err(|_| Error::InvalidFirmwareVersion)?;
-        
+
         let patch = parts
             .next()
             .ok_or(Error::InvalidFirmwareVersion)?
             .parse::<u16>()
             .map_err(|_| Error::InvalidFirmwareVersion)?;
-        
+
         let build = match parts.next() {
-            Some(s) => s.parse::<u16>().map_err(|_| Error::InvalidFirmwareVersion)?,
+            Some(s) => s
+                .parse::<u16>()
+                .map_err(|_| Error::InvalidFirmwareVersion)?,
             None => 0,
         };
-        
+
         // Ensure no extra parts
         if parts.next().is_some() {
             return Err(Error::InvalidFirmwareVersion);
         }
-        
+
         Ok(Self::new(major, minor, patch, build))
     }
 }
@@ -162,7 +164,9 @@ impl FirmwareProperties {
         let mcu_family = mcu_variant.family();
         let board_mcu_family = board.mcu_family();
         if mcu_family != board_mcu_family {
-            return Err(Error::InvalidMcuVariant { variant: mcu_variant });
+            return Err(Error::InvalidMcuVariant {
+                variant: mcu_variant,
+            });
         }
         Ok(Self {
             version,

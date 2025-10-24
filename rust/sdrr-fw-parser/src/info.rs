@@ -8,6 +8,10 @@
 
 use deku::prelude::*;
 
+use onerom_config::fw::FirmwareVersion;
+use onerom_config::hw::{Board, Model};
+use onerom_config::mcu::Variant as McuVariant;
+
 use crate::{
     McuLine, McuStorage, SdrrAddress, SdrrCsState, SdrrLogicalAddress, SdrrMcuPort, SdrrRomType,
     SdrrServe,
@@ -18,7 +22,7 @@ use crate::{ParseError, Parser, Reader};
 use alloc::{format, string::String, vec, vec::Vec};
 
 /// Container for both the parsed firmware information and runtime information
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Sdrr {
     pub flash: Option<SdrrInfo>,
     pub ram: Option<SdrrRuntimeInfo>,
@@ -28,7 +32,7 @@ pub struct Sdrr {
 /// from RAM.
 ///
 /// Reflects `sdrr_runtime_info_t` from `sdrr/include/config_base.h`
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdrrRuntimeInfo {
     pub image_sel: u8,
     pub rom_set_index: u8,
@@ -43,7 +47,7 @@ pub struct SdrrRuntimeInfo {
 /// from the firmware file.
 ///
 /// Reflects `sdrr_info_t` from `sdrr/include/config_base.h`
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdrrInfo {
     // Core fields that are always present
     pub major_version: u16,
@@ -79,6 +83,12 @@ pub struct SdrrInfo {
 
     /// Whether explicit metadata is included
     pub metadata_present: bool,
+
+    /// Decoded hardware information
+    pub version: FirmwareVersion,
+    pub board: Option<Board>,
+    pub model: Option<Model>,
+    pub mcu_variant: Option<McuVariant>,
 }
 
 impl SdrrInfo {
@@ -340,7 +350,7 @@ impl SdrrInfo {
 /// Extra information about this One ROM
 ///
 /// Reflects `sdrr_extra_info` from `sdrr/include/config_base.h`
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdrrExtraInfo {
     /// Pointer to the RTT control block in RAM
     pub rtt_ptr: u32,
@@ -358,7 +368,7 @@ pub struct SdrrExtraInfo {
 /// Current maximum number of ROMs in a set is 3.
 ///
 /// Reflects `sdrr_rom_set_t` from `sdrr/include/config_base.h`
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdrrRomSet {
     /// Pointer to the ROM image data in the firmware.
     pub data_ptr: u32,
@@ -386,7 +396,7 @@ pub struct SdrrRomSet {
 /// Information about a single ROM in an SDRR firmware
 ///
 /// Reflects `sdrr_rom_info_t` from `sdrr/include/config_base.h`
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdrrRomInfo {
     /// The type of the ROM
     pub rom_type: SdrrRomType,
@@ -412,7 +422,7 @@ pub struct SdrrRomInfo {
 /// A pin value of 255 is used to indicate that the pin is not used.
 ///
 /// Reflects `sdrr_pins_t` from `sdrr/include/config_base.h`
-#[derive(Debug, DekuRead, DekuWrite, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, DekuRead, DekuWrite, serde::Serialize, serde::Deserialize)]
 pub struct SdrrPins {
     pub data_port: SdrrMcuPort,
     pub addr_port: SdrrMcuPort,

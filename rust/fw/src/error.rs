@@ -47,7 +47,7 @@ pub enum Error {
     LicenseNotAccepted,
     Zip {
         error: ZipError,
-    }
+    },
 }
 
 impl std::fmt::Display for Error {
@@ -62,7 +62,9 @@ impl std::fmt::Display for Error {
             Error::Network { error } => write!(f, "Network error:\n  {}", error),
             Error::Json { error } => write!(f, "JSON parsing error:\n  {}", error),
             Error::ReleaseNotFound => write!(f, "Requested firmware release not found"),
-            Error::TooLarge { portion, size, max } => write!(f, "{} size {} exceeds maximum of {}", portion, size, max),
+            Error::TooLarge { portion, size, max } => {
+                write!(f, "{} size {} exceeds maximum of {}", portion, size, max)
+            }
             Error::FileWrite { error } => write!(f, "File write error:\n  {}", error),
             Error::LicenseNotAccepted => write!(f, "License not accepted by user"),
             Error::Zip { error } => write!(f, "Zip extraction error:\n  {}", error),

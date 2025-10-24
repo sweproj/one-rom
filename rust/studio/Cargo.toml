@@ -1,0 +1,82 @@
+[package]
+name = "onerom-studio"
+version = "0.1.0"
+edition = "2024"
+authors = ["Piers Finlayson <piers@piers.rocks>"]
+license = "MIT"
+description = "One ROM Studio - Manage One ROM, the most flexible retro ROM replacement"
+repository = "https://github.com/piersfinlayson/one-rom"
+homepage = "https://onerom.org"
+documentation = "https://docs.rs/onerom-gen"
+keywords = ["retro", "rom", "commodore", "embedded"]
+categories = ["embedded", "hardware-support"]
+
+[[bin]]
+name = "onerom-studio"
+path = "src/main.rs"
+
+# Packager configuration - creates bundles and isntallers
+[package.metadata.packager]
+enabled = true
+name = "onerom-studio"
+product_name = "One ROM Studio"
+publisher = "piers.rocks"
+authors = ["Piers Finlayson"]
+identifier = "rocks.piers.onerom-studio"
+license-file = "LICENSE.txt"
+homepage = "https://onerom.org"
+description = "One ROM Studio" 
+longDescription = "One ROM Studio - Manage One ROM, the most flexible retro ROM replacement"
+formats = ["dmg", "nsis", "deb"]
+icons = ["assets/onerom-512x512.png", "assets/onerom-256x256.png", "assets/onerom-128x128.png", "assets/onerom-64x64.png", "assets/onerom-32x32.png", "assets/onerom-16x16.png", "assets/onerom.ico"]
+out-dir = "./dist"
+
+# Windows installer
+[package.metadata.packager.nsis]
+installer-mode = "currentUser"
+header-image = "assets/onerom-header.bmp"
+sidebar-image = "assets/onerom-sidebar.bmp"
+installer-icon = "assets/onerom.ico"
+display-language-selector = false
+
+# Linux package
+[package.metadata.packager.linux]
+generate-desktop-entry = true
+[package.metadata.packager.deb]
+files = { "scripts/70-onerom-studio.rules" = "/lib/udev/rules.d/70-onerom-studio.rules" }
+
+# Mac package
+[package.metadata.packager.macos]
+minimum-system-version = "10.13"
+background-app = false
+[package.metadata.packager.dmg]
+background = "assets/onerom-dmg.png"
+windowSize = { width = 540, height = 380 }
+windowPosition = { x = 200, y = 200 }
+appPosition = { x = 140, y = 160 }
+appFolderPosition = { x = 400, y = 160 } 
+
+[dependencies]
+onerom-config = { version = "0.2.1" }
+onerom-fw = { version = "0.1.0" }
+onerom-gen = { version = "0.1.2" }
+sdrr-fw-parser = { version = "0.5.3" }
+dfu-rs = { version = "0.1.1" }
+
+chrono = "0.4"
+futures = "0.3"
+iced = { version = "0.13", features = ["tokio", "image"] }
+log = "0.4"
+open = "5.3"
+probe-rs = { version = "0.29", features = [] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "charset"] }
+rfd = "0.15"
+rusb = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt"] }
+
+[build-dependencies]
+built = { version = "0.8", features = ["git2"] }
+git2 = { version = "0.20", default-features = false }
+embed-resource = "3"

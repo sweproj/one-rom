@@ -39,7 +39,7 @@ const ROM_SET_METADATA_LEN: usize = 16; // sdrr_rom_set_t
 
 /// How to handle ROM images that are too small for the ROM type
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")] 
+#[serde(rename_all = "snake_case")]
 pub enum SizeHandling {
     /// No special handling.  Errors if the image size does not exactly match
     /// the ROM size.

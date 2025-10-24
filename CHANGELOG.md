@@ -2,7 +2,29 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.5.2 - 2025-??-??
+## v0.5.3 - 202510-24
+
+The major addition in this release is the companion desktop application, One ROM Studio, which provides a native GUI for creating One ROM firmware images, and analysing and flashing One ROM devices.
+
+<img src="docs/images/one-rom-studio-win-v0.1.0.png" alt="One ROM Studio on Windows" width="500">
+
+Features include:
+- Supported platforms: Windows, Mac, Linux (Ubuntu, Debian and Raspberry Pi OS)
+- Supported One ROMs: all variants including Ice/Fire and Pro/USB
+- Program One ROMs with a choice of ROM images
+- Generate and save One ROM firmware files
+- Analyse One ROM devices and firmware files
+- Automatic debug probe and One ROM USB detection
+
+One ROM Studio can be downloaded from https://onerom.org/studio/.
+
+### Added
+
+- Added "limp mode" support to detect when an incompatible firmware has been flashed to an Ice One ROM.  It blinks fast in this state and, if it is a USB model, allows the device to drop into DFU mode when USB is connected, to allow flashing of a compatible firmware.  Note that "slower" MCU firmwares are permitted by "faster" MCUs - but not the other way around.  See #37 for details.
+
+### Fixes
+
+## v0.5.2 - 2025-10-14
 
 New in this release is a command line firmware image creation tool `rust/fw`.  This dynamically creates a custom One ROM firmware image from a specified:
 - set of ROM images (specified as a JSON config file)

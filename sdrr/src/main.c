@@ -129,6 +129,39 @@ uint8_t metadata_present(const sdrr_info_t *info) {
     return present;
 }
 
+void limp_mode(limp_mode_pattern_t pattern) {
+    LOG("Entering limp mode with blink pattern %d", pattern);
+
+    uint32_t on_time, off_time;
+
+    switch (pattern) {
+        case LIMP_MODE_NO_ROMS:
+            // Slow blink - around 0.5s on, 2.5s off
+            // Running off HSI->PLL at this point. 
+            on_time = 5000000;
+            off_time = 25000000;
+            break;
+
+        case LIMP_MODE_INVALID_CONFIG:
+            // Faster blink - around 0.5s on, 0.5s off
+            // Running off 12MHz HSI clock at this point.
+            on_time = 1000000;
+            off_time = 1000000;
+            break;
+
+        default:
+            // Very fast blink
+            // Who knows what clock we're running off
+            on_time = 100000;
+            off_time = 500000;
+            break;
+    }
+
+    while (1) {
+        blink_pattern(on_time, off_time, 1);
+    }
+}
+
 // Needs to do the following:
 // - Set up the clock to 68.8Mhz
 // - Set up GPIO ports A, B and C to inputs
@@ -216,10 +249,8 @@ int main(void) {
         // Brief blink pattern to indicate no ROM being served.  Stays off for
         // a fifth of the time as it is on.  Exact timings depend on clock
         // speed.  At 100MHz this is roughly 0.5s on 2.5s off.
-        LOG("No ROM set to serve - halting");
-        while (1) {
-            blink_pattern(5000000, 25000000, 1);
-        }
+        LOG("No ROM set to serve - entering limp mode");
+        limp_mode(LIMP_MODE_NO_ROMS);
     }
 
     // Do final checks before entering the main loop
@@ -278,7 +309,7 @@ int main(void) {
     if (required_size > ram_size) {
         LOG("!!! Not enough RAM for sdrr_info and related data");
     }
-    // Continue away :-|
+    // Continue anyway :-|
 
     // Copy sdrr_info to RAM
     uint8_t *ptr = sdrr_info_ram_start;

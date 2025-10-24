@@ -111,8 +111,17 @@ impl Args {
         if self.list_fw_versions {
             listed = true;
             let releases = Releases::from_network()?;
-            let releases_str = releases.releases().iter().map(|r| r.version.as_str()).collect::<Vec<_>>().join(", ");
-            println!("Available Firmware Versions (latest = {}): {}", releases.latest(), releases_str);
+            let releases_str = releases
+                .releases()
+                .iter()
+                .map(|r| r.version.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!(
+                "Available Firmware Versions (latest = {}): {}",
+                releases.latest(),
+                releases_str
+            );
         }
 
         if listed {
@@ -129,13 +138,18 @@ impl Args {
 
         // Check the board and MCU are compatible
         if self.board.as_ref().map(|b| b.mcu_family()) != self.mcu.as_ref().map(|m| m.family()) {
-            return Err(Error::config("MCU variant is not supported by the selected board".to_string()));
+            return Err(Error::config(
+                "MCU variant is not supported by the selected board".to_string(),
+            ));
         }
 
         // Check the file exists if specified
         if let Some(ref rom_file) = self.rom {
             if !std::path::Path::new(rom_file).exists() {
-                return Err(Error::config(format!("ROM configuration file `{}` does not exist", rom_file)));
+                return Err(Error::config(format!(
+                    "ROM configuration file `{}` does not exist",
+                    rom_file
+                )));
             }
         }
 
@@ -183,9 +197,19 @@ fn firmware_value_parser(s: &str) -> Result<FirmwareVersion, String> {
 }
 
 fn board_values() -> String {
-    onerom_config::hw::BOARDS.iter().map(|b| b.name()).collect::<Vec<_>>().join(", ").into()
+    onerom_config::hw::BOARDS
+        .iter()
+        .map(|b| b.name())
+        .collect::<Vec<_>>()
+        .join(", ")
+        .into()
 }
 
 fn mcu_values() -> String {
-    onerom_config::mcu::MCU_VARIANTS.iter().map(|m| m.to_string().to_lowercase()).collect::<Vec<_>>().join(", ").into()
+    onerom_config::mcu::MCU_VARIANTS
+        .iter()
+        .map(|m| m.to_string().to_lowercase())
+        .collect::<Vec<_>>()
+        .join(", ")
+        .into()
 }
