@@ -777,8 +777,9 @@ generate_manifest() {
             24-f) echo "F" ;;
             ice-24-f) echo "Ice F/F2" ;;
             ice-24-g) echo "Ice G" ;;
-            p24-a) echo "A/A2" ;;
             ice-24-h) echo "Ice H/H2" ;;
+            ice-24-usb-h) echo "Ice H/H2" ;;
+            p24-a) echo "A/A2" ;;
             fire-24-a) echo "Fire A/A2" ;;
             fire-24-usb-b) echo "Fire USB B" ;;
             *) echo "$hw_rev" ;;  # Default to hw_rev itself

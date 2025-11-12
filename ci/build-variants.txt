@@ -19,7 +19,7 @@ f405rg:HW_REV=ice-24-g
 f446re:HW_REV=ice-24-g
 
 # Ice rev H
-f401re:HW_REV=ice-24-h
-f411re:HW_REV=ice-24-h
-f405rg:HW_REV=ice-24-h
-f446re:HW_REV=ice-24-h
+f401re:HW_REV=ice-24-usb-h
+f411re:HW_REV=ice-24-usb-h
+f405rg:HW_REV=ice-24-usb-h
+f446re:HW_REV=ice-24-usb-h
