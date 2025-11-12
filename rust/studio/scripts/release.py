@@ -23,11 +23,12 @@ from urllib.request import urlopen
 MANIFEST_URL = "https://images.onerom.org/studio/releases.json"
 EXPECTED_TARGETS = {
     "x86_64-pc-windows-msvc",
-    "x86_64-apple-darwin",
-    "aarch64-apple-darwin",
+    "universal-apple-darwin",
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",
 }
+SCHEMA_SRC = "manifest/app-schema.json"
+SCHEMA_DEST = "studio/app-schema.json"
 
 def error(msg):
     print(f"ERROR: {msg}", file=sys.stderr)
@@ -47,12 +48,7 @@ def identify_target(filename):
     if lower.endswith('.exe'):
         return 'x86_64-pc-windows-msvc'
     elif lower.endswith('.dmg'):
-        if 'aarch64' in lower or 'arm64' in lower:
-            return 'aarch64-apple-darwin'
-        elif 'x64' in lower or 'x86_64' in lower or 'x86' in lower:
-            return 'x86_64-apple-darwin'
-        else:
-            error(f"Could not determine architecture for macOS file: {filename}")
+        return 'universal-apple-darwin'
     elif lower.endswith('.deb'):
         if 'aarch64' in lower or 'arm64' in lower:
             return 'aarch64-unknown-linux-gnu'
@@ -192,6 +188,13 @@ def main():
         json.dump(manifest, f, indent=2)
     
     print(f"Success! Release {version} added to manifest.")
+
+    # Copy schema
+    schema_src = SCHEMA_SRC
+    schema_dest = output_dir / SCHEMA_DEST
+    print(f"Copying schema from {schema_src} to {schema_dest}")
+    shutil.copy2(schema_src, schema_dest)
+    print("Schema copied successfully.")
 
 if __name__ == '__main__':
     main()

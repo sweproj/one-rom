@@ -254,7 +254,7 @@ impl Variant {
     pub fn supports_usb_dfu(&self) -> bool {
         match self.family() {
             Family::Stm32f4 => true,
-            Family::Rp2350 => false,
+            Family::Rp2350 => true,
         }
     }
 

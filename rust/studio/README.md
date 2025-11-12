@@ -2,9 +2,96 @@
 
 A GUI front-end for interacting with One ROM and managing firmware images.
 
-It is **much** easier to let GitHub Actions build the installers for you, but if you want to build locally, follow these instructions.
+## Releasing
 
-There are steps missing below which are done by CI, such as generating a custom .dmg icon on Mac.
+All instructions assume you are in the `rust/studio` directory.  Steps 1-3 can be run in parallel.
+
+Steps:
+1. Build the schema(s):
+
+    ```bash
+    cargo run --release --bin gen-schema
+    cargo run --release --bin gen-manifest
+    git diff manifest/app-schema.json ../../../one-rom-images/studio/app-schema.json
+    # If differences
+    cp manifest/app-schema.json ../../../one-rom-images/studio/app-schema.json
+    ```
+
+2. Create Mac build - on a Mac, using a local terminal (not ssh) with the appropriate Apple Developer ID certificate installed in the Login keychain:
+
+    ```bash
+    scripts/build-mac.sh
+    ```
+
+    Will pop-up for Apple ID credentials for code signing and notarization.
+
+3. Create Windows build - on a Windows machine, using a local powershell, with smartcard plugged in:
+
+    ```powershell
+    .\scripts\build-windows.ps1
+    ``` 
+
+    Will prompt for smartcard pin.
+
+4. Create Linux builds - on a Linux (x86_64) machine:
+
+    ```bash
+    scripts/build-linux.sh
+    ```
+
+5. Copy the built installers from the `dist/` directory on each platform to the Linux machine's `dist/` directory.
+
+6. On the Linux machine, run the release script to upload the files and update the manifest - assumes you have the images.onerom.org github repo at ../../../one-rom-images:
+
+    ```bash
+    scripts/release.py --input-dir dist --output-dir ../../../one-rom-images
+    ```
+
+7. Commit one-rom-images changes and push:
+
+    ```bash
+    cd ../../../one-rom-images
+    git add .
+    git commit -m "Update One ROM Studio releases"
+    git push
+    ```
+
+8. Tag the current commit with the version and push:
+
+    ```bash
+    git tag studio-vX.Y.Z
+    git push origin studio-vX.Y.Z
+    ```
+
+9. Check new releases appear at https://onerom.org/studio/
+
+10. Update the Studio manifest `one-rom-images/studio.json` with the latest version.
+
+## Updating Mac Icons
+
+1. From an up to date Apple Silicon Mac, open `assets/onerom-liquid-glass.icon`.
+
+2. Modify the icon as needed using the Icon Composer application.
+
+3. Regenerate `assets/onerom-liquid-glass-icons/Assets.car` using:
+
+    ```bash
+    scripts/create-mac-icon-ac.sh
+    ```
+
+4. Commit and push both `assets/onerom-liquid-glass.icon` and `assets/onerom-liquid-glass-icons/Assets.car`.
+
+## Creating a new Code Signing Certificate
+
+See https://piers.rocks/2025/10/30/certum-open-source-code-sign.html
+
+## CI
+
+`.github/workflows/build-studio.yml` contains the CI instructions for building Studio.  However, it does not sign, so do not use the produced installers for release.
+
+This CI runs on all pushes to the `rust/studio/`.
+
+## 
 
 ## Dependencies
 
@@ -30,75 +117,33 @@ sudo apt install mingw-w64
 
 To run th ARM64 Linux build you really need to be building on the platform (or using CI), as libudev is a pain to build as part of the cross compilation.
 
-## Packaging
+## Packaging Implementation
 
-### Dependencies
+### Windows
 
-Assumes all commands are run from this project directory.
+Uses `cargo-packager` - see the following in `Cargo.toml`:
 
-Install cargo packager:
+- `[package.metadata.packager]`
+- `[package.metadata.packager.nsis]`
 
-```bash
-cargo install cargo-packager --locked
-```
+Code signing is done using `signtool.exe` called from `scripts/build-windows.ps1`.
 
-Install NSIS for Windows installer creation:
+### macOS
 
-```bash
-sudo apt install nsis
-```
+Uses `cargo-bundle` to create the macOS app bundle - see the following in `Cargo.toml`:
 
-Install Windows GNU toolchain:
+- `[package.metadata.bundle]`
 
-```bash
-sudo apt install mingw-w64
-```
+`scripts/build-mac.sh` does code signing and notarization using `codesign` and `xcrun notarytool`.
 
-### Windows (x86_64)
+`scripts/create-dmg.py` is used by `build-mac.sh` to create DMG installer.
 
-These instructions are for building Windows installers on a Linux machine.  It produces an NSIS installer, which is more modern than the older MSI format.
+### Linux
 
-```bash
-PACKAGER_TARGET=x86_64-pc-windows-gnu cargo build --release --target $PACKAGER_TARGET
-PACKAGER_TARGET=x86_64-pc-windows-gnu cargo packager --release --target $PACKAGER_TARGET --formats nsis
-```
+Uses `cargo-packager` to create a `.deb` package - see the following in `Cargo.toml`:
 
-```bash
-$ ls -l dist/*.exe
--rw-r--r-- 1 pdf pdf 10081302 Oct 21 09:05 dist/onerom-studio_0.1.0_x64-setup.exe
-```
+- `[package.metadata.packager]`
+- `[package.metadata.packager.linux]`
+- `[package.metadata.packager.deb]`
 
-Note that this mechanism builds an app using GNU, which leads to a 50% larger installer and 5x larger binary than the MSVC version.  However, the MVSC target is much harder to build on linux.  For testing, using Linux is fine, but for releases, use a Windows machine with the MSVC target (or the CI).
-
-## Linux (x86_64)
-
-```bash
-env PACKAGER_TARGET=x86_64-unknown-linux-gnu cargo build --release --target $PACKAGER_TARGET
-env PACKAGER_TARGET=x86_64-unknown-linux-gnu cargo packager --release --target $PACKAGER_TARGET --formats deb
-```
-
-```bash
-$ ls -l dist/*.deb
--rw-r--r-- 1 pdf pdf 13741434 Oct 21 09:06 dist/onerom-studio_0.1.0_amd64.deb
-```
-
-## Linux (ARM64)
-
-```bash
-env PACKAGER_TARGET=aarch64-unknown-linux-gnu cargo build --release --target $PACKAGER_TARGET
-env PACKAGER_TARGET=aarch64-unknown-linux-gnu cargo packager --release --target $PACKAGER_TARGET --formats deb
-```
-
-## Mac - Intel
-
-```bash
-env PACKAGER_TARGET=x86_64-apple-darwin LIBUSB_STATIC=1 cargo build --release --target $PACKAGER_TARGET
-env PACKAGER_TARGET=x86_64-apple-darwin cargo packager --release --target $PACKAGER_TARGET --formats dmg
-```
-
-## Mac - Apple Silicon
-
-```bash
-env PACKAGER_TARGET=aarch64-apple-darwin LIBUSB_STATIC=1 cargo build --release --target $PACKAGER_TARGET
-env PACKAGER_TARGET=aarch64-apple-darwin cargo packager --release --target $PACKAGER_TARGET --formats dmg
-```
+`scripts/build-linux.sh` builds the package, including adding maintainer scripts to handle libudev rules installation.

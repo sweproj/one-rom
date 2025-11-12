@@ -16,6 +16,9 @@ fn main() {
     // Tell Cargo to rerun if anything in build/ changes
     println!("cargo:rerun-if-changed=build");
 
+    // Or json
+    println!("cargo:rerun-if-changed=json");
+
     // Build the auto-generated hw module
     hw::build(manifest_path);
 

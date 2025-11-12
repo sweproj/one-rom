@@ -24,18 +24,20 @@ use alloc::{format, string::String, vec::Vec};
 /// # Example
 ///
 /// ```rust
+/// # async fn test() -> Result<(), Box<dyn std::error::Error>> {
 /// use sdrr_fw_parser::{Parser, readers::MemoryReader};
 ///
 /// // Load firmware file
 /// let firmware_data = std::fs::read("firmware.bin")?;
 ///
 /// // Create reader starting at STM32F4 flash base
-/// let reader = MemoryReader::new(firmware_data, 0x08000000);
+/// let mut reader = MemoryReader::new(firmware_data, 0x08000000);
 ///
 /// // Parse the firmware
-/// let mut parser = Parser::new(reader);
-/// let info = parser.parse()?;
+/// let mut parser = Parser::new(&mut reader);
+/// let info = parser.parse().await;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
 /// ```
 #[derive(Debug)]
 pub struct MemoryReader {

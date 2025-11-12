@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "1541-II",
     "description": "Stock 28-pin ROM images for a 1541-II",

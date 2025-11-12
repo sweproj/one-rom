@@ -309,6 +309,8 @@ impl Config {
         let mut rom_sets: Vec<RomSet> = Vec::new();
 
         for (set_id, mut roms_in_set) in sets_map {
+            let num_roms = roms_in_set.len();
+
             let is_banked = roms_in_set
                 .iter()
                 .any(|(_, config, _)| config.bank.is_some());
@@ -323,8 +325,12 @@ impl Config {
                 set_id,
                 if is_banked {
                     RomSetType::Banked
-                } else {
+                } else if num_roms > 1 {
                     RomSetType::Multi
+                } else {
+                    // Single ROM sets are dealt with here if there are also
+                    // multi-ROM or banked sets in the config
+                    RomSetType::Single
                 },
                 serve_alg,
                 rom_vec,

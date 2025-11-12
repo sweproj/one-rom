@@ -92,7 +92,15 @@
 #define LABEL(X)        #X "%=: \n"
 
 // Loads the address/CS lines from the hardware register into R_ADDR_CS
-#define LOAD_ADDR_CS    "ldrh " R_ADDR_CS ", [" R_GPIO_ADDR_CS_IDR "]\n"
+#define LOAD_ADDR_CS    "ldrh " R_ADDR_CS ", [" R_GPIO_ADDR_CS_IDR "]\n" \
+
+#if defined(RP235X)
+// Loads the address/CS lines from the hardware register into R_ADDR_CS,
+// extracting only bits 8-23 (i.e. upper byte only) and shifting them to bit
+// 0.  Used on RP2350 when data/CS lines are on GPIOs 8-23.
+#define LOAD_ADDR_CS_UBFX   "ldr " R_ADDR_CS ", [" R_GPIO_ADDR_CS_IDR "]\n" \
+                            "ubfx " R_ADDR_CS ", " R_ADDR_CS ", #8, #16\n"
+#endif // RP235X
 
 // Tests whether the CS line is active - zero flag set if so (low)
 #define TEST_CS         "eor " R_CS_TEST ", " R_ADDR_CS ", " R_CS_INVERT_MASK "\n" \
@@ -367,6 +375,59 @@
         : ASM_INPUTS                                                        \
         : ASM_CLOBBERS                                                      \
     )
+#if defined(RP235X)
+#define ALG1_ASM_UBFX(TEST_CS_OPTION)                                       \
+    PRELOAD_ASM_REGISTERS;                                                  \
+    __asm volatile (                                                        \
+        BRANCH(LOOP)                                                        \
+    LABEL(CS_ACTIVE)                                                        \
+        SET_DATA_OUT                                                        \
+    LABEL(CS_ACTIVE_DATA_ACTIVE)                                            \
+        LOAD_FROM_RAM                                                       \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS                                                             \
+        BNE(CS_INACTIVE_BYTE)                                               \
+    LABEL(CS_ACTIVE_DATA_ACTIVE_BYTE)                                       \
+        STORE_TO_DATA                                                       \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS                                                             \
+        BNE(CS_INACTIVE_NO_BYTE)                                            \
+        LOAD_FROM_RAM                                                       \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS                                                             \
+        BEQ(CS_ACTIVE_DATA_ACTIVE_BYTE)                                     \
+    LABEL(CS_INACTIVE_BYTE)                                                 \
+        SET_DATA_IN                                                         \
+        STORE_TO_DATA                                                       \
+    MAIN_LOOP_ONE_SHOT_END_BRANCH(END_LOOP)                                 \
+    LABEL(LOOP)                                                             \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS                                                             \
+        BEQ(CS_ACTIVE)                                                      \
+        LOAD_FROM_RAM                                                       \
+        LOAD_ADDR_CS_UBFX                                                   \
+        STORE_TO_DATA                                                       \
+        TEST_CS                                                             \
+        BEQ(CS_ACTIVE)                                                      \
+        BRANCH(LOOP)                                                        \
+    LABEL(CS_INACTIVE_NO_BYTE)                                              \
+        SET_DATA_IN                                                         \
+        MAIN_LOOP_ONE_SHOT_END_BRANCH(END_LOOP)                             \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS                                                             \
+        BEQ(CS_ACTIVE)                                                      \
+        LOAD_FROM_RAM                                                       \
+        LOAD_ADDR_CS_UBFX                                                   \
+        STORE_TO_DATA                                                       \
+        TEST_CS                                                             \
+        BEQ(CS_ACTIVE)                                                      \
+        BRANCH(LOOP)                                                        \
+    MAIN_LOOP_ONE_SHOT_END_LABEL(END_LOOP)                                  \
+        : ASM_OUTPUTS                                                       \
+        : ASM_INPUTS                                                        \
+        : ASM_CLOBBERS                                                      \
+    )
+#endif // RP235X
 
 // This algorithm doesn't read the address lines until CS has gone active.
 // This appears to be more performant on some machines (C64 character ROM),
@@ -461,6 +522,34 @@
         : ASM_INPUTS                                                        \
         : ASM_CLOBBERS                                                      \
     )
+#if defined(RP235X)
+#define ALG2_ASM_UBFX(TEST_CS_OPTION, BACT)                                 \
+    PRELOAD_ASM_REGISTERS;                                                  \
+    __asm volatile (                                                        \
+        BRANCH(ALG2_LOOP)                                                   \
+    LABEL(ALG2_CS_ACTIVE)                                                   \
+        LOAD_FROM_RAM                                                       \
+        SET_DATA_OUT                                                        \
+    LABEL(ALG2_CS_ACTIVE_MID)                                               \
+        STORE_TO_DATA                                                       \
+        LOAD_ADDR_CS_UBFX                                                        \
+        TEST_CS_OPTION                                                      \
+        LOAD_FROM_RAM                                                       \
+        BACT(ALG2_CS_ACTIVE_MID)                                            \
+    LABEL(ALG2_CS_INACTIVE)                                                 \
+        SET_DATA_IN                                                         \
+        MAIN_LOOP_ONE_SHOT_END_BRANCH(ALG2_END_LOOP)                        \
+    LABEL(ALG2_LOOP)                                                        \
+        LOAD_ADDR_CS_UBFX                                                        \
+        TEST_CS_OPTION                                                      \
+        BACT(ALG2_CS_ACTIVE)                                                \
+        BRANCH(ALG2_LOOP)                                                   \
+    MAIN_LOOP_ONE_SHOT_END_LABEL(ALG2_END_LOOP)                             \
+        : ASM_OUTPUTS                                                       \
+        : ASM_INPUTS                                                        \
+        : ASM_CLOBBERS                                                      \
+    )
+#endif // RP235X
 
 #if defined(COUNT_ROM_ACCESS)
 // A variant of ALG2 that counts the number of times CS goes active
@@ -498,4 +587,40 @@
         : ASM_INPUTS                                                        \
         : ASM_CLOBBERS                                                      \
     )
+#if defined(RP235X)
+#define ALG2_COUNT_ASM_UBFX(TEST_CS_OPTION, BACT, BNACT)                    \
+    PRELOAD_ASM_REGISTERS;                                                  \
+    __asm volatile (                                                        \
+        BRANCH(ALG2_LOOP)                                                   \
+    LABEL(ALG2_CS_ACTIVE)                                                   \
+        LOAD_FROM_RAM                                                       \
+        SET_DATA_OUT                                                        \
+    LABEL(ALG2_CS_ACTIVE_MID)                                               \
+        STORE_TO_DATA                                                       \
+        INC_COUNT                                                           \
+        STORE_COUNT                                                         \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS_OPTION                                                      \
+        LOAD_FROM_RAM                                                       \
+        BNACT(ALG2_CS_INACTIVE)                                             \
+    LABEL(ALG2_CS_ACTIVE_POST_COUNT)                                        \
+        STORE_TO_DATA                                                       \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS_OPTION                                                      \
+        LOAD_FROM_RAM                                                       \
+        BACT(ALG2_CS_ACTIVE_POST_COUNT)                                     \
+    LABEL(ALG2_CS_INACTIVE)                                                 \
+        SET_DATA_IN                                                         \
+        MAIN_LOOP_ONE_SHOT_END_BRANCH(ALG2_END_LOOP)                        \
+    LABEL(ALG2_LOOP)                                                        \
+        LOAD_ADDR_CS_UBFX                                                   \
+        TEST_CS_OPTION                                                      \
+        BACT(ALG2_CS_ACTIVE)                                                \
+        BRANCH(ALG2_LOOP)                                                   \
+    MAIN_LOOP_ONE_SHOT_END_LABEL(ALG2_END_LOOP)                             \
+        : ASM_OUTPUTS                                                       \
+        : ASM_INPUTS                                                        \
+        : ASM_CLOBBERS                                                      \
+    )
+#endif // RP235X
 #endif // COUNT_ROM_ACCESS

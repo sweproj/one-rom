@@ -57,6 +57,10 @@ pub enum Error {
         expected: usize,
         actual: usize,
     },
+    TooFewRoms {
+        expected: usize,
+        actual: usize,
+    },
     MissingCsConfig {
         line: &'static str,
     },
@@ -95,6 +99,10 @@ pub enum Error {
     UnvalidatedLicense {
         id: usize,
     },
+    BadLocation {
+        id: usize,
+        reason: String,
+    }
 }
 type Result<T> = core::result::Result<T, Error>;
 

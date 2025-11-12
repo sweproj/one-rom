@@ -7,7 +7,6 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
     paths:
       - 'Makefile'
       - 'ci/**'
@@ -53,6 +52,16 @@ jobs:
 
     - name: Install Rust wasm-pack
       run: cargo install wasm-pack
+
+    - name: Run various Rust tests
+      run: |
+        export TOOLCHAIN=/usr/bin
+        ci/rust-tests.sh
+
+    - name: Build Rust docs
+      run: |
+        export TOOLCHAIN=/usr/bin
+        ci/rust-docs.sh
 
     - name: Test option combinations
       run: |

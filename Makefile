@@ -16,7 +16,7 @@
 
 VERSION_MAJOR := 0
 VERSION_MINOR := 5
-VERSION_PATCH := 3
+VERSION_PATCH := 4
 BUILD_NUMBER := 1
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 export VERSION_MAJOR VERSION_MINOR VERSION_PATCH BUILD_NUMBER GIT_COMMIT
@@ -386,6 +386,8 @@ endif
 
 # Sort out binary prefix
 ifneq ($(MCU),)
+  # Make MCU lowercase
+  MCU := $(shell echo $(MCU) | tr '[:upper:]' '[:lower:]')
   MCU_PREFIX=
   ifneq ($(filter f%,$(MCU)),)
     MCU_PREFIX=stm32
@@ -674,6 +676,9 @@ endif
 	@echo "-----"
 	@ls -ltr sdrr/build/$(BIN_PREFIX).elf
 	@ls -ltr sdrr/build/$(BIN_PREFIX).bin
+ifeq ($(MCU),rp2350)
+	@ls -ltr sdrr/build/$(BIN_PREFIX).uf2
+endif
 ifeq ($(DFU_SUPPORTED),1)
 	@ls -ltr sdrr/build/$(BIN_PREFIX).dfu
 endif
@@ -736,6 +741,13 @@ firmware: gen
 	@echo "- HW revision: $(HW_REV)"
 	@echo "-----"
 	@GEN_OUTPUT_DIR=$(GEN_OUTPUT_DIR) EXCLUDE_METADATA="$(EXCLUDE_METADATA)" EXTRA_C_FLAGS="$(EXTRA_C_FLAGS)" make --no-print-directory -C sdrr
+ifeq ($(MCU), rp2350)
+	@if command -v picotool >/dev/null 2>&1; then \
+		picotool uf2 convert sdrr/build/$(BIN_PREFIX).bin sdrr/build/$(BIN_PREFIX).uf2; \
+	else \
+		echo "Warning: picotool not found, skipping UF2 conversion"; \
+	fi
+endif
 
 # Call make run-actual - this causes a new instance of make to be invoked and generated.mk exists, so it can load PROBE_RS_CHIP_ID
 run: firmware info

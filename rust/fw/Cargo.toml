@@ -1,6 +1,6 @@
 [package]
 name = "onerom-fw"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 authors = ["Piers Finlayson <piers@piers.rocks>"]
 license = "MIT"
@@ -20,10 +20,11 @@ name = "onerom-fw"
 path = "src/main.rs"
 
 [dependencies]
-onerom-config = { version = "0.2.1" }
-onerom-gen = { version = "0.1.2" }
+onerom-config = { version = "0.2.2" }
+onerom-gen = { version = "0.2.0" }
 
-clap = { version = "4.4.7", features = ["derive"] }
+bytes = "1.10"
+clap = { version = "4.5", features = ["derive"] }
 env_logger = "0.11"
 log = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["json", "charset", "blocking", "rustls-tls"] }

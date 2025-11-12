@@ -467,6 +467,21 @@ impl fmt::Display for SdrrMcuPort {
     }
 }
 
+// from u8
+impl From<u8> for SdrrMcuPort {
+    fn from(value: u8) -> Self {
+        match value {
+            0x00 => SdrrMcuPort::None,
+            0x01 => SdrrMcuPort::PortA,
+            0x02 => SdrrMcuPort::PortB,
+            0x03 => SdrrMcuPort::PortC,
+            0x04 => SdrrMcuPort::PortD,
+            0x05 => SdrrMcuPort::Port0,
+            _ => SdrrMcuPort::None,
+        }
+    }
+}
+
 /// Struct representing the state of the chip select (CS) lines in a given
 /// logical address
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "2040/3040",
     "description": "Stock ROMs for DOS1 2040 and 3040 IEEE disk drives",

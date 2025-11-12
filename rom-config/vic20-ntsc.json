@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "VIC-20 NTSC",
     "description": "Stock ROMs for an NTSC VIC-20",

@@ -91,6 +91,7 @@ impl FirmwareVersion {
 
 /// ROM serving algorithm
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ServeAlg {
     /// default

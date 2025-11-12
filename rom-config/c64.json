@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "C64",
     "description": "Standard set of stock C64 ROMs",

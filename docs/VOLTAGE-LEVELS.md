@@ -50,6 +50,6 @@ One ROM's minimum high input voltage is less than the 6502/6567/6560/6561's mini
 
 ### Absolute Maximum STM32F4 VIL
 
-The absolute maximum VIN for the STM32F4 on its FT pins is VDD+4.0 = 7.3V.  This is higher than the absolute maximum supply and input voltage of the 6502/6567/6560/6561 which is 7.0V.
+The absolute maximum VIN for the STM32F4 on its FT pins is 5.5V.  This is _lower_ than the absolute maximum supply and input voltage of the 6502/6567/6560/6561 which is 7.0V.
 
-Hence the STM32F4 will not be damaged by a system over-voltage scenario, unless the 6502/VIC-II/VIC (and other compoents) have likely already been damaged.
+Hence the STM32F4 is more sensitive to an over-voltage scenario than the original ICs.

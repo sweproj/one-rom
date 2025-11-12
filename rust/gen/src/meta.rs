@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 use onerom_config::hw::Board;
 
-use crate::{Error, FIRMWARE_SIZE, METADATA_VERSION, Result, RomSet};
+use crate::{Error, FIRMWARE_SIZE, METADATA_VERSION, Result, image::RomSet};
 
 pub const PAD_METADATA_BYTE: u8 = 0xFF;
 

@@ -1,6 +1,6 @@
 [package]
 name = "onerom-studio"
-version = "0.1.0"
+version = "0.1.3"
 edition = "2024"
 authors = ["Piers Finlayson <piers@piers.rocks>"]
 license = "MIT"
@@ -13,70 +13,81 @@ categories = ["embedded", "hardware-support"]
 
 [[bin]]
 name = "onerom-studio"
-path = "src/main.rs"
+path = "src/bin/studio.rs"
 
-# Packager configuration - creates bundles and isntallers
-[package.metadata.packager]
-enabled = true
-name = "onerom-studio"
-product_name = "One ROM Studio"
-publisher = "piers.rocks"
-authors = ["Piers Finlayson"]
+[[bin]]
+name = "gen-schema"
+path = "src/bin/gen-schema.rs"
+
+[[bin]]
+name = "gen-manifest"
+path = "src/bin/gen-manifest.rs"
+
+[lib]
+name = "onerom_studio"
+path = "src/lib.rs"
+
+# Cargo bundle metadata, used on macOS (not cargo packager)
+[package.metadata.bundle.bin.onerom-studio]
+name = "One ROM Studio"
 identifier = "rocks.piers.onerom-studio"
-license-file = "LICENSE.txt"
-homepage = "https://onerom.org"
-description = "One ROM Studio" 
-longDescription = "One ROM Studio - Manage One ROM, the most flexible retro ROM replacement"
-formats = ["dmg", "nsis", "deb"]
-icons = ["assets/onerom-512x512.png", "assets/onerom-256x256.png", "assets/onerom-128x128.png", "assets/onerom-64x64.png", "assets/onerom-32x32.png", "assets/onerom-16x16.png", "assets/onerom.ico"]
-out-dir = "./dist"
+icon = ["assets/onerom-512x512.png", "assets/onerom-256x256.png", "assets/onerom-128x128.png", "assets/onerom-64x64.png", "assets/onerom-32x32.png", "assets/onerom-16x16.png"]
+short_description = "One ROM Studio"
+long_description = "One ROM Studio - Manage One ROM, the most flexible retro ROM replacement"
+osx_minimum_system_version = "10.13"
 
-# Windows installer
-[package.metadata.packager.nsis]
-installer-mode = "currentUser"
-header-image = "assets/onerom-header.bmp"
-sidebar-image = "assets/onerom-sidebar.bmp"
-installer-icon = "assets/onerom.ico"
-display-language-selector = false
-
-# Linux package
-[package.metadata.packager.linux]
-generate-desktop-entry = true
-[package.metadata.packager.deb]
-files = { "scripts/70-onerom-studio.rules" = "/lib/udev/rules.d/70-onerom-studio.rules" }
-
-# Mac package
-[package.metadata.packager.macos]
-minimum-system-version = "10.13"
-background-app = false
-[package.metadata.packager.dmg]
-background = "assets/onerom-dmg.png"
-windowSize = { width = 540, height = 380 }
-windowPosition = { x = 200, y = 200 }
-appPosition = { x = 140, y = 160 }
-appFolderPosition = { x = 400, y = 160 } 
+# Cargo deb metadata for building Linux deb packages
+[package.metadata.deb]
+name = "onerom-studio"
+maintainer = "Piers Finlayson <piers@piers.rocks>"
+copyright = "Piers Finlayson"
+license-file = ["LICENSE.txt", "0"]
+extended-description = "One ROM Studio - Manage One ROM, the most flexible retro ROM replacement"
+depends = "$auto"
+section = "utils"
+priority = "optional"
+maintainer-scripts = "scripts/linux/maintainer"
+profile = "release"
+assets = [
+    ["target/release/onerom-studio", "usr/bin/", "755"],
+    ["scripts/linux/onerom-studio.desktop", "usr/share/applications/", "644"],
+    ["scripts/70-onerom-studio.rules", "lib/udev/rules.d/70-onerom-studio.rules", "644"],
+    ["assets/onerom-512x512.png", "usr/share/icons/hicolor/512x512/apps/onerom-studio.png", "644"],
+    ["assets/onerom-256x256.png", "usr/share/icons/hicolor/256x256/apps/onerom-studio.png", "644"],
+    ["assets/onerom-128x128.png", "usr/share/icons/hicolor/128x128/apps/onerom-studio.png", "644"],
+    ["assets/onerom-64x64.png", "usr/share/icons/hicolor/64x64/apps/onerom-studio.png", "644"],
+    ["assets/onerom-32x32.png", "usr/share/icons/hicolor/32x32/apps/onerom-studio.png", "644"],
+    ["assets/onerom-16x16.png", "usr/share/icons/hicolor/16x16/apps/onerom-studio.png", "644"],
+]
 
 [dependencies]
-onerom-config = { version = "0.2.1" }
-onerom-fw = { version = "0.1.0" }
-onerom-gen = { version = "0.1.2" }
-sdrr-fw-parser = { version = "0.5.3" }
-dfu-rs = { version = "0.1.1" }
+onerom-config = { version = "0.2.2" }
+onerom-fw = { version = "0.1.1" }
+onerom-gen = { version = "0.2.0" }
+sdrr-fw-parser = { version = "0.5.4" }
+dfu-rs = { git = "https://github.com/piersfinlayson/dfu-rs.git", version = "0.2.0" }
+picoboot = { git = "https://github.com/piersfinlayson/picoboot.git", version = "0.1.1" }
 
+arc-swap = "1.7"
 chrono = "0.4"
+directories = "6.0"
 futures = "0.3"
 iced = { version = "0.13", features = ["tokio", "image"] }
 log = "0.4"
 open = "5.3"
-probe-rs = { version = "0.29", features = [] }
+probe-rs = { git = "https://github.com/piersfinlayson/probe-rs.git", version = "0.30", features = [] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "charset"] }
+resvg = "0.45"
 rfd = "0.15"
-rusb = "0.9"
+schemars = "1.0"
+semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tiny-skia = "0.11"
 tokio = { version = "1", features = ["rt"] }
+usvg = "0.45"
 
 [build-dependencies]
 built = { version = "0.8", features = ["git2"] }
-git2 = { version = "0.20", default-features = false }
 embed-resource = "3"
+git2 = { version = "0.20", default-features = false }

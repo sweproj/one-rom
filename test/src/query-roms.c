@@ -26,6 +26,27 @@ void create_address_mangler(json_config_t* config) {
     address_mangler.x1_pin = config->mcu.pins.x1;
     address_mangler.x2_pin = config->mcu.pins.x2;
     address_mangler.initialized = 1;
+
+    if ((config->mcu.ports.data_port == config->mcu.ports.addr_port) && (config->mcu.pins.data[0] < 8)) {
+        // If data and address ports are the same, and data lines are 0-7, then
+        // address lines must be 8-23.  Subtract 8 off them so thare are 0-15.
+        for (int ii = 0; ii < MAX_ADDR_LINES; ii++) {
+            if (address_mangler.addr_pins[ii] != 255) {
+                address_mangler.addr_pins[ii] -= 8;
+            }
+        }
+
+        // And the CS and X lines too
+        if (address_mangler.cs1_pin != 255) {
+            address_mangler.cs1_pin -= 8;
+        }
+        if (address_mangler.x1_pin != 255) {
+            address_mangler.x1_pin -= 8;
+        }
+        if (address_mangler.x2_pin != 255) {
+            address_mangler.x2_pin -= 8;
+        }
+    }
 }
 
 static struct {

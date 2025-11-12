@@ -202,11 +202,13 @@ pub fn load_rom_files(config: &Config) -> Result<Vec<Rom>> {
                 .next_back()
                 .unwrap_or("unknown")
                 .to_string(),
+            None,
             &src,
             image,
             &rom_config.rom_type,
             rom_config.cs_config.clone(),
             &rom_config.size_handling,
+            None
         )
         .map_err(|e| anyhow!("Error processing ROM file {}: {e:?}", file.display()))?;
 

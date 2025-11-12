@@ -187,6 +187,13 @@ pub struct Mcu {
 #[derive(Debug, Deserialize, Clone)]
 pub struct McuUsb {
     pub present: bool,
+    pub pins: Option<McuUsbPins>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct McuUsbPins {
+    pub vbus: u8,
+    pub port: Port,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -456,6 +463,18 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         .entry(config.mcu.ports.status_port)
         .or_default()
         .push(("status", pin));
+
+    // Add USB pins
+    if let Some(usb) = &config.mcu.usb {
+        if usb.present {
+            if let Some(usb_pins) = &usb.pins {
+                port_pins
+                    .entry(usb_pins.port)
+                    .or_default()
+                    .push(("usb_vbus", usb_pins.vbus));
+            }
+        }
+    }
 
     // Check for conflicts within each port
     for (port, pins) in port_pins {

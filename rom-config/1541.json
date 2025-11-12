@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "1541",
     "description": "Stock ROMs for 1540/1541 drives which use 8KB (2364) ROMs",

@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "TI-99/4A",
     "description": "Stock ROMs for a TI-99 4/a",

@@ -6,14 +6,20 @@ These revisions have been tested and confirmed to work with specific MCU microco
 
 ## RP2350
 
-The current recommended hardware revision is A.  The RP2350 design is less mature than the STM32F4 design.
+The current recommended hardware revision for Pro is A.
 
 - [Rev A](./rp2350-24-pin-rev-a/README.md)
-  - `HW_REV=p24-a`
+  - `HW_REV=fire-24-a`
+
+For Fire USB, the recommended hardware revision is B. 
+- [Rev B](./fire-24-usb-b/README.md)
+  - `HW_REV=fire-24-usb-b`
 
 ## STM32F4
 
-The current recommended hardware revision is G, although it has only been verified with STM32F411RET6.  It is highly likely to work with all of the other supports models.
+The current recommended Pro hardware revision is G, although it has only been verified with STM32F411RET6.  It is highly likely to work with all of the other supports models.
+
+The current recommend USB hardware revision is H2.
 
 - [Rev H](./stm32f4-24-pin-rev-h/README.md)
   - `HW_REV=24-h`

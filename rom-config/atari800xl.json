@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "800XL",
     "description": "Stock BASIC ROM for an Atari 800XL",

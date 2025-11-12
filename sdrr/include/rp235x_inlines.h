@@ -47,10 +47,14 @@ static inline void __attribute__((always_inline)) setup_data_masks(
     uint32_t *data_output_mask_val,
     uint32_t *data_input_mask_val
 ) {
-    // We use GPIO_OE register to set ines as inputs/outputs.  We are
-    // therefore controlling all GPIOs at once on the RP235x.  THis means we
+    // We use GPIO_OE register to set lines as inputs/outputs.  We are
+    // therefore controlling all GPIOs at once on the RP235x.  This means we
     // need to correctly handle the status LED, if used.
-    *data_output_mask_val = 0xFF << 16;
+    if (info->pins->data[0] < 8) {
+        *data_output_mask_val = 0xFF;
+    } else {
+        *data_output_mask_val = 0xFF << 16;
+    }
     *data_input_mask_val = 0;
 
     if ((info->status_led_enabled) && (info->pins->status <= MAX_USED_GPIOS)) {

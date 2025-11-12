@@ -45,6 +45,59 @@ void platform_specific_init(void) {
     DEBUG("JTAG reset complete");
 }
 
+// Set up interrupt to fire when VBUS sensed on PA9
+void setup_vbus_interrupt(void) {
+    // Check we have the information required to enable DFU
+    if ((sdrr_info.extra->usb_port != PORT_0) ||
+        (sdrr_info.extra->vbus_pin >= MAX_USED_GPIOS)) {
+        LOG("!!! Invalid USB port or pin for VBUS detect - not enabling USB DFU");
+        return;
+    }
+    uint8_t vbus_pin = sdrr_info.extra->vbus_pin;
+
+    // Enable VBUS detect interrupt
+    GPIO_CTRL(vbus_pin) = GPIO_CTRL_RESET;      // Enable SIO
+    uint32_t reg_offset = vbus_pin / 8;         // Which INTEx register (0-3)
+    uint32_t bit = ((vbus_pin % 8) * 4) + 3;    // Bit within that register
+    volatile uint32_t *inte = &IO_BANK0_PROC0_INTE0 + reg_offset;
+    volatile uint32_t *intr = &IO_BANK0_INTR0 + reg_offset;
+    *inte |= (1 << bit);                        // Enable rising edge interrupt
+    *intr = (1 << bit);                         // Clear any pending
+    NVIC_ISER0 |= (1 << IO_IRQ_BANK0);          // Enable IO_BANK0 interrupt in NVIC
+
+    // Set as input, pull-down, output disable
+    GPIO_PAD(vbus_pin) |= (PAD_PD | PAD_OUTPUT_DISABLE | PAD_INPUT);
+
+    // Wait for pull-down to settle.  Using same delay as STM32 implementation.
+    for (volatile int ii = 0; ii < 1000; ii++);
+
+    // Check if VBUS already present
+    if (GPIO_READ(vbus_pin)) {
+        LOG("VBUS already present - entering bootloader");
+        for (volatile int ii = 0; ii < 1000000; ii++);
+        enter_bootloader();
+    }
+}
+
+// VBUS interrupt Handler
+void vbus_connect_handler(void) {
+    // Clear the interrupt
+    uint8_t vbus_pin = sdrr_info.extra->vbus_pin;
+    uint32_t reg_offset = vbus_pin / 8;
+    uint32_t bit = ((vbus_pin % 8) * 4) + 3;
+    volatile uint32_t *intr = &IO_BANK0_INTR0 + reg_offset;
+    *intr = (1 << bit);
+
+    // Disable interrupts before logging
+    __asm volatile("cpsid i");
+
+        // Log and pause for log to complete
+    LOG("VBUS detected - entering bootloader");
+    for (volatile int ii = 0; ii < 1000000; ii++);
+
+    enter_bootloader();
+}
+
 void setup_clock(void) {
     LOG("Setting up clock");
 
@@ -415,11 +468,43 @@ void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats) {
 
 // Enters bootloader mode.
 void enter_bootloader(void) {
-    // Set the stack pointer
-    asm volatile("msr msp, %0" : : "r" (*((uint32_t*)0x1FFFF000)));
+    // Look up the reboot function from ROM
+    typedef int (*reboot_fn_t)(uint32_t flags, uint32_t delay_ms, uint32_t p0, uint32_t p1);
+    typedef void *(*rom_table_lookup_fn)(uint32_t code, uint32_t mask);
     
-    // Jump to the bootloader
-    ((void(*)())(*((uint32_t*)0x1FFFF004)))();
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+    rom_table_lookup_fn rom_table_lookup = 
+        (rom_table_lookup_fn)(uintptr_t)*(uint16_t*)(0x00000016);
+#pragma GCC diagnostic pop
+    
+    // 0x0004 is ARM secure mode
+    uint32_t reboot_code = ('B' << 8) | 'R';
+    reboot_fn_t reboot = (reboot_fn_t)rom_table_lookup(reboot_code, 0x0004);
+
+    if (reboot == NULL) {
+        LOG("!!! Unable to find reboot function in ROM - cannot enter bootloader");
+        return;
+    }
+
+    // Reboot into BOOTSEL mode with status LED as activity indicator (active low)
+    uint32_t flags = 0x0100 | 0x0002;   // No return on success | BOOTSEL mode
+    uint32_t ms_delay = 10; // 10ms delay before reboot, needs to be non-zero
+    uint32_t p0 = 0;
+    uint32_t p1 = 0;
+
+    // There is a bug in the Pico SDK and RP2350 datasheet defining p0 and p1
+    // for reboot() when using REBOOT_TYPE_BOOTSEL (0x0002).  p0 and p1 have
+    // been transposed.  p1 is the status LED pin, p0 the flags.  We don't want
+    // to enable the status LED, because it looks too much like One ROM is
+    // ready to serve bytes.  Hence we leave it disabled.  This makes it light
+    // up dimly, just like during initial power-on.
+    // 
+    // However, we do want to explicitly disable mass storage mode, so we set
+    // bit 0 of p0 (not p1!).  If you want mass storage mode, jump BOOTSEL to
+    // GND when plugging in.
+    p0 |= 0x01;     // Disable mass storage mode
+    reboot(flags, ms_delay, p0, p1);
 }
 
 void check_config(
@@ -445,32 +530,52 @@ void check_config(
         LOG("!!! Sel pins should be using bank 0");
     }
 
-    // We expect to use pins 0-16 for address lines 
+    // We expect to use pins 0-15 or 8-23 for address lines
+    uint8_t seen_a_0_7 = 0;
+    uint8_t seen_a_16_23 = 0;
     for (int ii = 0; ii < 13; ii++) {
         uint8_t pin = info->pins->addr[ii];
-        if (pin > 16) {
-            LOG("!!! Address line A%d using invalid pin %d", ii, pin);
+        if (pin < 8) {
+            seen_a_0_7 = 1;
+        } else if (pin > 15) {
+            seen_a_16_23 = 1;
         }
     }
+    if (seen_a_0_7 && seen_a_16_23) {
+        LOG("!!! ROM address lines using invalid mix of pins");
+    }
 
-    // We expect to use pins 16-23 for data lines
+    // We expect to use pins 0-7 or 16-23 for data lines
+    uint8_t seen_d_0_7 = 0;
+    uint8_t seen_d_16_23 = 0;
     for (int ii = 0; ii < 8; ii++) {
         uint8_t pin = info->pins->data[ii];
-        if ((pin < 16) || (pin > 23)) {
-            LOG("!!! ROM line D%d using invalid pin %d", ii, pin);
+        if (pin < 8) {
+            seen_d_0_7 = 1;
+        } else if (pin > 15) {
+            seen_d_16_23 = 1;
         }
+    }
+    if (seen_d_0_7 && seen_d_16_23) {
+        LOG("!!! ROM data lines using invalid mix of pins");
     }
 
     // Check X1/X2 pins
     if (set->rom_count > 1) {
-        if (info->pins->x1 > 15) {
+        if (seen_a_0_7 && (info->pins->x1 > 16)) {
             LOG("!!! Multi-ROM mode, but pin X1 invalid");
         }
-        if (info->pins->x2 > 15) {
+        if (seen_a_0_7 && (info->pins->x2 > 17)) {
+            LOG("!!! Multi-ROM mode, but pin X2 invalid");
+        }
+        if (seen_a_16_23 && ((info->pins->x1 < 8) || (info->pins->x1 > 23))) {
+            LOG("!!! Multi-ROM mode, but pin X1 invalid");
+        }
+        if (seen_a_16_23 && ((info->pins->x2 < 8) || (info->pins->x2 > 23))) {
             LOG("!!! Multi-ROM mode, but pin X2 invalid");
         }
         if (info->pins->x1 == info->pins->x2) {
-            LOG("!!! Multi-ROM mode, but pin X1=X2");
+            LOG("!!! Multi-ROM mode, but pin X1==X2");
         }
         if (info->pins->x_jumper_pull > 1) {
             LOG("!!! X jumper pull value invalid");
@@ -498,7 +603,6 @@ void check_config(
         // Correction is done in main_loop() using a local variable
         LOG("!!! Single ROM image - wrong serve mode - will correct");
     }
-
 }
 
 void platform_logging(void) {

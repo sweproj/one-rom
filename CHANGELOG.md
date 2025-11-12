@@ -2,7 +2,36 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.5.3 - 202510-24
+## v0.5.5 - 2025-??-??
+
+
+## v0.5.4 - 2025-11-12
+
+This release adds support for the One ROM Fire (RP2350) USB version, via hardware revision `fire-24-usb-b`.  Current USB support is per Ice - plugging in USB disables ROM serving, and puts the RP2350 into DFU mode to allow firmware updates.  A future release is expected to add Fire USB support in parallel to ROM serving. 
+
+### Added
+
+- Added first RP2350 USB version, [Fire 24 USB B](sdrr-pcb/unverified/fire-24-24-b/README.md), as unverified.
+- Added [Ice 24 USB H3](sdrr-pcb/unverified/one-rom-ice-usb-h3-24-pin/README.md) as unverified.
+- Moved [Ice 24 USB H2](sdrr-pcb/verified/one-rom-ice-usb-h2-24-pin/README.md) to verified.
+
+### Added
+
+- `onerom-config` 0.2.2 - Added method to query ROM power pins.
+- Studio:
+    - See [rust/studio/CHANGELOG.md](rust/studio/CHANGELOG.md) for details.
+    - Studio is released independently of firmware - see `studio-*` github tags.
+- ROM Configs:
+    - Blank ROM config (for manufacturing/testing) - /rom-configs/blank.json
+    - Added pincoder 2021 version system 3, 5, 6 and 7 ROM configs (2332 ROMs)
+- Allow `sdrr-fw-parser` to parse up to v0.5.999 firmware versions. 
+
+### Fixes
+
+- [#43](https://github.com/piersfinlayson/one-rom/issues/43) - Let sdrr-fw-parser parse later versions of fw. Supports up to v0.5.999 with no code/wasm/site changes required.
+- Allow multi-ROM sets to be built in One ROM Studio.  Unsure when this was regressed
+
+## v0.5.3 - 2025-10-24
 
 The major addition in this release is the companion desktop application, One ROM Studio, which provides a native GUI for creating One ROM firmware images, and analysing and flashing One ROM devices.
 

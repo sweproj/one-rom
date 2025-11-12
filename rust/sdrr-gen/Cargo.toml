@@ -10,14 +10,14 @@ license = "MIT"
 keywords = ["embedded", "rom", "eeprom", "eprom", "flash"]
 
 [dependencies]
-onerom-config = { version = "0.2.1" }
-onerom-gen = { version = "0.1.2" }
+onerom-config = { version = "0.2.2" }
+onerom-gen = { version = "0.2.0" }
 
-anyhow = ">=1.0.98"
+anyhow = ">=1.0.100"
 bytes = ">=1.10.1"
-clap = { version = "4.5.41", features = ["derive"] }
+clap = { version = "4.5.51", features = ["derive"] }
 reqwest = { version = "0.12", features = ["blocking", "rustls-tls", "gzip", "deflate", "brotli", "cookies"], default-features = false }
 strum = { version = "0.27.2", features = ["derive"] }
-thiserror = "2.0.12"
+thiserror = "2.0.17"
 urlencoding = "2.1"
 zip = "4.3.0"

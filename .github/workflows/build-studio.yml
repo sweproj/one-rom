@@ -2,9 +2,16 @@ name: Build One ROM Studio
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'rust/studio/**'
+      - '!rust/studio/README.md'
+      - '!rust/studio/CHANGELOG.md'
 
 jobs:
   # Builds Windows (x86_64) installer
+  # DO NOT RELEASE THIS VERSION
+  # This version is not code signed
   build-windows:
     runs-on: windows-latest
     steps:
@@ -17,7 +24,7 @@ jobs:
       
       - name: Build Windows installer
         working-directory: rust/studio
-        run: .\scripts\build-win.ps1
+        run: .\scripts\build-win.ps1 nosign
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -50,7 +57,8 @@ jobs:
 
   # Builds both Intel and Apple silicon dmgs
   # DO NOT RELEASE THESE VERSIONS
-  # The dmg file icon cannot be properly set using headless CI
+  # The dmg file icon cannot be properly set using headless CI and the image is
+  # not signed or notarized
   build-mac:
     runs-on: macos-latest
     steps:
@@ -63,7 +71,7 @@ jobs:
       
       - name: Build Intel and Apple silicon dmgs
         working-directory: rust/studio
-        run: scripts/build-mac.sh
+        run: scripts/build-mac.sh nosign
 
       - name: Upload Mac Apple Silicon artifact
         uses: actions/upload-artifact@v4

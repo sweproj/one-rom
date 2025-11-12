@@ -73,19 +73,53 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
     uint32_t cs_invert_mask = 0;
     uint32_t cs_check_mask;
 
+    uint8_t pin_cs1 = info->pins->cs1;
+    uint8_t pin_cs2 = info->pins->cs2;
+    uint8_t pin_cs3 = info->pins->cs3;
+    uint8_t pin_x1 = info->pins->x1;
+    uint8_t pin_x2 = info->pins->x2;
+    uint8_t pin_ce = info->pins->ce;
+    uint8_t pin_oe = info->pins->oe;
+
+#if defined(RP235X)
+    if (info->pins->data[0] < 8) {
+        // Data pins are at start, so need to remap CS lines to end up in 
+        // the right locations after the serving algorithm's ubfx shift and
+        // mask.  Ensure we don't shift below 0 in case of mis-configuration.
+        if (pin_cs1 >= 8) {
+            pin_cs1 -= 8;
+        }
+        if (pin_cs2 >= 8) {
+            pin_cs2 -= 8;
+        }
+        if (pin_cs3 >= 8) {
+            pin_cs3 -= 8;
+        }
+        if (pin_x1 >= 8) {
+            pin_x1 -= 8;
+        }
+        if (pin_x2 >= 8) {
+            pin_x2 -= 8;
+        }
+        if (pin_ce >= 8) {
+            pin_ce -= 8;
+        }
+        if (pin_oe >= 8) {
+            pin_oe -= 8;
+        }
+    }
+#endif 
+
     if (serve_mode == SERVE_ADDR_ON_ANY_CS)
     {
-        uint8_t pin_cs = info->pins->cs1;
-        uint8_t pin_x1 = info->pins->x1;
-        uint8_t pin_x2 = info->pins->x2;
         if (set->rom_count == 2)
         {
-            cs_check_mask = (1 << pin_cs) | (1 << pin_x1);
+            cs_check_mask = (1 << pin_cs1) | (1 << pin_x1);
         } else if (set->rom_count == 3) {
-            cs_check_mask = (1 << pin_cs) | (1 << pin_x1) | (1 << pin_x2);
+            cs_check_mask = (1 << pin_cs1) | (1 << pin_x1) | (1 << pin_x2);
         } else {
             ROM_IMPL_LOG("!!! Unsupported ROM count: %d", set->rom_count);
-            cs_check_mask = (1 << pin_cs); // Default to CS1 only
+            cs_check_mask = (1 << pin_cs1); // Default to CS1 only
         }
         if (set->multi_rom_cs1_state == CS_ACTIVE_HIGH) {
             cs_invert_mask = cs_check_mask;
@@ -93,40 +127,40 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
     } else {
         // Set up chip select (or CE/OE) lines and mask
         uint8_t num_cs_lines = 1;
-        uint8_t pin_cs1 = 255;
-        uint8_t pin_cs2 = 255;
-        uint8_t pin_cs3 = 255;
+        uint8_t use_pin_cs1 = 255;
+        uint8_t use_pin_cs2 = 255;
+        uint8_t use_pin_cs3 = 255;
 
         switch (rom->rom_type) {
             case ROM_TYPE_2316:
                 num_cs_lines = 3;
-                pin_cs1 = info->pins->cs1;
-                pin_cs2 = info->pins->cs3; // Correctly transposed
-                pin_cs3 = info->pins->cs2; // Correctly transposed
+                use_pin_cs1 = pin_cs1;
+                use_pin_cs2 = pin_cs3; // Correctly transposed
+                use_pin_cs3 = pin_cs2; // Correctly transposed
                 break;
 
             case ROM_TYPE_2332:
                 num_cs_lines = 2;
-                pin_cs1 = info->pins->cs1;
-                pin_cs2 = info->pins->cs2;
+                use_pin_cs1 = pin_cs1;
+                use_pin_cs2 = pin_cs2;
                 break;
 
             case ROM_TYPE_2364:
                 num_cs_lines = 1;
-                pin_cs1 = info->pins->cs1;
+                use_pin_cs1 = pin_cs1;
                 break;
 
             case ROM_TYPE_23128:
                 num_cs_lines = 3;
-                pin_cs1 = info->pins->cs1;
-                pin_cs2 = info->pins->cs2;
-                pin_cs3 = info->pins->cs3;
+                use_pin_cs1 = pin_cs1;
+                use_pin_cs2 = pin_cs2;
+                use_pin_cs3 = pin_cs3;
                 break;
 
             case ROM_TYPE_23256:
             case ROM_TYPE_23512:
-                pin_cs1 = info->pins->cs1;
-                pin_cs2 = info->pins->cs2;
+                use_pin_cs1 = pin_cs1;
+                use_pin_cs2 = pin_cs2;
                 num_cs_lines = 2;
                 break;
 
@@ -139,8 +173,8 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
             case ROM_TYPE_27256:
             case ROM_TYPE_27512:
                 num_cs_lines = 2;
-                pin_cs1 = info->pins->ce;
-                pin_cs2 = info->pins->oe;
+                use_pin_cs1 = pin_ce;
+                use_pin_cs2 = pin_oe;
                 break;
 
             default:
@@ -149,17 +183,17 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
                 break;
         }
 
-        if (pin_cs1 == 255) {
+        if (use_pin_cs1 == 255) {
             ROM_IMPL_LOG("!!! CS1 pin not defined");
-            pin_cs1 = 0;
+            use_pin_cs1 = 0;
         }
-        if ((num_cs_lines > 1) && (pin_cs2 == 255)) {
+        if ((num_cs_lines > 1) && (use_pin_cs2 == 255)) {
             ROM_IMPL_LOG("!!! CS2 pin not defined");
-            pin_cs2 = 0;
+            use_pin_cs2 = 0;
         }
-        if ((num_cs_lines > 2) && (pin_cs3 == 255)) {
+        if ((num_cs_lines > 2) && (use_pin_cs3 == 255)) {
             ROM_IMPL_LOG("!!! CS3 pin not defined");
-            pin_cs3 = 0;
+            use_pin_cs3 = 0;
         }
 
         // Set up the invert mask 
@@ -167,14 +201,14 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
             ROM_IMPL_DEBUG("CS1 active low");
         } else {
             ROM_IMPL_DEBUG("CS1 active high");
-            cs_invert_mask |= (1 << pin_cs1);
+            cs_invert_mask |= (1 << use_pin_cs1);
         }
         if (num_cs_lines > 1) {
             if (rom->cs2_state == CS_ACTIVE_LOW) {
                 ROM_IMPL_DEBUG("CS2 active low");
             } else {
                 ROM_IMPL_DEBUG("CS2 active high");
-                cs_invert_mask |= (1 << pin_cs2);
+                cs_invert_mask |= (1 << use_pin_cs2);
             }
         }
         if (num_cs_lines > 2) {
@@ -182,15 +216,15 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
                 ROM_IMPL_DEBUG("CS3 active low");
             } else {
                 ROM_IMPL_DEBUG("CS3 active high");
-                cs_invert_mask |= (1 << pin_cs3);
+                cs_invert_mask |= (1 << use_pin_cs3);
             }
         }
 
-        cs_check_mask = (1 << pin_cs1);
+        cs_check_mask = (1 << use_pin_cs1);
         if (num_cs_lines > 1) {
-            cs_check_mask |= (1 << pin_cs2);
+            cs_check_mask |= (1 << use_pin_cs2);
         } else if (num_cs_lines > 2) {
-            cs_check_mask |= (1 << pin_cs3);
+            cs_check_mask |= (1 << use_pin_cs3);
         }
     }
     
@@ -248,6 +282,18 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     if ((set->rom_count == 1) && (serve_mode == SERVE_ADDR_ON_ANY_CS)) {
         serve_mode = SERVE_DEFAULT_1_ROM;
     }
+#if defined(RP235X)
+    // UBFX mode is used when the addr/CS lines are 8-23, and use the UBFX
+    // instruction to shift before using.  It's easier to test if _any_ of 
+    // the data lines is < 8 than to check the address lines.
+    uint8_t use_ubfx = 1;
+    if (info->pins->data[0] < 8) {
+        use_ubfx = 1;
+    } else {
+        use_ubfx = 0;
+    }
+    ROM_IMPL_LOG("Using RP235X UBFX mode: %d", use_ubfx); 
+#endif
 
 #ifndef EXECUTE_FROM_RAM
     // We don't copy filenames over in the RAM case, so this won't work - and
@@ -357,9 +403,25 @@ void __attribute__((section(".main_loop"), used)) main_loop(
         case SERVE_TWO_CS_ONE_ADDR:
             if (cs_invert_mask == 0) {
                 // CS active low
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG1_ASM_UBFX(TEST_CS_ACT_LOW);
+                } else {
+                    ALG1_ASM(TEST_CS_ACT_LOW);
+                }
+#else // !RP235X
                 ALG1_ASM(TEST_CS_ACT_LOW);
+#endif // RP235X
             } else {
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG1_ASM_UBFX(TEST_CS);
+                } else {
+                    ALG1_ASM(TEST_CS);
+                }
+#else // !RP235X
                 ALG1_ASM(TEST_CS);
+#endif // RP235X
             }
 
             break;
@@ -372,16 +434,48 @@ void __attribute__((section(".main_loop"), used)) main_loop(
 #if !defined(COUNT_ROM_ACCESS)
             if (cs_invert_mask == 0) {
                 // CS active low
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_ASM_UBFX(TEST_CS_ACT_LOW, BEQ);
+                } else {
+                    ALG2_ASM(TEST_CS_ACT_LOW, BEQ);
+                }
+#else // !RP235X
                 ALG2_ASM(TEST_CS_ACT_LOW, BEQ);
+#endif // RP235X
             } else {
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_ASM_UBFX(TEST_CS, BEQ);
+                } else {
+                    ALG2_ASM(TEST_CS, BEQ);
+                }
+#else // !RP235X
                 ALG2_ASM(TEST_CS, BEQ);
+#endif // RP235X
             }
 #else // COUNT_ROM_ACCESS
             if (cs_invert_mask == 0) {
                 // CS active low
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_COUNT_ASM_UBFX(TEST_CS_ACT_LOW, BEQ, BNE);
+                } else {
+                    ALG2_COUNT_ASM(TEST_CS_ACT_LOW, BEQ, BNE);
+                }
+#else // !RP235X
                 ALG2_COUNT_ASM(TEST_CS_ACT_LOW, BEQ, BNE);
+#endif // RP235X
             } else {
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_COUNT_ASM_UBFX(TEST_CS, BEQ, BNE);
+                } else {
+                    ALG2_COUNT_ASM(TEST_CS, BEQ, BNE);
+                }
+#else // !RP235X
                 ALG2_COUNT_ASM(TEST_CS, BEQ, BNE);
+#endif // RP235X
             }
 #endif // !COUNT_ROM_ACCESS
             break;
@@ -394,16 +488,48 @@ void __attribute__((section(".main_loop"), used)) main_loop(
 #if !defined(COUNT_ROM_ACCESS)
             if (cs_invert_mask == 0) {
                 // CS active low
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_ASM_UBFX(TEST_CS_ANY_ACT_LOW, BNE);
+                } else {
+                    ALG2_ASM(TEST_CS_ANY_ACT_LOW, BNE);
+                }
+#else // !RP235X
                 ALG2_ASM(TEST_CS_ANY_ACT_LOW, BNE);
+#endif // RP235X
             } else {
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_ASM_UBFX(TEST_CS_ANY, BNE);
+                } else {
+                    ALG2_ASM(TEST_CS_ANY, BNE);
+                }
+#else // !RP235X
                 ALG2_ASM(TEST_CS_ANY, BNE);
+#endif // RP235X
             }
 #else // COUNT_ROM_ACCESS
             if (cs_invert_mask == 0) {
                 // CS active low
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_COUNT_ASM_UBFX(TEST_CS_ANY_ACT_LOW, BNE, BEQ);
+                } else {
+                    ALG2_COUNT_ASM(TEST_CS_ANY_ACT_LOW, BNE, BEQ);
+                }
+#else // !RP235X
                 ALG2_COUNT_ASM(TEST_CS_ANY_ACT_LOW, BNE, BEQ);
+#endif // RP235X
             } else {
+#if defined(RP235X)
+                if (use_ubfx) {
+                    ALG2_COUNT_ASM_UBFX(TEST_CS_ANY, BNE, BEQ);
+                } else {
+                    ALG2_COUNT_ASM(TEST_CS_ANY, BNE, BEQ);
+                }
+#else // !RP235X
                 ALG2_COUNT_ASM(TEST_CS_ANY, BNE, BEQ);
+#endif // RP235X
             }
 #endif // !COUNT_ROM_ACCESS
             break;

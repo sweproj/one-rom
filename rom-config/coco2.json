@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "CoCo 2",
     "description": "Stock ROMs for a Tandy Color Computer 2",

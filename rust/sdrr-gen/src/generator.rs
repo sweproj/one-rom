@@ -708,11 +708,15 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
     writeln!(file, "// Extra info")?;
     writeln!(file, "static const sdrr_extra_info_t sdrr_extra_info = {{")?;
     writeln!(file, "    .rtt = &_SEGGER_RTT,")?;
-    writeln!(
-        file,
-        "    .usb_dfu = {},",
-        if board.has_usb() { 1 } else { 0 }
-    )?;
+    if board.has_usb() {
+        writeln!(file, "    .usb_dfu = 1,")?;
+        writeln!(file, "    .usb_port = {},", board.port_usb())?;
+        writeln!(file, "    .vbus_pin = {},", board.usb_vbus_pin().expect("USB VBUS pin not defined"))?;
+    } else {
+        writeln!(file, "    .usb_dfu = 0,")?;
+        writeln!(file, "    .usb_port = PORT_NONE,")?;
+        writeln!(file, "    .vbus_pin = 255,")?;
+    }
     writeln!(file, "    .reserved1 = {{0}},")?;
     writeln!(file, "    ._post = {{")?;
     for _ in 0..31 {

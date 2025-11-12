@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "C64",
     "description": "Stock ROMs for a C64 including the DesTestMAX diagnostic ROM",

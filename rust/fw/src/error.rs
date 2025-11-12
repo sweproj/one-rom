@@ -32,6 +32,9 @@ pub enum Error {
     Network {
         error: ReqwestError,
     },
+    Http {
+        status: u16
+    },
     Json {
         error: SerdeJsonError,
     },
@@ -60,6 +63,7 @@ impl std::fmt::Display for Error {
             Error::License { error } => write!(f, "License acceptance error:\n  {:?}", error),
             Error::FirmwareVersion { error } => write!(f, "Firmware version error:\n  {:?}", error),
             Error::Network { error } => write!(f, "Network error:\n  {}", error),
+            Error::Http { status } => write!(f, "HTTP error: Status code {}", status),
             Error::Json { error } => write!(f, "JSON parsing error:\n  {}", error),
             Error::ReleaseNotFound => write!(f, "Requested firmware release not found"),
             Error::TooLarge { portion, size, max } => {

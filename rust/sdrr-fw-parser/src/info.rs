@@ -357,6 +357,12 @@ pub struct SdrrExtraInfo {
 
     /// Whether USB DFU support is compiled in
     pub usb_dfu: bool,
+
+    /// Which GPIO Port the USB pins are located on
+    pub usb_port: SdrrMcuPort,
+
+    /// Pin number for VBUS detection
+    pub vbus_pin: u8,
 }
 
 /// Information about a set of ROMs in an SDRR firmware

@@ -133,7 +133,11 @@ typedef struct {
 
     // Whether USB DFU is supported
     uint8_t usb_dfu;
-    uint8_t reserved1[3];
+    // Which GPIO port USB pins are located on
+    sdrr_mcu_port_t usb_port;
+    // Pin number for VBUS detection
+    uint8_t vbus_pin;
+    uint8_t reserved1[1];
 
     // Padding to make 256 bytes long
     uint8_t _post[248];

@@ -44,6 +44,13 @@ void platform_specific_init(void) {
 
 // Set up interrupt to fire when VBUS sensed on PA9
 void setup_vbus_interrupt(void) {
+    // Does NOT currently honour configured VBUS port/pin - assumes PA9
+    if (sdrr_info.extra->vbus_pin != 9 ||
+        sdrr_info.extra->usb_port != PORT_A) {
+        LOG("!!! Invalid USB port or pin for VBUS detect - not enabling USB DFU");
+        return;
+    }
+
     // Set PA9 pull-down
     GPIOA_PUPDR &= ~(0b11 << (2 * 9));
     GPIOA_PUPDR |= (0b10 << (2 * 9)); // Pull-down

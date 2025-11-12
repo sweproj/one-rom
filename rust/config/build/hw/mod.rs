@@ -333,6 +333,7 @@ fn generate_hw_config_enum(configs: &[HwConfigData]) -> String {
         "/// Defines pin mappings and capabilities for different One ROM board revisions.\n",
     );
     code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]\n");
+    code.push_str("#[cfg_attr(feature = \"schemars\", derive(schemars::JsonSchema))]");
     code.push_str("pub enum Board {\n");
 
     for config in configs {
@@ -542,6 +543,7 @@ fn generate_port_methods(configs: &[HwConfigData]) -> String {
         ("port_cs", "cs_port", "Chip select port"),
         ("port_sel", "sel_port", "SEL port"),
         ("port_status", "status_port", "Status LED port"),
+        ("port_usb", "usb_port", "USB pins port"),
     ];
 
     for (method_name, field_name, doc) in port_methods {
@@ -559,6 +561,7 @@ fn generate_port_methods(configs: &[HwConfigData]) -> String {
                 "cs_port" => &config.config.mcu.ports.cs_port,
                 "sel_port" => &config.config.mcu.ports.sel_port,
                 "status_port" => &config.config.mcu.ports.status_port,
+                "usb_port" => &config.config.mcu.usb.as_ref().and_then(|usb| usb.pins.as_ref().map(|pins| pins.port)).unwrap_or(Port::None),
                 _ => unreachable!(),
             };
             let port_str = format_port(port);
@@ -569,9 +572,9 @@ fn generate_port_methods(configs: &[HwConfigData]) -> String {
         }
 
         code.push_str("        }\n");
-        code.push_str("    }\n");
-        if method_name != "port_status" {
-            code.push_str("\n");
+        code.push_str("    }");
+        if method_name != "usb_port" {
+            code.push_str("\n\n");
         }
     }
 
@@ -696,21 +699,22 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
     let mut code = String::new();
 
     let pin_methods = [
-        ("pin_cs1", "cs1", "CS1"),
-        ("pin_cs2", "cs2", "CS2"),
-        ("pin_cs3", "cs3", "CS3"),
-        ("pin_ce", "ce", "CE"),
-        ("pin_oe", "oe", "OE"),
+        ("pin_cs1", "bit_cs1", "cs1", "CS1"),
+        ("pin_cs2", "bit_cs2", "cs2", "CS2"),
+        ("pin_cs3", "bit_cs3", "cs3", "CS3"),
+        ("pin_ce", "bit_ce", "ce", "CE"),
+        ("pin_oe", "bit_oe", "oe", "OE"),
     ];
 
-    for (method_name, field_name, doc) in pin_methods {
+    for (pin_method_name, bit_method_name, field_name, doc) in pin_methods {
+        // Generate pin_XXX method (GPIO number)
         code.push_str(&format!(
             "    /// Get MCU pin for {} signal for a given ROM type (returns 255 if not defined)\n",
             doc
         ));
         code.push_str(&format!(
             "    pub const fn {}(&self, rom_type: RomType) -> u8 {{\n",
-            method_name
+            pin_method_name
         ));
         code.push_str("        match self {\n");
 
@@ -742,12 +746,63 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
         }
 
         code.push_str("        }\n");
+        code.push_str("    }\n\n");
+
+        // Generate bit_XXX method (bit position after shift)
+        code.push_str(&format!(
+            "    /// Get bit position for {} signal for a given ROM type (returns 255 if not defined)\n",
+            doc
+        ));
+        code.push_str(&format!(
+            "    pub const fn {}(&self, rom_type: RomType) -> u8 {{\n",
+            bit_method_name
+        ));
+        code.push_str("        match self {\n");
+
+        for config in configs {
+            // On the RP2350 we have a single GPIO port, and if data lines are
+            // 0-7, then address lines need to be left shifted 8 bits as
+            // they'll be 8-23.
+            let shift_left_8 = config.config.mcu.family == McuFamily::Rp2350 
+                && config.config.mcu.pins.data[0] < 8;
+            
+            code.push_str(&format!(
+                "            Board::{} => match rom_type {{\n",
+                config.variant_name
+            ));
+
+            let pin_map = match field_name {
+                "cs1" => &config.config.mcu.pins.cs1,
+                "cs2" => &config.config.mcu.pins.cs2,
+                "cs3" => &config.config.mcu.pins.cs3,
+                "ce" => &config.config.mcu.pins.ce,
+                "oe" => &config.config.mcu.pins.oe,
+                _ => unreachable!(),
+            };
+
+            // Generate matches for each ROM type with shift applied
+            for (rom_name, pin) in pin_map {
+                let bit_pos = if shift_left_8 && *pin >= 8 {
+                    pin - 8
+                } else {
+                    *pin
+                };
+                code.push_str(&format!(
+                    "                RomType::Rom{} => {},\n",
+                    rom_name, bit_pos
+                ));
+            }
+
+            code.push_str("                _ => 255,\n");
+            code.push_str("            },\n");
+        }
+
+        code.push_str("        }\n");
         code.push_str("    }\n");
-        if method_name != "pin_oe" {
+        if field_name != "oe" {
             code.push_str("\n");
         }
     }
-
     // Add X1 and X2 pin methods
     code.push_str("\n");
     code.push_str("    /// Get X1 pin (returns 255 if not available)\n");
@@ -763,6 +818,26 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
     code.push_str("        }\n");
     code.push_str("    }\n\n");
 
+    code.push_str("    /// Get X1 bit position (returns 255 if not available)\n");
+    code.push_str("    pub const fn bit_x1(&self) -> u8 {\n");
+    code.push_str("        match self {\n");
+    for config in configs {
+        let pin = config.config.mcu.pins.x1.unwrap_or(255);
+        let shift_left_8 = config.config.mcu.family == McuFamily::Rp2350 
+            && config.config.mcu.pins.data[0] < 8;
+        let bit_pos = if pin != 255 && shift_left_8 && pin >= 8 {
+            pin - 8
+        } else {
+            pin
+        };
+        code.push_str(&format!(
+            "            Board::{} => {},\n",
+            config.variant_name, bit_pos
+        ));
+    }
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+
     code.push_str("    /// Get X2 pin (returns 255 if not available)\n");
     code.push_str("    pub const fn pin_x2(&self) -> u8 {\n");
     code.push_str("        match self {\n");
@@ -771,6 +846,26 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
         code.push_str(&format!(
             "            Board::{} => {},\n",
             config.variant_name, pin
+        ));
+    }
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+
+    code.push_str("    /// Get X2 bit position (returns 255 if not available)\n");
+    code.push_str("    pub const fn bit_x2(&self) -> u8 {\n");
+    code.push_str("        match self {\n");
+    for config in configs {
+        let pin = config.config.mcu.pins.x2.unwrap_or(255);
+        let shift_left_8 = config.config.mcu.family == McuFamily::Rp2350 
+            && config.config.mcu.pins.data[0] < 8;
+        let bit_pos = if pin != 255 && shift_left_8 && pin >= 8 {
+            pin - 8
+        } else {
+            pin
+        };
+        code.push_str(&format!(
+            "            Board::{} => {},\n",
+            config.variant_name, bit_pos
         ));
     }
     code.push_str("        }\n");
@@ -794,6 +889,16 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
     code.push_str("            0 => self.pin_cs1(rom_type),\n");
     code.push_str("            1 => self.pin_x1(),\n");
     code.push_str("            2 => self.pin_x2(),\n");
+    code.push_str("            _ => 255,\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+
+    code.push_str("    /// Get chip select bit position for ROM in set (0=CS1, 1=X1, 2=X2)\n");
+    code.push_str("    pub const fn cs_bit_for_rom_in_set(&self, rom_type: RomType, set_index: usize) -> u8 {\n");
+    code.push_str("        match set_index {\n");
+    code.push_str("            0 => self.bit_cs1(rom_type),\n");
+    code.push_str("            1 => self.bit_x1(),\n");
+    code.push_str("            2 => self.bit_x2(),\n");
     code.push_str("            _ => 255,\n");
     code.push_str("        }\n");
     code.push_str("    }");
@@ -937,6 +1042,22 @@ fn generate_capability_methods(configs: &[HwConfigData]) -> String {
     }
 
     code.push_str("        }\n");
+    code.push_str("    }\n\n");
+
+    // Get USB VBUS pin
+    code.push_str("    /// Get the USB VBUS pin\n");
+    code.push_str("    pub const fn usb_vbus_pin(&self) -> Option<u8> {\n");
+    code.push_str("        match self {\n");
+
+    for config in configs {
+        let vbus_pin = config.config.mcu.usb.as_ref().and_then(|usb| usb.pins.as_ref().map(|pins| pins.vbus));
+        code.push_str(&format!(
+            "            Board::{} => {:?},\n",
+            config.variant_name, vbus_pin
+        ));
+    }
+
+    code.push_str("        }\n");
     code.push_str("    }\n");
 
     code
@@ -987,6 +1108,7 @@ fn generate_hw_models(configs: &[HwConfigData]) -> String {
 
     code.push_str("/// Hardware models\n");
     code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]\n");
+    code.push_str("#[cfg_attr(feature = \"schemars\", derive(schemars::JsonSchema))]");
     code.push_str("pub enum Model {\n");
     code.push_str("    /// Fire (RP2350) Model\n");
     code.push_str("    Fire,\n");
@@ -1054,8 +1176,18 @@ fn generate_hw_models(configs: &[HwConfigData]) -> String {
     code.push_str("            ],\n");
 
     code.push_str("        }\n");
-    code.push_str("    }\n");
-    code.push_str("}");
+    code.push_str("    }\n\n");
 
+    // Get the mcu family for this model
+    code.push_str("    /// Get the MCU family for this model\n");
+    code.push_str("    pub fn mcu_family(&self) -> Family {\n");
+    code.push_str("        match self {\n");
+    code.push_str("            Model::Fire => Family::Rp2350,\n");
+    code.push_str("            Model::Ice => Family::Stm32f4,\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+
+
+    code.push_str("}");
     code
 }

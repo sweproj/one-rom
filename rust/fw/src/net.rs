@@ -18,6 +18,11 @@ pub const FIRMWARE_RELEASE_MANIFEST: &str = "releases.json";
 pub fn fetch_license(url: &str) -> Result<String, Error> {
     debug!("Fetching license from {}", url);
     let response = reqwest::blocking::get(url).map_err(Error::network)?;
+
+    if !response.status().is_success() {
+        return Err(Error::Http { status: response.status().as_u16() });
+    }
+
     let body = response.text().map_err(Error::network)?;
     Ok(body)
 }
@@ -26,38 +31,84 @@ pub fn fetch_license(url: &str) -> Result<String, Error> {
 pub async fn fetch_license_async(url: &str) -> Result<String, Error> {
     debug!("Fetching license from {}", url);
     let response = reqwest::get(url).await.map_err(Error::network)?;
+    if !response.status().is_success() {
+        return Err(Error::Http { status: response.status().as_u16() });
+    }
+
     let body = response.text().await.map_err(Error::network)?;
     Ok(body)
 }
 
 /// Retrieves a ROM file from a URL, extracting it from a zip file if needed
-pub fn fetch_rom_file(url: &str, extract: Option<String>) -> Result<Vec<u8>, Error> {
-    // Get the file itself
-    debug!("Fetching ROM file from {}", url);
-    let response = reqwest::blocking::get(url).map_err(Error::network)?;
-    let bytes = response.bytes().map_err(Error::network)?;
+/// Function will skip using the filename if `file` data if provided (used for caching zip files)
+/// If cache_return is true, the function will return the full file data as well as any extracted data
+/// 
+/// Returns:
+/// - `Ok(Vec<u8>, Vec<u8>)` - The extracted file data and full file if cache_return
+pub fn fetch_rom_file(url: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    let bytes = if file.is_empty() {
+        // Get the file itself
+        debug!("Fetching ROM file from {}", url);
+        let response = reqwest::blocking::get(url).map_err(Error::network)?;
+        if !response.status().is_success() {
+            return Err(Error::Http { status: response.status().as_u16() });
+        }
+        response.bytes().map_err(Error::network)?
+    } else {
+        debug!("Using cached ROM file for {}", url);
+        bytes::Bytes::from(file.to_vec())
+    };
 
     // Now extract if needed
-    if let Some(extract) = extract {
-        extract_file(&bytes, &extract)
+    let file = if let Some(extract) = extract {
+        extract_file(&bytes, &extract)?
     } else {
-        Ok(bytes.to_vec())
-    }
+        bytes.to_vec()
+    };
+
+    let cache = if cache_return {
+        bytes.to_vec()
+    } else {
+        Vec::new()
+    };
+
+    Ok((file, cache))
 }
 
 /// Retrieves a ROM file from a URL, extracting it from a zip file if needed
-pub async fn fetch_rom_file_async(url: &str, extract: Option<String>) -> Result<Vec<u8>, Error> {
-    // Get the file itself
-    debug!("Fetching ROM file from {}", url);
-    let response = reqwest::get(url).await.map_err(Error::network)?;
-    let bytes = response.bytes().await.map_err(Error::network)?;
+/// Function will skip using the filename if `file` data if provided (used for caching zip files)
+/// If cache_return is true, the function will return the full file data as well as any extracted data
+/// 
+/// Returns:
+/// - `Ok(Vec<u8>, Vec<u8>)` - The extracted file data and full file data if cache_return
+pub async fn fetch_rom_file_async(url: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    let bytes = if file.is_empty() {
+        // Get the file itself
+        debug!("Fetching ROM file from {}", url);
+        let response = reqwest::get(url).await.map_err(Error::network)?;
+        if !response.status().is_success() {
+            return Err(Error::Http { status: response.status().as_u16() });
+        }
+        response.bytes().await.map_err(Error::network)?
+    } else {
+        debug!("Using cached ROM file for {}", url);
+        bytes::Bytes::from(file.to_vec())
+    };
 
     // Now extract if needed
-    if let Some(extract) = extract {
-        extract_file(&bytes, &extract)
+    let file = if let Some(extract) = extract {
+        extract_file(&bytes, &extract)?
     } else {
-        Ok(bytes.to_vec())
-    }
+        bytes.to_vec()
+    };
+
+    let cache = if cache_return {
+        bytes.to_vec()
+    } else {
+        Vec::new()
+    };
+
+    Ok((file, cache))
 }
 
 fn extract_file(data: &[u8], extract: &str) -> Result<Vec<u8>, Error> {
@@ -89,6 +140,10 @@ impl Releases {
         let url = Self::manifest_url();
         debug!("Fetching releases manifest from {}", url);
         let response = reqwest::blocking::get(&url).map_err(Error::network)?;
+        if !response.status().is_success() {
+            return Err(Error::Http { status: response.status().as_u16() });
+        }
+
         let body = response.text().map_err(Error::network)?;
         Self::from_json(&body)
     }
@@ -96,7 +151,16 @@ impl Releases {
     pub async fn from_network_async() -> Result<Self, Error> {
         let url = Self::manifest_url();
         debug!("Fetching releases manifest from {}", url);
-        let response = reqwest::get(&url).await.map_err(Error::network)?;
+        Self::from_network_async_url(&url).await
+    }
+
+    pub async fn from_network_async_url(url: &str) -> Result<Self, Error> {
+        debug!("Fetching releases manifest from {}", url);
+        let response = reqwest::get(url).await.map_err(Error::network)?;
+        if !response.status().is_success() {
+            return Err(Error::Http { status: response.status().as_u16() });
+        }
+
         let body = response.text().await.map_err(Error::network)?;
         Self::from_json(&body)
     }
@@ -121,6 +185,18 @@ impl Releases {
 
     pub fn releases(&self) -> &Vec<Release> {
         &self.releases
+    }
+
+    pub fn hw_releases(&self, board: &HwBoard, mcu: &McuVariant) -> Vec<Release> {
+        self.releases
+            .iter()
+            .filter(|r| {
+                r.board_str(&board.name().to_ascii_lowercase())
+                    .and_then(|b| b.mcu(&mcu.to_string().to_ascii_lowercase()))
+                    .is_some()
+            })
+            .cloned()
+            .collect()
     }
 
     pub fn releases_str(&self) -> String {
@@ -171,6 +247,9 @@ impl Releases {
         // Download the firmware
         debug!("Downloading firmware from {}", url);
         let response = reqwest::blocking::get(&url).map_err(Error::network)?;
+        if !response.status().is_success() {
+            return Err(Error::Http { status: response.status().as_u16() });
+        }
         let bytes = response.bytes().map_err(Error::network)?;
         Ok(bytes.to_vec())
     }
@@ -186,6 +265,9 @@ impl Releases {
         // Download the firmware
         debug!("Downloading firmware from {}", url);
         let response = reqwest::get(&url).await.map_err(Error::network)?;
+        if !response.status().is_success() {
+            return Err(Error::Http { status: response.status().as_u16() });
+        }
         let bytes = response.bytes().await.map_err(Error::network)?;
         Ok(bytes.to_vec())
     }
@@ -215,8 +297,14 @@ impl core::fmt::Display for Release {
 }
 
 impl Release {
+    pub fn supports_hw(&self, board: &HwBoard, mcu: &McuVariant) -> bool {
+        self.board_str(&board.name().to_ascii_lowercase())
+            .and_then(|b| b.mcu(&mcu.to_string().to_ascii_lowercase()))
+            .is_some()
+    }
+
     fn path(&self, board: &str, mcu: &str) -> Result<String, Error> {
-        let board = self.board(&board.to_ascii_lowercase()).ok_or_else(|| {
+        let board = self.board_str(&board.to_ascii_lowercase()).ok_or_else(|| {
             debug!("Failed to find board for {board:?}");
             Error::release_not_found()
         })?;
@@ -225,7 +313,7 @@ impl Release {
         Ok(format!("{path}/{}", board.path(mcu)?))
     }
 
-    fn board(&self, board: &str) -> Option<&Board> {
+    fn board_str(&self, board: &str) -> Option<&Board> {
         self.boards.iter().find(|b| b.name == board)
     }
 

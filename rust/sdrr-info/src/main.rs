@@ -256,10 +256,15 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
     } else {
         "false"
     };
+    let usb_dfu = info.extra_info.as_ref().map(|e| e.usb_dfu).unwrap_or(false);
     println!(
-        "USB DFU:          {}",
-        info.extra_info.as_ref().map(|e| e.usb_dfu).unwrap_or(false)
+        "USB DFU:          {usb_dfu}",
     );
+    if usb_dfu {
+        let port = info.extra_info.as_ref().map(|e| e.usb_port).unwrap();
+        let vbus_pin = info.extra_info.as_ref().map(|e| e.vbus_pin).unwrap();
+        println!("VBUS Pin:         P{port}:{vbus_pin}");
+    }
     println!("SWD enabled:      {}", info.swd_enabled);
     println!("Boot logging:     {}", info.boot_logging_enabled);
     println!("Status LED:       {}", info.status_led_enabled);

@@ -42,7 +42,7 @@ use onerom_config::mcu::Variant as McuVariant;
 /// Maximum SDRR firmware versions supported by this version of`sdrr-fw-parser`
 pub const MAX_VERSION_MAJOR: u16 = 0;
 pub const MAX_VERSION_MINOR: u16 = 5;
-pub const MAX_VERSION_PATCH: u16 = 3;
+pub const MAX_VERSION_PATCH: u16 = 999;
 
 // lib.rs - Public API and core traits
 pub mod info;
@@ -114,22 +114,30 @@ pub(crate) const STM32F4_RAM_BASE: u32 = 0x20000000;
 /// # Usage
 ///
 /// ```rust,no_run
-/// # use sdrr_fw_parser::{Parser, Reader};
+/// # async fn test() -> Result<(), Box<dyn std::error::Error>> {
+/// # use sdrr_fw_parser::{Parser, SdrrAddress};
+/// # use airfrog_rpc::io::Reader;
 /// # struct MyReader;
+/// # impl MyReader {
+/// #     fn new(_: &str) -> Self { MyReader }
+/// # }
 /// # impl Reader for MyReader {
 /// #     type Error = std::io::Error;
-/// #     fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+/// #     async fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+/// #     fn update_base_address(&mut self, base_address: u32) {}
 /// # }
 /// // Create a reader for your data source
-/// let reader = MyReader::new("firmware.bin")?;
+/// let mut reader = MyReader::new("firmware.bin");
 ///
 /// // Create parser and parse metadata
-/// let mut parser = Parser::new(reader);
-/// let info = parser.parse()?;
+/// let mut parser = Parser::new(&mut reader);
+/// let sdrr = parser.parse().await;
+/// let mut info = sdrr.flash.unwrap();
 ///
 /// // Access ROM data lazily
-/// let byte = parser.read_rom_byte(&info, 0, 0x1000, true, None, None)?;
+/// let byte = info.read_rom_byte_demangled(&mut parser, 0, SdrrAddress::Raw(0x1000)).await?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
 /// ```
 ///
 /// # Firmware Structure
@@ -162,14 +170,19 @@ impl<'a, R: Reader> Parser<'a, R> {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use sdrr_fw_parser::{Parser, Reader};
+    /// # use sdrr_fw_parser::Parser;
+    /// # use airfrog_rpc::io::Reader;
     /// # struct MyReader;
+    /// # impl MyReader {
+    /// #     fn new() -> Self { MyReader }
+    /// # }
     /// # impl Reader for MyReader {
     /// #     type Error = std::io::Error;
-    /// #     fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+    /// #     async fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+    /// #     fn update_base_address(&mut self, base_address: u32) {}
     /// # }
-    /// let reader = MyReader::new();
-    /// let mut parser = Parser::new(reader);
+    /// let mut reader = MyReader::new();
+    /// let mut parser = Parser::new(&mut reader);
     /// ```
     pub fn new(reader: &'a mut R) -> Self {
         Self {
@@ -294,15 +307,21 @@ impl<'a, R: Reader> Parser<'a, R> {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use sdrr_fw_parser::{Parser, Reader};
+    /// # async fn test() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use sdrr_fw_parser::Parser;
+    /// # use airfrog_rpc::io::Reader;
     /// # struct MyReader;
+    /// # impl MyReader {
+    /// #     fn new() -> Self { MyReader }
+    /// # }
     /// # impl Reader for MyReader {
     /// #     type Error = std::io::Error;
-    /// #     fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+    /// #     async fn read(&mut self, addr: u32, buf: &mut [u8]) -> Result<(), Self::Error> { Ok(()) }
+    /// #     fn update_base_address(&mut self, base_address: u32) {}
     /// # }
-    /// # let reader = MyReader::new();
-    /// let mut parser = Parser::new(reader);
-    /// match parser.parse_flash() {
+    /// # let mut reader = MyReader::new();
+    /// let mut parser = Parser::new(&mut reader);
+    /// match parser.parse_flash().await {
     ///     Ok(info) => {
     ///         println!("Parsed SDRR v{}.{}.{}",
     ///                  info.major_version,
@@ -315,6 +334,7 @@ impl<'a, R: Reader> Parser<'a, R> {
     ///     Err(e) => eprintln!("Failed to parse: {}", e),
     /// }
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
     /// ```
     pub async fn parse_flash(&mut self) -> Result<SdrrInfo, String> {
         // Parse and validate header using the helper

@@ -1155,6 +1155,99 @@ mod tests {
     }
 
     // ========================================================================
+    // TEST 4: Validate ROM Info with label
+    // ========================================================================
+
+    #[test]
+    fn test_phase4_boot_logging_filename_label() {
+        let json = r#"{
+            "version": 1,
+            "description": "Phase 4 boot logging filename label test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test_filename.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "label": "Test ROM 1"
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let rom_data = create_test_rom_data(8192, 0xAA);
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: rom_data,
+            })
+            .expect("Failed to add file");
+
+        let props = fw_props_with_logging();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse metadata header and ROM set
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+
+        // Parse ROM pointer array to get pointer to first ROM info
+        let rom_array_offset = (rom_set.roms_ptr - metadata_flash_start) as usize;
+        let rom_info_ptr = u32::from_le_bytes([
+            metadata_buf[rom_array_offset],
+            metadata_buf[rom_array_offset + 1],
+            metadata_buf[rom_array_offset + 2],
+            metadata_buf[rom_array_offset + 3],
+        ]);
+
+        // Convert to buffer offset
+        let rom_info_offset = (rom_info_ptr - metadata_flash_start) as usize;
+
+        // Parse the ROM info structure WITH filename
+        let rom_info = RomInfoStruct::parse_with_filename(&metadata_buf, rom_info_offset);
+
+        // Validate filename pointer exists
+        assert!(
+            rom_info.filename_ptr.is_some(),
+            "Filename pointer should be present with boot_logging enabled"
+        );
+
+        let filename_ptr = rom_info.filename_ptr.unwrap();
+
+        // Validate filename pointer is within metadata buffer
+        let filename_offset = (filename_ptr - metadata_flash_start) as usize;
+        assert!(
+            filename_offset < metadata_buf.len(),
+            "Filename pointer {} (offset {}) outside metadata buffer (size {})",
+            filename_ptr,
+            filename_offset,
+            metadata_buf.len()
+        );
+
+        // Parse the null-terminated filename string
+        let filename = parse_null_terminated_string(&metadata_buf, filename_offset);
+
+        // Validate filename matches what we specified in JSON
+        assert_eq!(
+            filename, "Test ROM 1",
+            "Filename mismatch. Expected 'Test ROM 1', got '{}'",
+            filename
+        );
+
+        println!("✓ Phase 4 Test 2: Boot logging with label passed");
+        println!("  - ROM type: {} (2364)", rom_info.rom_type);
+        println!(
+            "  - CS states: {}, {}, {}",
+            rom_info.cs1_state, rom_info.cs2_state, rom_info.cs3_state
+        );
+        println!("  - Filename pointer: 0x{:08X}", filename_ptr);
+        println!("  - Filename: '{}'", filename);
+    }
+
+    // ========================================================================
     // TEST 8: Multiple ROMs with Boot Logging
     // ========================================================================
 
@@ -1498,6 +1591,158 @@ mod tests {
 
         println!("✓ Phase 5 Test 1: Exact size match passed");
         println!("  - 8KB file for 2364 (8KB ROM) - no size_handling needed");
+    }
+
+    // Test location being specified within an ROM image
+    #[test]
+    fn test_phase5_location_slice_from_larger_image() {
+        let json = r#"{
+            "version": 1,
+            "description": "Phase 5 location slice test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "large.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "location": {
+                        "start": 4096,
+                        "length": 8192
+                    }
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+
+        // Create 16KB image with pattern: first 4KB=0x11, next 8KB=0x22, last 4KB=0x33
+        let mut data = Vec::new();
+        data.extend_from_slice(&[0x11u8; 4096]);
+        data.extend_from_slice(&[0x22u8; 8192]);
+        data.extend_from_slice(&[0x33u8; 4096]);
+
+        builder
+            .add_file(FileData { id: 0, data })
+            .expect("Failed to add file");
+
+        let props = default_fw_props();
+        let (_metadata_buf, rom_images_buf) = builder
+            .build(props)
+            .inspect_err(|e| {
+                eprintln!("Build failed with location slice: {e:?}");
+            })
+            .expect("Build should succeed with location slice");
+
+        // Verify the extracted ROM contains only the 0x22 bytes (middle 8KB)
+        for addr in 0..8192 {
+            let b = read_rom_byte(&rom_images_buf, addr, props.board());
+            assert_eq!(b, 0x22);
+        }
+
+        println!("✓ Phase 5 Test: Location slice from larger image passed");
+        println!("  - Extracted 8KB from offset 4096 of 16KB image");
+    }
+
+    // Test location with duplicating rom image
+    #[test]
+    fn test_phase5_location_slice_with_duplicate() {
+        let json = r#"{
+            "version": 1,
+            "description": "Phase 5 location slice with duplicate",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "large.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "size_handling": "duplicate",
+                    "location": {
+                        "start": 1024,
+                        "length": 2048
+                    }
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+
+        // Create 8KB image with pattern: 1KB=0x11, 2KB=0x22, 5KB=0x33
+        let mut data = Vec::new();
+        data.extend_from_slice(&[0x11u8; 1024]);
+        data.extend_from_slice(&[0x22u8; 2048]);
+        data.extend_from_slice(&[0x33u8; 5120]);
+
+        builder
+            .add_file(FileData { id: 0, data })
+            .expect("Failed to add file");
+
+        let props = default_fw_props();
+        let (_metadata_buf, rom_images_buf) = builder
+            .build(props)
+            .expect("Build should succeed with location slice and duplicate");
+
+        // Verify the 2KB pattern (0x22) is duplicated 4 times to fill 8KB ROM
+        for addr in 0..8192 {
+            let b = read_rom_byte(&rom_images_buf, addr, props.board());
+            assert_eq!(b, 0x22, "Mismatch at address {:#X}", addr);
+        }
+
+        println!("✓ Phase 5 Test: Location slice with duplicate passed");
+        println!("  - Extracted 2KB from offset 1024, duplicated 4x to fill 8KB ROM");
+    }
+
+    // Test location with padding rom image
+    #[test]
+    fn test_phase5_location_slice_with_pad() {
+        let json = r#"{
+            "version": 1,
+            "description": "Phase 5 location slice with pad",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "large.rom",
+                    "type": "2364",
+                    "cs1": "active_low",
+                    "size_handling": "pad",
+                    "location": {
+                        "start": 2048,
+                        "length": 6144
+                    }
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+
+        // Create 16KB image with pattern: 2KB=0x11, 6KB=0x22, 8KB=0x33
+        let mut data = Vec::new();
+        data.extend_from_slice(&[0x11u8; 2048]);
+        data.extend_from_slice(&[0x22u8; 6144]);
+        data.extend_from_slice(&[0x33u8; 8192]);
+
+        builder
+            .add_file(FileData { id: 0, data })
+            .expect("Failed to add file");
+
+        let props = default_fw_props();
+        let (_metadata_buf, rom_images_buf) = builder
+            .build(props)
+            .expect("Build should succeed with location slice and pad");
+
+        // Verify first 6KB is 0x22 (extracted data)
+        for addr in 0..6144 {
+            let b = read_rom_byte(&rom_images_buf, addr, props.board());
+            assert_eq!(b, 0x22, "Mismatch at address {:#X}", addr);
+        }
+
+        // Verify last 2KB is 0xFF (padded)
+        for addr in 6144..8192 {
+            let b = read_rom_byte(&rom_images_buf, addr, props.board());
+            assert_eq!(b, 0xAA, "Pad mismatch at address {:#X}", addr);
+        }
+
+        println!("✓ Phase 5 Test: Location slice with pad passed");
+        println!("  - Extracted 6KB from offset 2048, padded to 8KB ROM");
     }
 
     // ========================================================================
@@ -2357,7 +2602,7 @@ mod tests {
 
     // Helper: Unscramble physical byte to logical byte based on board pin mapping
     fn unscramble_physical_byte(physical_byte: u8, board: onerom_config::hw::Board) -> u8 {
-        let data_pins = board.phys_pin_to_data_map();
+        let data_pins = board.data_pins();
         let mut logical_byte = 0;
 
         // For each physical pin, if the bit is set, set the corresponding logical data line bit
@@ -3639,7 +3884,8 @@ mod tests {
                         "file": "test.rom",
                         "type": "2332",
                         "cs1": "active_low",
-                        "cs2": "active_high"
+                        "cs2": "active_high",
+                        "size_handling": "truncate"
                     }]
                 }
             ]
@@ -3648,6 +3894,12 @@ mod tests {
         let mut builder = Builder::from_json(json)
             .expect("Duplicate filenames should be allowed across different sets");
 
+        // Verify only 1 unique file needed
+        let file_specs = builder.file_specs();
+        assert_eq!(file_specs.len(), 1, "Should have only 1 unique file");
+        assert_eq!(file_specs[0].id, 0);
+
+        // Only add the file once - it's deduplicated
         builder
             .add_file(FileData {
                 id: 0,
@@ -3655,20 +3907,13 @@ mod tests {
             })
             .expect("Failed to add file 0");
 
-        builder
-            .add_file(FileData {
-                id: 1,
-                data: create_test_rom_data(4096, 0x55),
-            })
-            .expect("Failed to add file 1");
-
         let props = fw_props_with_logging();
         let board = props.board();
         let flash_base = board.mcu_family().get_flash_base();
         let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
         let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build should succeed");
 
-        // Verify both filenames are stored
+        // Verify both ROM sets are created
         let header = MetadataHeader::parse(&metadata_buf);
         assert_eq!(header.rom_set_count, 2);
 
@@ -3713,7 +3958,7 @@ mod tests {
         assert_eq!(filename0, "test.rom");
         assert_eq!(filename1, "test.rom");
 
-        println!("✓ Phase 12 Test 7: Duplicate filenames in different ROM sets correctly handled");
+        println!("✓ Phase 12 Test 7: Duplicate filenames correctly deduplicated");
     }
 
     // ========================================================================
@@ -5491,6 +5736,30 @@ mod tests {
         let desc = builder.description();
         assert_eq!(
             desc, "Test description\n\nImages:\n0: an image",
+            "Description should match"
+        );
+    }
+
+    #[test]
+    fn test_phase19_name() {
+        let json = r#"{
+            "version": 1,
+            "name": "Name of config",
+            "description": "Test description",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let desc = builder.description();
+        assert_eq!(
+            desc, "Name of config\n--------------\n\nTest description\n\nImages:\n0: test.rom",
             "Description should match"
         );
     }

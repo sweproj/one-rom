@@ -41,7 +41,11 @@
         "status": 15
     },
     "usb": {
-        "present": true
+        "present": true,
+        "pins": {
+            "vbus": 9,
+            "port": "A"
+        }
     }
   }
 }

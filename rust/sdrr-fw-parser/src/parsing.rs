@@ -12,7 +12,7 @@ use static_assertions::const_assert_eq;
 use crate::Reader;
 use crate::{MAX_VERSION_MAJOR, MAX_VERSION_MINOR, MAX_VERSION_PATCH};
 use crate::{McuLine, McuStorage, SdrrCsState, SdrrRomType, SdrrServe};
-use crate::{SdrrExtraInfo, SdrrPins, SdrrRomInfo, SdrrRomSet};
+use crate::{SdrrExtraInfo, SdrrPins, SdrrRomInfo, SdrrRomSet, SdrrMcuPort};
 
 #[cfg(not(feature = "std"))]
 use alloc::{format, string::String, vec, vec::Vec};
@@ -135,7 +135,9 @@ pub(crate) struct SdrrExtraInfoHeader {
     pub rtt_ptr: u32,
 
     pub usb_dfu: u8,
-    pub reserved1: [u8; 3],
+    pub usb_port: u8,
+    pub vbus_pin: u8,
+    pub reserved1: [u8; 1],
 
     pub _post: [u8; 248],
 }
@@ -379,9 +381,14 @@ pub(crate) async fn read_extra_info<R: Reader>(
     let (_, header) = SdrrExtraInfoHeader::from_bytes((&buf, 0))
         .map_err(|e| format!("Failed to parse extra info: {}", e))?;
 
+    let usb_port = SdrrMcuPort::from(header.usb_port);
+    let vbus_pin = header.vbus_pin;
+
     Ok(SdrrExtraInfo {
         rtt_ptr: header.rtt_ptr,
         usb_dfu: header.usb_dfu != 0,
+        usb_port,
+        vbus_pin,
     })
 }
 

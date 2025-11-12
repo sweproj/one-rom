@@ -3,6 +3,9 @@
 // MIT License
 
 //! Style constants and objects
+//!
+//! Used to define styles, colours, fonts, and other style-related properties,
+//! and provide helper methods for creating styled widgets.
 
 use iced::alignment::{Horizontal, Vertical};
 use iced::border::Radius;
@@ -11,8 +14,8 @@ use iced::theme::Theme;
 use iced::widget;
 use iced::widget::text::{Rich, Span, Text};
 use iced::widget::{
-    PickList, Row, Scrollable, Space, button, column, container, pick_list, row, scrollable, text,
-    mouse_area,
+    Image, PickList, Row, Scrollable, Space, button, column, container, mouse_area, pick_list, row,
+    scrollable, text, tooltip,
 };
 use iced::{Background, Border, Element, Length, Shadow};
 use onerom_config::fw::FirmwareVersion;
@@ -20,7 +23,9 @@ use onerom_config::hw::{Board, Model};
 use onerom_config::mcu::Variant as McuVariant;
 use std::borrow::Borrow;
 
-use crate::app::AppMessage;
+use crate::image::Images;
+use crate::studio::RuntimeInfo;
+use crate::{AppLink, AppMessage, app_manifest};
 
 /// Iced theme to use - this module builds on this theme
 pub const ICED_THEME: iced::Theme = iced::Theme::Dark;
@@ -48,7 +53,7 @@ pub fn icon() -> iced::window::Icon {
 #[derive(Debug, Clone)]
 pub enum Message {
     /// User clicked a link
-    ClickLink(Link),
+    ClickLink(AppLink),
 }
 
 impl std::fmt::Display for Message {
@@ -59,45 +64,18 @@ impl std::fmt::Display for Message {
     }
 }
 
-/// Supported links
-#[derive(Debug, Clone)]
-pub enum Link {
-    /// https://onerom.org
-    OneRom,
-    /// https://piers.rocks
-    PiersRocks,
-    /// https://zadig.akeo.ie/
-    Zadig,
-    /// https://onerom.org/web/#windows
-    WinUsb,
-    /// https://github.com/piersfinlayson/one-rom/issues
-    GitHubIssue,
-    /// https://onerom.org/web/#linux
-    LinuxUdev,
-}
-
-impl Link {
-    const fn url(&self) -> &'static str {
-        match self {
-            Link::OneRom => "https://onerom.org",
-            Link::PiersRocks => "https://piers.rocks",
-            Link::Zadig => "https://zadig.akeo.ie/",
-            Link::WinUsb => "https://onerom.org/prog/#windows",
-            Link::GitHubIssue => "https://github.com/piersfinlayson/one-rom/issues",
-            Link::LinuxUdev => "https://onerom.org/prog/#linux",
-        }
-    }
-}
-
 /// One ROM Studio style constants and helpers
 pub struct Style<'a> {
+    images: Images,
     _marker: std::marker::PhantomData<&'a ()>,
 }
 
 #[allow(dead_code)]
 impl<'a> Style<'a> {
     /// #ffb700 - One ROM gold used for buttons and highlights
-    pub const COLOUR_GOLD: iced::Color = as_iced_colour(0xffb700);
+    pub const COLOUR_GOLD_U32: u32 = 0xffb700;
+    pub const COLOUR_GOLD_STR: &'static str = "#ffb700";
+    pub const COLOUR_GOLD: iced::Color = as_iced_colour(Self::COLOUR_GOLD_U32);
 
     /// #cc9200 - one ROM dark gold used for text highlights
     pub const COLOUR_DARK_GOLD: iced::Color = as_iced_colour(0xcc9200);
@@ -107,7 +85,9 @@ impl<'a> Style<'a> {
 
     /// #9a9aa8 - dimmed text colour, used for de-selected and less important
     /// text
-    pub const COLOUR_TEXT_DIM: iced::Color = as_iced_colour(0x9a9aa8);
+    pub const COLOUR_TEXT_DIM_U32: u32 = 0x9a9aa8;
+    pub const COLOUR_TEXT_DIM_STR: &'static str = "#9a9aa8";
+    pub const COLOUR_TEXT_DIM: iced::Color = as_iced_colour(Self::COLOUR_TEXT_DIM_U32);
 
     /// #181820 - main background colour, used for windows and containers
     pub const COLOUR_BACKGROUND: iced::Color = as_iced_colour(0x181820);
@@ -138,9 +118,14 @@ impl<'a> Style<'a> {
     pub const COLOUR_WARN: iced::Color = as_iced_colour(0xffaf00);
 
     /// #ff5f5f - error log level
-    pub const COLOUR_ERROR: iced::Color = as_iced_colour(0xff5f5f);
+    pub const COLOUR_ERROR_U32: u32 = 0xff5f5f;
+    pub const COLOUR_ERROR_STR: &'static str = "#ff5f5f";
+    pub const COLOUR_ERROR: iced::Color = as_iced_colour(Self::COLOUR_ERROR_U32);
 
     pub const COLOUR_OVERLAY_BACKGROUND: iced::Color = iced::Color::from_rgba(0.0, 0.0, 0.0, 0.75);
+
+    /// #00afff - update colour, used to indicate updates are available
+    pub const COLOUR_UPDATE_STR: &'static str = "#00afff";
 
     // Font sizes
 
@@ -202,6 +187,7 @@ impl<'a> Style<'a> {
     /// Create a new Style object
     pub fn new() -> Self {
         Style {
+            images: Images::new(),
             _marker: std::marker::PhantomData,
         }
     }
@@ -210,8 +196,10 @@ impl<'a> Style<'a> {
     pub fn update(&self, message: Message) -> iced::Task<Message> {
         match message {
             Message::ClickLink(link) => {
-                if let Err(e) = open::that(link.url()) {
-                    eprintln!("Failed to open link {}: {}", link.url(), e);
+                let manifest = app_manifest();
+                let url = manifest.link_url(link);
+                if let Err(e) = open::that(url) {
+                    eprintln!("Failed to open link {url}: {e}");
                 }
             }
         }
@@ -270,7 +258,7 @@ impl<'a> Style<'a> {
         on_press: Option<AppMessage>,
         highlighted: bool,
     ) -> widget::Button<'a, AppMessage> {
-        Style::int_text_button(content, on_press, highlighted, false, false,)
+        Style::int_text_button(content, on_press, highlighted, false, false)
     }
 
     pub fn error_button(
@@ -288,7 +276,6 @@ impl<'a> Style<'a> {
     ) -> widget::Button<'a, AppMessage> {
         Style::int_text_button(content, on_press, highlighted, false, true)
     }
-
 
     fn int_text_button(
         content: impl ToString,
@@ -311,10 +298,10 @@ impl<'a> Style<'a> {
                 )
             }
         } else {
-                (
-                    Style::COLOUR_TEXT,
-                    Some(Background::Color(Style::COLOUR_BACKGROUND_ERROR)),
-                )
+            (
+                Style::COLOUR_TEXT,
+                Some(Background::Color(Style::COLOUR_BACKGROUND_ERROR)),
+            )
         };
 
         let text = if !small {
@@ -322,11 +309,7 @@ impl<'a> Style<'a> {
         } else {
             Self::text_small(content.to_string()).color(Self::COLOUR_BUTTON_TEXT)
         };
-        let padding = if !small {
-            [10, 20]
-        } else {
-            [5, 10]
-        };
+        let padding = if !small { [10, 20] } else { [5, 10] };
         let mut button = button(text)
             .style(move |_, _| button::Style {
                 background,
@@ -356,15 +339,25 @@ impl<'a> Style<'a> {
     fn scrollbar_colour(status: &scrollable::Status, horiz: bool) -> iced::Color {
         match status {
             scrollable::Status::Active => Self::COLOUR_DARK_GOLD,
-            scrollable::Status::Hovered { is_vertical_scrollbar_hovered, is_horizontal_scrollbar_hovered } => {
-                if (horiz && *is_horizontal_scrollbar_hovered) || (!horiz && *is_vertical_scrollbar_hovered) {
+            scrollable::Status::Hovered {
+                is_vertical_scrollbar_hovered,
+                is_horizontal_scrollbar_hovered,
+            } => {
+                if (horiz && *is_horizontal_scrollbar_hovered)
+                    || (!horiz && *is_vertical_scrollbar_hovered)
+                {
                     Self::COLOUR_GOLD
                 } else {
                     Self::COLOUR_DARK_GOLD
                 }
             }
-            scrollable::Status::Dragged { is_vertical_scrollbar_dragged, is_horizontal_scrollbar_dragged } => {
-                if (horiz && *is_horizontal_scrollbar_dragged) || (!horiz && *is_vertical_scrollbar_dragged) {
+            scrollable::Status::Dragged {
+                is_vertical_scrollbar_dragged,
+                is_horizontal_scrollbar_dragged,
+            } => {
+                if (horiz && *is_horizontal_scrollbar_dragged)
+                    || (!horiz && *is_vertical_scrollbar_dragged)
+                {
                     Self::COLOUR_GOLD
                 } else {
                     Self::COLOUR_DARK_GOLD
@@ -373,9 +366,7 @@ impl<'a> Style<'a> {
         }
     }
 
-    fn scrollbar_style(
-        status: &scrollable::Status,
-    ) -> scrollable::Style {
+    fn scrollbar_style(status: &scrollable::Status) -> scrollable::Style {
         scrollable::Style {
             vertical_rail: scrollable::Rail {
                 scroller: scrollable::Scroller {
@@ -398,7 +389,11 @@ impl<'a> Style<'a> {
         }
     }
 
-    pub fn box_scrollable_text(content: impl ToString, height: f32, horiz_scroll: bool) -> Scrollable<'a, AppMessage> {
+    pub fn box_scrollable_text(
+        content: impl ToString,
+        height: f32,
+        horiz_scroll: bool,
+    ) -> Scrollable<'a, AppMessage> {
         let text = Self::text_small(content.to_string()).font(Self::FONT_COURIER_REG);
         Self::box_scrollable_element(text, height, horiz_scroll)
     }
@@ -442,7 +437,12 @@ impl<'a> Style<'a> {
             shadow: Shadow::default(),
         }
     }
-    pub fn link(content: impl ToString, size: u16, link: Link) -> widget::Button<'a, AppMessage> {
+
+    pub fn link(
+        content: impl ToString,
+        size: u16,
+        link: AppLink,
+    ) -> widget::Button<'a, AppMessage> {
         let text = Self::text_body(content.to_string())
             .size(size)
             .color(Self::COLOUR_GOLD);
@@ -453,10 +453,10 @@ impl<'a> Style<'a> {
             .on_press(AppMessage::Style(Message::ClickLink(link)))
     }
 
-    pub fn version_row() -> Element<'a, AppMessage> {
+    fn app_version() -> Element<'a, AppMessage> {
         let commit_id = if let Some(commit_id) = crate::built::GIT_COMMIT_HASH_SHORT {
             format!(
-                " ({}{})", 
+                " ({}{})",
                 if crate::built::GIT_DIRTY.unwrap_or(true) {
                     "!"
                 } else {
@@ -467,16 +467,114 @@ impl<'a> Style<'a> {
         } else {
             "".to_string()
         };
-        let text = Style::text_small(format!("v{}{}", env!("CARGO_PKG_VERSION"), commit_id))
-            .color(Self::COLOUR_TEXT_DIM);
-        row![
-            Space::with_width(Length::Fill),
-            text
-        ].into()
+        Style::text_small(format!("V{}{}", env!("CARGO_PKG_VERSION"), commit_id))
+            .color(Self::COLOUR_TEXT_DIM)
+            .into()
+    }
+
+    fn network_icon(&self, runtime_info: &RuntimeInfo) -> Element<'a, AppMessage> {
+        let (network_icon, net_tooltip) = if runtime_info.is_offline() {
+            (
+                self.images.icon_network_disconnected(),
+                Self::text_extra_small("Network offline").color(Self::COLOUR_ERROR),
+            )
+        } else {
+            (
+                self.images.icon_network_connected(),
+                Self::text_extra_small("Network online").color(Self::COLOUR_TEXT_DIM),
+            )
+        };
+        tooltip(
+            Image::new(network_icon),
+            net_tooltip,
+            tooltip::Position::Top,
+        )
+        .into()
+    }
+
+    pub fn help_icon(&self, tooltip_str: &str) -> Element<'a, AppMessage> {
+        let help_button = button(Image::new(self.images.icon_help()))
+            .style(|_, _| Self::link_button_style())
+            .on_press(AppMessage::Help(true));
+        tooltip(
+            help_button,
+            Self::text_extra_small(tooltip_str).color(Self::COLOUR_TEXT_DIM),
+            tooltip::Position::Top,
+        )
+        .into()
+    }
+
+    /// Create a help image which links to a webapge
+    pub fn help_link(&self, link: AppLink, tooltip_str: &str) -> Element<'a, AppMessage> {
+        let help_button = button(Image::new(self.images.icon_help()))
+            .style(|_, _| Self::link_button_style())
+            .height(28)
+            .on_press(AppMessage::Style(Message::ClickLink(link)));
+        tooltip(
+            help_button,
+            Self::text_extra_small(tooltip_str).color(Self::COLOUR_TEXT_DIM),
+            tooltip::Position::Top,
+        )
+        .into()
+    }
+
+    fn footer_row_0(&self, runtime_info: &RuntimeInfo) -> Element<'a, AppMessage> {
+        let mut row = row![];
+        row = row.push(self.network_icon(runtime_info));
+
+        if let Some(update_icon) = self.update_available_icon() {
+            row = row.push(Space::with_width(10.0));
+            row = row.push(update_icon);
+        }
+
+        if let Some(dev_icon) = self.dev_version_icon() {
+            row = row.push(Space::with_width(10.0));
+            row = row.push(dev_icon);
+        }
+
+        row = row
+            .push(Space::with_width(Length::Fill))
+            .push(Self::app_version());
+
+        row.align_y(Vertical::Center).into()
+    }
+
+    fn update_available_icon(&self) -> Option<Element<'a, AppMessage>> {
+        let Some(new_version) = app_manifest().update_available() else {
+            return None;
+        };
+
+        let update_button = button(Image::new(self.images.icon_update_available()))
+            .padding(0)
+            .style(|_, _| Self::link_button_style())
+            .on_press(AppMessage::Style(Message::ClickLink(AppLink::AppUpdate)));
+
+        let button = tooltip(
+            update_button,
+            Self::text_extra_small(format!("V{new_version} available"))
+                .color(Self::COLOUR_TEXT_DIM),
+            tooltip::Position::Top,
+        );
+
+        Some(button.into())
+    }
+
+    fn dev_version_icon(&self) -> Option<Element<'a, AppMessage>> {
+        if !app_manifest().dev_version() {
+            return None;
+        }
+
+        let button = tooltip(
+            Image::new(self.images.icon_dev_version()),
+            Self::text_extra_small("Development Version").color(Self::COLOUR_TEXT_DIM),
+            tooltip::Position::Top,
+        );
+
+        Some(button.into())
     }
 
     fn footer_1_left() -> Element<'a, AppMessage> {
-        Self::link("One ROM", Self::FONT_SIZE_BODY, Link::OneRom).into()
+        Self::link("One ROM", Self::FONT_SIZE_BODY, AppLink::OneRom).into()
     }
 
     fn footer_1_right() -> Rich<'a, AppMessage> {
@@ -500,7 +598,7 @@ impl<'a> Style<'a> {
     }
 
     fn footer_2_right() -> Element<'a, AppMessage> {
-        Self::link("piers.rocks", Self::FONT_SIZE_BODY, Link::PiersRocks).into()
+        Self::link("piers.rocks", Self::FONT_SIZE_BODY, AppLink::PiersRocks).into()
     }
 
     fn footer_row_1() -> Row<'a, AppMessage> {
@@ -521,14 +619,15 @@ impl<'a> Style<'a> {
             .push(right)
     }
 
-    pub fn footer() -> Element<'a, AppMessage> {
+    pub fn footer(&self, runtime_info: &RuntimeInfo) -> Element<'a, AppMessage> {
         column![
-            Self::version_row(),
+            self.footer_row_0(runtime_info),
+            Space::with_height(5.0),
             Self::footer_row_1(),
+            Space::with_height(5.0),
             Self::footer_row_2(),
         ]
-            .spacing(5)
-            .into()
+        .into()
     }
 
     // Creates a bordered container for the specified content - like an overlaid
@@ -551,9 +650,7 @@ impl<'a> Style<'a> {
         content: impl Into<Element<'a, AppMessage>>,
     ) -> Element<'a, AppMessage> {
         // The actual overlay container with the specified content
-        let inner = Self::container(content)
-            .width(500.0)
-            .height(Length::Shrink);
+        let inner = Self::container(content).width(500.0).height(Length::Shrink);
 
         // An outer container to centre the inner container, and make the under layer
         // appear greyed out
@@ -572,7 +669,7 @@ impl<'a> Style<'a> {
         // to idle, so it doesn't indicate buttons on the underlying layer can be
         // pressed.
         mouse_area(outer)
-            .on_press(AppMessage::Nop)
+            .on_press(AppMessage::Nop) // Ignore underlying clicks when in help
             .interaction(iced::mouse::Interaction::Idle)
             .into()
     }
@@ -664,14 +761,20 @@ impl<'a> Style<'a> {
         };
 
         let metadata = match metadata {
-            Some(true) => Some(row![
-                Style::text_small("Metadata:"),
-                Style::text_small("Yes").color(Style::COLOUR_DARK_GOLD),
-            ].spacing(5)),
-            Some(false) => Some(row![
-                Style::text_small("Metadata:"),
-                Style::text_small("No").color(Style::COLOUR_ERROR),
-            ].spacing(5)),
+            Some(true) => Some(
+                row![
+                    Style::text_small("Metadata:"),
+                    Style::text_small("Yes").color(Style::COLOUR_DARK_GOLD),
+                ]
+                .spacing(5),
+            ),
+            Some(false) => Some(
+                row![
+                    Style::text_small("Metadata:"),
+                    Style::text_small("No").color(Style::COLOUR_ERROR),
+                ]
+                .spacing(5),
+            ),
             None => None,
         };
 
@@ -692,7 +795,7 @@ impl<'a> Style<'a> {
         // Board
         let board_h = Style::text_small("Board:");
         let board = if let Some(board) = board {
-            let board =  if board_long {
+            let board = if board_long {
                 board.description()
             } else {
                 board.name()

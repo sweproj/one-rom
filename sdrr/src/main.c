@@ -199,17 +199,11 @@ int main(void) {
     // Initialize clock
     setup_clock();
 
-#if defined(STM32F4)
     if (sdrr_info.extra->usb_dfu) {
         // Set up VBUS detect interrupt
         LOG("USB DFU supported - setting up VBUS detect");
         setup_vbus_interrupt();
     }
-#else // !STM32F4
-    if (sdrr_info.extra->usb_dfu) {
-        LOG("!!! USB DFU not supported on this MCU");
-    }
-#endif // STM32F4
 
     const sdrr_rom_set_t *set = NULL;
     uint8_t md = metadata_present(&sdrr_info);

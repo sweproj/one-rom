@@ -24,23 +24,25 @@
 #endif
 
 // Register base addresses
-#define FLASH_BASE      0x10000000
-#define XIP_CACHE_BASE  0x18000000
-#define SYSINFO_BASE    0x40000000
-#define CLOCKS_BASE     0x40010000
-#define RESETS_BASE     0x40020000
-#define IO_BANK0_BASE   0x40028000
-#define PADS_BANK0_BASE 0x40038000
-#define XOSC_BASE       0x40048000  
-#define PLL_SYS_BASE    0x40050000
-#define PLL_USB_BASE    0x40058000
-#define ADC_BASE        0x400a0000
-#define XIP_CTRL_BASE   0x400c8000
-#define XIP_QMI_BASE    0x400d0000
-#define POWMAN_BASE     0x40100000
-#define OTP_BASE        0x40120000
-#define SIO_BASE        0xD0000000
-#define SCB_BASE        0xE000ED00
+#define FLASH_BASE          0x10000000
+#define XIP_CACHE_BASE      0x18000000
+#define SYSINFO_BASE        0x40000000
+#define CLOCKS_BASE         0x40010000
+#define RESETS_BASE         0x40020000
+#define IO_BANK0_BASE       0x40028000
+#define PADS_BANK0_BASE     0x40038000
+#define XOSC_BASE           0x40048000  
+#define PLL_SYS_BASE        0x40050000
+#define PLL_USB_BASE        0x40058000
+#define ADC_BASE            0x400a0000
+#define XIP_CTRL_BASE       0x400c8000
+#define XIP_QMI_BASE        0x400d0000
+#define POWMAN_BASE         0x40100000
+#define OTP_BASE            0x40120000
+#define USBCTRL_REGS_BASE   0x50110000
+#define SIO_BASE            0xD0000000
+#define PBB_BASE            0xE0000000
+#define SCB_BASE            0xE000ED00
 
 // SysInfo Registers
 #define SYSINFO_CHIP_ID         (*((volatile uint32_t *)(SYSINFO_BASE + 0x00)))
@@ -93,6 +95,15 @@
 
 #define GPIO_CTRL_FUNC_SIO      0x05
 #define GPIO_CTRL_RESET         GPIO_CTRL_FUNC_SIO
+
+#define IO_BANK0_INTR0 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x230))
+#define IO_BANK0_INTR1 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x234))
+#define IO_BANK0_INTR2 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x238))
+#define IO_BANK0_INTR3 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x23C))
+#define IO_BANK0_PROC0_INTE0 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x248))
+#define IO_BANK0_PROC0_INTE1 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x24C))
+#define IO_BANK0_PROC0_INTE2 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x250))
+#define IO_BANK0_PROC0_INTE3 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x254))
 
 // Pads registers
 #define PAD_OFFSET_START    0x004
@@ -231,6 +242,12 @@
 #define POWMAN_VREG_VOLTAGE(X)   (((X) & VREG_MASK) << VREG_SHIFT)
 #define POWMAN_VREG_UPDATE (1 << 15)
 
+// USB Registers
+#define SIE_STATUS         (*((volatile uint32_t *)(USBCTRL_REGS_BASE + 0x50)))
+
+#define SIE_STATUS_VBUS_DETECT_BIT   0
+#define SIE_STATUS_VBUS_DETECT_MASK  (1 << SIE_STATUS_VBUS_DETECT_BIT)
+
 // SIO Registers
 #define SIO_CPUID           (*((volatile uint32_t *)(SIO_BASE + 0x00)))
 #define SIO_GPIO_IN         (*((volatile uint32_t *)(SIO_BASE + 0x04)))
@@ -240,6 +257,10 @@
 #define SIO_GPIO_OE         (*((volatile uint32_t *)(SIO_BASE + 0x30)))
 #define SIO_GPIO_OE_SET     (*((volatile uint32_t *)(SIO_BASE + 0x38)))
 #define SIO_GPIO_OE_CLR     (*((volatile uint32_t *)(SIO_BASE + 0x40)))
+
+// PPB Registers
+#define NVIC_ISER0          (*((volatile uint32_t *)(PBB_BASE + 0x0E100)))
+#define IO_IRQ_BANK0        21
 
 // SCB Registers
 #define SCB_CPACR           (*((volatile uint32_t *)(SCB_BASE + 0x88)))

@@ -41,17 +41,24 @@ void (* const g_pfnVectors[])(void) = {
     PendSV_Handler,                // PendSV handler
     SysTick_Handler,               // SysTick handler
 
-    // Peripheral interrupt handlers follow
+    // Peripheral interrupt handlers follow 0-15 above.
+    // 16-19
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
+    // 20-23
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
+    // 24-27
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
+    // 28-31
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
+    // 32-35
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
+    // 36-39
 #if defined(STM32F4)
     Default_Handler, Default_Handler, Default_Handler, vbus_connect_handler,
-#else
-    Default_Handler, Default_Handler, Default_Handler, Default_Handler,
+#else // RP235X
+    Default_Handler, vbus_connect_handler, Default_Handler, Default_Handler,
 #endif 
+    // 40-43
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,
     Default_Handler, Default_Handler, Default_Handler, Default_Handler,

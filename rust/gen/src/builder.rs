@@ -4,7 +4,7 @@
 
 //! One ROM generation Builder objects and functions
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use onerom_config::fw::FirmwareProperties;
 use onerom_config::rom::RomType;
 
-use crate::image::{CsConfig, CsLogic, Rom, RomSet, RomSetType, SizeHandling};
+use crate::image::{CsConfig, CsLogic, Location, Rom, RomSet, RomSetType, SizeHandling};
 use crate::meta::Metadata;
 use crate::{Error, FIRMWARE_SIZE, MAX_METADATA_LEN, Result};
 
@@ -105,6 +105,7 @@ pub struct Builder {
     config: Config,
     files: BTreeMap<usize, Vec<u8>>,
     licenses: BTreeMap<usize, License>,
+    file_id_map: BTreeMap<usize, usize>,
 }
 
 impl Builder {
@@ -116,11 +117,16 @@ impl Builder {
 
         Self::validate_config(&config)?;
 
-        Ok(Self {
+        let mut builder = Self {
             config,
             files: BTreeMap::new(),
             licenses: BTreeMap::new(),
-        })
+            file_id_map: BTreeMap::new(),
+        };
+
+        builder.build_file_id_map();
+
+        Ok(builder)
     }
 
     /// Get a reference to the config
@@ -257,6 +263,23 @@ impl Builder {
                     });
                 }
 
+                // Validate location if present
+                if let Some(location) = &rom.location {
+                    // Check length is non-zero
+                    if location.length == 0 {
+                        return Err(Error::InvalidConfig {
+                            error: format!("ROM {} location length must be non-zero", rom_num),
+                        });
+                    }
+
+                    // Check for overflowing a usize (!)
+                    if location.start.checked_add(location.length).is_none() {
+                        return Err(Error::InvalidConfig {
+                            error: format!("ROM {} location start + length overflows", rom_num),
+                        });
+                    }
+                }
+
                 rom_num += 1;
             }
 
@@ -271,6 +294,13 @@ impl Builder {
                     // Check all other ROMs have the same CS configuration
                     for (idx, rom) in set.roms.iter().enumerate().skip(1) {
                         if rom.cs1 != first_cs1 || rom.cs2 != first_cs2 || rom.cs3 != first_cs3 {
+                            if (rom.cs2 != first_cs2) && let Some(cs) = rom.cs2 && (cs == CsLogic::Ignore) {
+                                // Ignore difference if cs2 is ignore
+                                // If there are 3 CS lines on ROM 1, cs2 must
+                                // be the same, but we don't support that yet
+                                continue;
+                            }
+                            // Should do a similar test for CS3, but we don't support that yet
                             return Err(Error::InvalidConfig {
                                 error: format!(
                                     "{:?} set requires all ROMs to have identical CS configuration. ROM 0 has cs1={:?}/cs2={:?}/cs3={:?}, but ROM {} has cs1={:?}/cs2={:?}/cs3={:?}",
@@ -293,29 +323,61 @@ impl Builder {
         Ok(())
     }
 
+    fn build_file_id_map(&mut self) {
+        let mut seen_files: BTreeMap<(String, Option<String>), usize> = BTreeMap::new();
+        let mut file_id = 0;
+        let mut rom_id = 0;
+
+        for rom_set in self.config.rom_sets.iter() {
+            for rom in &rom_set.roms {
+                let key = (rom.file.clone(), rom.extract.clone());
+                
+                let assigned_file_id = if let Some(&existing_id) = seen_files.get(&key) {
+                    existing_id
+                } else {
+                    seen_files.insert(key, file_id);
+                    let id = file_id;
+                    file_id += 1;
+                    id
+                };
+                
+                self.file_id_map.insert(rom_id, assigned_file_id);
+                rom_id += 1;
+            }
+        }
+    }
+
     /// Get list of files that need to be loaded
     pub fn file_specs(&self) -> Vec<FileSpec> {
         let mut specs = Vec::new();
-        let mut id = 0;
+        let mut seen_files: BTreeMap<(String, Option<String>), usize> = BTreeMap::new();
+        let mut rom_id = 0;
 
         for (rom_set_num, rom_set) in self.config.rom_sets.iter().enumerate() {
             for rom in &rom_set.roms {
-                specs.push(FileSpec {
-                    id,
-                    description: rom.description.clone(),
-                    source: rom.file.clone(),
-                    extract: rom.extract.clone(),
-                    size_handling: rom.size_handling.clone(),
-                    rom_type: rom.rom_type.clone(),
-                    rom_size: rom.rom_type.size_bytes(),
-                    cs1: rom.cs1,
-                    cs2: rom.cs2,
-                    cs3: rom.cs3,
-                    set_id: rom_set_num,
-                    set_type: rom_set.set_type.clone(),
-                    set_description: rom_set.description.clone(),
-                });
-                id += 1;
+                let key = (rom.file.clone(), rom.extract.clone());
+                let file_id = *self.file_id_map.get(&rom_id).unwrap();
+                
+                if !seen_files.contains_key(&key) {
+                    specs.push(FileSpec {
+                        id: file_id,
+                        description: rom.description.clone(),
+                        source: rom.file.clone(),
+                        extract: rom.extract.clone(),
+                        size_handling: rom.size_handling.clone(),
+                        rom_type: rom.rom_type.clone(),
+                        rom_size: rom.rom_type.size_bytes(),
+                        cs1: rom.cs1,
+                        cs2: rom.cs2,
+                        cs3: rom.cs3,
+                        set_id: rom_set_num,
+                        set_type: rom_set.set_type.clone(),
+                        set_description: rom_set.description.clone(),
+                    });
+                    seen_files.insert(key, file_id);
+                }
+                
+                rom_id += 1;
             }
         }
 
@@ -377,7 +439,7 @@ impl Builder {
     }
 
     fn total_file_count(&self) -> usize {
-        self.config.rom_sets.iter().map(|set| set.roms.len()).sum()
+        self.file_id_map.values().collect::<BTreeSet<_>>().len()
     }
 
     /// Validate whether ready to build
@@ -426,26 +488,21 @@ impl Builder {
             let mut set_roms = Vec::new();
 
             for rom_config in &rom_set_config.roms {
-                let data = self.files.get(&rom_id).unwrap();
+                let file_id = self.file_id_map.get(&rom_id).unwrap();
+                let data = self.files.get(file_id).unwrap();
 
-                let filename = if rom_config.extract.is_some() {
-                    format!(
-                        "{}|{}",
-                        rom_config.file,
-                        rom_config.extract.as_ref().unwrap()
-                    )
-                } else {
-                    rom_config.file.clone()
-                };
+                let filename = rom_config.filename();
 
                 let rom = Rom::from_raw_rom_image(
                     rom_id,
                     filename,
+                    rom_config.label.clone(),
                     data,
                     vec![0u8; rom_config.rom_type.size_bytes()],
                     &rom_config.rom_type,
                     CsConfig::new(rom_config.cs1, rom_config.cs2, rom_config.cs3),
                     &rom_config.size_handling,
+                    rom_config.location,
                 )?;
                 set_roms.push(rom);
                 rom_id += 1;
@@ -514,6 +571,9 @@ impl Builder {
     /// No multi-set/banked ROMS:
     ///
     /// ```text
+    /// Name of config
+    /// --------------
+    /// 
     /// Description of config
     ///
     /// Detailed description
@@ -539,6 +599,13 @@ impl Builder {
     pub fn description(&self) -> String {
         let mut desc = String::new();
 
+        if let Some(name) = self.config.name.as_ref() {
+            desc.push_str(name);
+            desc.push_str("\n");
+            desc.push_str(&"-".repeat(name.len()));
+            desc.push_str("\n\n");
+        }
+
         desc.push_str(&self.config.description);
         desc.push_str("\n\n");
 
@@ -556,7 +623,9 @@ impl Builder {
         };
         desc.push_str("\n");
 
+        let mut none = true;
         for (ii, set) in self.config.rom_sets.iter().enumerate() {
+            none = false;
             desc.push_str(&format!("{ii}:"));
             if multi_rom_sets {
                 desc.push_str(&format!(" {:?}", set.set_type));
@@ -579,6 +648,10 @@ impl Builder {
                 }
                 desc.push_str("\n");
             }
+        }
+
+        if none {
+            desc.push_str("  None\n");
         }
 
         if let Some(notes) = &self.config.notes {
@@ -607,9 +680,17 @@ impl Builder {
 /// License details for validation by caller
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct License {
+    /// License ID provided for information only. 
     pub id: usize,
+
+    /// File ID that this license applies to, provided for information only.
     pub file_id: usize,
+
+    /// License URL/identifier.  Used by caller to retrieve and present to user
+    /// for acceptance.
     pub url: String,
+
+    // Whether this license has been validated by the caller
     validated: bool,
 }
 
@@ -628,62 +709,201 @@ impl License {
 /// Details about a file to be loaded by the caller
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FileSpec {
+    /// File ID to be used when adding the loaded file to the builder
     pub id: usize,
+
+    /// Optional description for this file.  Provided for information only.
     pub description: Option<String>,
+
+    /// Filename or URL of the ROM image to be loaded
     pub source: String,
+
+    /// Optional extract path within an archive (zip/tar) if the file pointed
+    /// to is an archive.  If extract is present, the file at that path within
+    /// the archive should be extracted before returning the data to the
+    /// builder. 
     pub extract: Option<String>,
+
+    /// Size handling configuration for this ROM.  Provided for information
+    /// only.
     pub size_handling: SizeHandling,
+
+    /// Type of ROM.  Provided for information only.
     pub rom_type: RomType,
+
+    /// Size of the ROM in bytes.  Provided for information only.
     pub rom_size: usize,
+
+    /// Optional Chip Select 1 logic - only valid for ROM Types that have CS1.
+    /// Provided for information only.
     pub cs1: Option<CsLogic>,
+
+    /// Optional Chip Select 2 logic - only valid for ROM Types that have CS2.
+    /// Provided for information only.
     pub cs2: Option<CsLogic>,
+
+    /// Optional Chip Select 3 logic - only valid for ROM Types that have CS3.
+    /// Provided for information only.
     pub cs3: Option<CsLogic>,
+
+    /// ROM Set ID that this file belongs to.  Provided for information only.
     pub set_id: usize,
+
+    /// ROM Set type that this file belongs to.  Provided for information only.
     pub set_type: RomSetType,
+
+    /// Optional ROM Set description that this file belongs to.  Provided for
+    /// information only.
     pub set_description: Option<String>,
 }
 
-/// File data loaded by the caller, passed back to the builder
+/// File data loaded by the caller, passed back to the builder.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct FileData {
+    /// File ID as per FileSpec
     pub id: usize,
+
+    /// File data
     pub data: Vec<u8>,
 }
 
-/// Top level configuration structure, deserialized from JSON
+/// Top level configuration structure
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Config {
+    /// Configuration format version.
+    #[cfg_attr(feature = "schemars", schemars(schema_with = "version_schema"))]
     pub version: u32,
+
+    /// Optional name for this configuration.  Is included in the description
+    /// output by the builder.
     pub name: Option<String>,
+
+    /// Mandatory description for this configuration.  This is included in the
+    /// description output by the builder, following the name.
     pub description: String,
+
+    /// Optional detailed description for this configuration.  This is included
+    /// in the description output by the builder, following name and
+    /// description.
     pub detail: Option<String>,
+
+    /// Array of ROM set configurations.  Note that even if not using complex
+    /// features like dynamic banking and multi-ROM sets, each ROM image is in
+    /// its own set.
+    /// The builder description output lists either "Images" or "Sets"
+    /// depending on whether there are any multi-set or banked sets in use.
     pub rom_sets: Vec<RomSetConfig>,
+
+    /// Optional notes for this configuration.  This is included in the
+    /// description output by the builder, following the list of images/sets.
     pub notes: Option<String>,
+
+    /// Optional categories for this configuration, to aid in grouping,
+    /// sorting, and searching of configurations.
     pub categories: Option<Vec<String>>,
 }
 
-/// ROM Set configuration structure, deserialized from JSON
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg(feature = "schemars")]
+fn version_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "const": 1
+    })
+}
+
+/// ROM Set configuration structure
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RomSetConfig {
+    /// Type of ROM set
     #[serde(rename = "type")]
+    #[cfg_attr(feature = "schemars", schemars(default))]
     pub set_type: RomSetType,
+
+    /// Optional description for this ROM set.  This is included in the
+    /// description output by the builder.
     pub description: Option<String>,
+
+    /// Array of ROM configurations in this set.  Contains 1 member for single
+    /// ROM sets, and multiple members for multi-ROM and banked ROM sets.
     pub roms: Vec<RomConfig>,
 }
 
-/// ROM configuration structure, deserialized from JSON
+/// ROM configuration structure
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RomConfig {
+    /// Filename or URL of the ROM image - filename is only valid if using a
+    /// generator tool with local file access.  This is passed to the generator
+    /// tool to retrieve the ROM image.
     pub file: String,
+
+    /// Optional license URL/identifier for the ROM.  This is passed to the
+    /// generator tool to retrieve and ask the user to accept before building.
     pub license: Option<String>,
+
+    /// Optional description for this configuration.  This is included in the
+    /// description output by the builder.
     pub description: Option<String>,
-    pub categories: Option<Vec<String>>,
+
+    /// Type of ROM
     #[serde(rename = "type")]
     pub rom_type: RomType,
+
+    /// Optional Chip Select 1 logic - only valid for ROM Types that have CS1
     pub cs1: Option<CsLogic>,
+
+    /// Optional Chip Select 2 logic - only valid for ROM Types that have CS2
     pub cs2: Option<CsLogic>,
+
+    /// Optional Chip Select 3 logic - only valid for ROM Types that have CS3
     pub cs3: Option<CsLogic>,
+
+    /// Optional size handling configuration for this ROM.  Used to specify
+    /// handling when the image supplied isn't the correct size for this ROM
+    /// type.
     #[serde(default)]
     pub size_handling: SizeHandling,
+
+    /// Optional extract path within an archive (zip/tar) if the file pointed
+    /// to is an archive.
     pub extract: Option<String>,
+
+    /// Optional label for this ROM image.  If specified, this is used in
+    /// metadata instead of the filename (which itself can be complex if
+    /// extracting a file from an image and providing location information)
+    pub label: Option<String>,
+
+    /// Optional location within a larger image file.  Used to specify start
+    /// offset and length within the file.  Useful when multiple ROM images
+    /// are concatenated into a single file and one needs to be extracted.
+    pub location: Option<Location>,
+}
+
+impl RomConfig {
+    // Constructs the filename string for metadata.  Note label will be used
+    // in metadata instead if specified.
+    fn filename(&self) -> String {
+        if let Some(label) = &self.label {
+            // Return label if we have one
+            return label.clone();
+        }
+
+        // Base of filename is "file|extract" or just "file"
+        let filename_base = if let Some(extract) = &self.extract {
+            format!("{}|{}", self.file, extract)
+        } else {
+            self.file.clone()
+        };
+
+        // If location specified, append "|start=0x...,length=0x..."
+        if let Some(location) = &self.location {
+            format!(
+                "{}|start={:#X},length={:#X}",
+                filename_base, location.start, location.length
+            )
+        } else {
+            filename_base
+        }
+    }
 }

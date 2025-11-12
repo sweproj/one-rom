@@ -103,3 +103,18 @@ Tag the version in git:
 git tag -s -a v<x.y.z> -m "Release v<x.y.z>"
 git push origin v<x.y.z>
 ```
+
+## WASM/Site/Images updates
+
+- Update `onerom-wasm` to the new sdrr-fw-parser/sdrr-gen version if required and release.
+  - Make sure to bump the wasm development version releasing
+  - Check release appears in wasm/releases, and new dev version on homepage
+- Update `one-rom-site` to use the new `onerom-wasm` version, test and release
+  - Ensure can read/write firmware correctly using web programmer
+  - Ensure can see new firmware versions for images (comes from `one-rom/releases/releases.json)
+- Update releases in `one-rom-images`
+  - Within `one-rom` `main` branch run ci/build-images.sh x.y.z ../one-rom-images
+  - Paste the new release manifest fragment to `one-rom-images/releases.json` and update `latest`
+  - Ensure images exist under `one-rom-images/releases/x.y.z/`
+  - Commit and push changes to `one-rom-images` repo
+  - Test using Studio

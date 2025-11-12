@@ -69,7 +69,11 @@
       "status": 29
     },
     "usb": {
-      "present": true
+      "present": true,
+      "pins": {
+        "vbus": 28,
+        "port": "0"
+      }
     }
   }
 }

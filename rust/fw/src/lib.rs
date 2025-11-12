@@ -10,13 +10,14 @@ pub use error::Error;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use std::collections::HashMap;
 use std::io::Write;
 
 use onerom_config::fw::FirmwareProperties;
 use onerom_gen::builder::{Builder, FileData};
 use onerom_gen::{FIRMWARE_SIZE, MAX_METADATA_LEN};
 
-use net::fetch_rom_file;
+use net::{fetch_rom_file, fetch_rom_file_async};
 
 pub fn validate_sizes(
     fw_props: &FirmwareProperties,
@@ -147,14 +148,58 @@ pub fn create_firmware(
 pub fn get_rom_files(builder: &mut Builder) -> Result<(), Error> {
     // Get firmware files
     let file_specs = builder.file_specs();
+    let mut cached_files: HashMap<String, Vec<u8>> = HashMap::new();
     for spec in file_specs {
         let source = spec.source;
         let extract = spec.extract;
-        let data = fetch_rom_file(&source, extract)?;
+
+        // See if we hae the file in our cache
+        let cache = if let Some(data) = cached_files.get(&source) {
+            data.as_slice()
+        } else {
+            &[]
+        };
+
+        let (data, cache) = fetch_rom_file(&source, cache, extract, true)?;
 
         builder
             .add_file(FileData { id: spec.id, data })
             .map_err(Error::build)?;
+
+        // Cache the returned file
+        if !cache.is_empty() {
+            cached_files.insert(source, cache);
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn get_rom_files_async(builder: &mut Builder) -> Result<(), Error> {
+    // Get firmware files
+    let file_specs = builder.file_specs();
+    let mut cached_files: HashMap<String, Vec<u8>> = HashMap::new();
+    for spec in file_specs {
+        let source = spec.source;
+        let extract = spec.extract;
+
+        // See if we hae the file in our cache
+        let cache = if let Some(data) = cached_files.get(&source) {
+            data.as_slice()
+        } else {
+            &[]
+        };
+
+        let (data, cache) = fetch_rom_file_async(&source, cache, extract, true).await?;
+
+        builder
+            .add_file(FileData { id: spec.id, data })
+            .map_err(Error::build)?;
+
+        // Cache the returned file
+        if !cache.is_empty() {
+            cached_files.insert(source, cache);
+        }
     }
 
     Ok(())

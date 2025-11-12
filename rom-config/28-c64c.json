@@ -1,4 +1,5 @@
 {
+    "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "C64C",
     "description": "Stock 28-pin ROM images for a C64C",
