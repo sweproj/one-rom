@@ -772,10 +772,15 @@ generate_manifest() {
     get_hw_display() {
         local hw_rev="$1"
         case "$hw_rev" in
-            24-h) echo "H/H2" ;;
+            24-h) echo "Ice H/H2" ;;
             24-g) echo "G" ;;
             24-f) echo "F" ;;
+            ice-24-f) echo "Ice F/F2" ;;
+            ice-24-g) echo "Ice G" ;;
             p24-a) echo "A/A2" ;;
+            ice-24-h) echo "Ice H/H2" ;;
+            fire-24-a) echo "Fire A/A2" ;;
+            fire-24-usb-b) echo "Fire USB B" ;;
             *) echo "$hw_rev" ;;  # Default to hw_rev itself
         esac
     }
@@ -793,7 +798,7 @@ generate_manifest() {
         local hw_rev=$(basename "$hw_rev_dir")
         
         # Read hardware config JSON if it exists
-        local hw_config_file="${PROJECT_ROOT}/hw-config/${hw_rev}.json"
+        local hw_config_file="${PROJECT_ROOT}/rust/config/json/${hw_rev}.json"
         if [[ -f "$hw_config_file" ]]; then
             local description=$(jq -r '.description // ""' "$hw_config_file")
             local usb_support=$(jq -r '.mcu.usb.present // false' "$hw_config_file")
