@@ -11,8 +11,8 @@
       "description": "One ROM STM32F4 24-pin rev G",
       "usb_support": false
     },
-    "24-h": {
-      "display": "H/H2",
+    "ice-24-usb-h": {
+      "display": "Ice H/H2",
       "description": "One ROM STM32F4 24-pin rev H",
       "usb_support": true
     },
@@ -1465,7 +1465,7 @@
       "sha256": "68f9e78ea8e00de8e3be266e00c286853216e5b3c1a3070e9aa98fa98e0ab0a6"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "bank-vic20-char",
@@ -1474,7 +1474,7 @@
       "sha256": "88025888b55703e82c61333f0682f278e063796cb0ea821bbfb6a9e0fd74e5d4"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "set-1541",
@@ -1483,7 +1483,7 @@
       "sha256": "ece96bfd5f3bdc17a4c7a6e70d79a2ccb36746b59ae311e4ab779c45836c4201"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "bank-vic20-char-fun",
@@ -1492,7 +1492,7 @@
       "sha256": "dda40932a7942954324cda6389a96f7f31d0c498bce098d7c0845e6373667f99"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "vic20-pal",
@@ -1501,7 +1501,7 @@
       "sha256": "fc1031b5153af88e48c5d936e69f55e39c291d4fcbbb6f00255ff85ab8c0eb58"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "1541",
@@ -1510,7 +1510,7 @@
       "sha256": "34637d00069fd7b2825fefb9afec72d3b9a322ec8e9c16ce1bbcb144de9f4bde"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "set-c64",
@@ -1519,7 +1519,7 @@
       "sha256": "7dfae12ffcf370e755a7e2fe1f9fb7033baee2a5830eaf0c8fc97d61e2418939"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "test-sdrr-0",
@@ -1528,7 +1528,7 @@
       "sha256": "de258eeb0a84a6b49b799e9b026333004d817ee8abc8129679e6582c7e532f1e"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "2040",
@@ -1537,7 +1537,7 @@
       "sha256": "34f3ddfa0633e15927c819c7072bddce20268cdbed3106c583560f23f6158e3e"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "set-vic20-pal",
@@ -1546,7 +1546,7 @@
       "sha256": "f6071587e7c5c9bd1eb7d9f62066c9df8d711ed49502217c50cc718a73657fc3"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "c64-no-destestmax",
@@ -1555,7 +1555,7 @@
       "sha256": "c973e073edfd393af8bc25027e277f2d66a3fdc667120bb01f301f7c205e908a"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "bank-c64-char",
@@ -1564,7 +1564,7 @@
       "sha256": "33c6699873090790181ccb8ec25305a1a11e65c5a74e0944d66d420d8b4ebc8c"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "ieee-diag",
@@ -1573,7 +1573,7 @@
       "sha256": "313d6d92a37079827da1d08ab0fa8703da9ef32b2bc59b7121b844dd26ffab08"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "vic20-ntsc",
@@ -1582,7 +1582,7 @@
       "sha256": "968c8fe3448bfa9ba18770e632d2d70a0635978d2a9331fb41a97d5594e0bf8f"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "third-party-ti994a",
@@ -1591,7 +1591,7 @@
       "sha256": "7ec45ce7d79f89f59b685b1f2bbd071cb6d1c59d7c773ab7226cd8bb8af02f9e"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "third-party-coco2",
@@ -1600,7 +1600,7 @@
       "sha256": "806d57956919b7cd1e99a72c365f14b5f9c801d161c07825e57f8aa37f791510"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "pet-4-40-50",
@@ -1609,7 +1609,7 @@
       "sha256": "f01053f86583c1acc430a0eebe136eda717c3c9fe711df6102969b7e7d1a1933"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "bank-1541",
@@ -1618,7 +1618,7 @@
       "sha256": "b0285e14c456f4682f8406707b7e05addde98794e68b11bfba2f52045a38f37d"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "bank-c64-char-fun",
@@ -1627,7 +1627,7 @@
       "sha256": "b0b59e8a2451a46cd4a673e2b55aeaba7823b715f204b1cab38249355a461bc1"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f401re",
       "model": "ice",
       "rom_config": "4040",
@@ -1636,7 +1636,7 @@
       "sha256": "e4adac4ea854e0ca48cee65e6ed822da57cbc8afe243fcc1a06e0f98b704eea3"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "bank-vic20-char",
@@ -1645,7 +1645,7 @@
       "sha256": "3e879b9623885450df29be71a4a24b1b085372fda0b340928909da352f537839"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "set-1541",
@@ -1654,7 +1654,7 @@
       "sha256": "85348308453c55c38126f2bca665e79b1a631c38715e989a19a6390f3064a0da"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "bank-vic20-char-fun",
@@ -1663,7 +1663,7 @@
       "sha256": "82bd681396bfdfb0e2f65db9d1edee97043d4c5610f9125bc694c03fd710144d"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "vic20-pal",
@@ -1672,7 +1672,7 @@
       "sha256": "0e9cfed2521d86b02730912820c39651d534b5426ddd6791db3135a3c66a5fb9"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "1541",
@@ -1681,7 +1681,7 @@
       "sha256": "580113c28b9a03d40c4a83844af9026016bbe7a78b003ff64e8dc8ddd66758e9"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "set-c64",
@@ -1690,7 +1690,7 @@
       "sha256": "076c84e185a585dd4d57153f240437b730ae441a19bbb7ac855dfe0a51e9b99d"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "test-sdrr-0",
@@ -1699,7 +1699,7 @@
       "sha256": "58cf711c620763508a4dc4f28532884a448cbe326622c3f893d8252d2bf5adf2"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "2040",
@@ -1708,7 +1708,7 @@
       "sha256": "fe2b5c12679d4d1be2c91f412bba35d85c270a4c00bc74466329691d1a2efb60"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "set-vic20-pal",
@@ -1717,7 +1717,7 @@
       "sha256": "652aa03d3fe6ec1b793249d4a30f64b787ed6c17c8476e29fde44d656c0a07c1"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "c64-no-destestmax",
@@ -1726,7 +1726,7 @@
       "sha256": "f7f635708aede6d1b7bbc8ca5f1151f5f506e9d0c04e413a5c3dba18a06fc84f"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "bank-c64-char",
@@ -1735,7 +1735,7 @@
       "sha256": "85ae1d42e5a74589bc8a8719cd3960732a352e854d3ce5eb31e89f9305755afd"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "ieee-diag",
@@ -1744,7 +1744,7 @@
       "sha256": "a70eded3274881e0f894506ae122482d675d849db63869b532460d873112ae1b"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "vic20-ntsc",
@@ -1753,7 +1753,7 @@
       "sha256": "edb798e39f03299f5354ba6d849957014301d1f50415eb590e39e4e3ea2a4834"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "third-party-ti994a",
@@ -1762,7 +1762,7 @@
       "sha256": "01ee81fdca49966204bcc5bbc94f7cd0f20027816a781b3d5707120f3124ef1d"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "third-party-coco2",
@@ -1771,7 +1771,7 @@
       "sha256": "8c8691dcea63220994b2d46b736396f3d3bafce43a35a0bff3531a0b9f161478"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "pet-4-40-50",
@@ -1780,7 +1780,7 @@
       "sha256": "b1e81037741e3f081a8fe8bdf4b8facee423c5d6a315e0a554e104ea5ce564a1"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "bank-1541",
@@ -1789,7 +1789,7 @@
       "sha256": "c3a61b2ed8c1e0bc428a7ad7957952a942f72c563d1ac224d0712306dd8d835a"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "bank-c64-char-fun",
@@ -1798,7 +1798,7 @@
       "sha256": "022becbf3e105a74404bf91f458be441c6d57bd068d742a5ed802362dc41e063"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f405rg",
       "model": "ice",
       "rom_config": "4040",
@@ -1807,7 +1807,7 @@
       "sha256": "46974dea6bde919ad1ec2f356c94f47c007ce985d14daeb1f5d001e5b69d49d5"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "bank-vic20-char",
@@ -1816,7 +1816,7 @@
       "sha256": "ba7d44294e487f6016edf9b40f98060c61d23e9414008cfc175d8d73addeb528"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "set-1541",
@@ -1825,7 +1825,7 @@
       "sha256": "9f4fe04e741fc4c81fab64b2b661fccf5c47c9e3548150b92e76f7edaf6765a5"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "bank-vic20-char-fun",
@@ -1834,7 +1834,7 @@
       "sha256": "cdf4c4443369d9483d4d66d0116a0e531316b5cf84ef7e6fb7d8b1e66a7c25c7"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "vic20-pal",
@@ -1843,7 +1843,7 @@
       "sha256": "7cdfb3e6c2c129a2bea746bec1dc67a919e716169886d0125a711c577aa83780"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "1541",
@@ -1852,7 +1852,7 @@
       "sha256": "294b91ec66ccef70d69a6df7dbc2dea459354c1c4fd1c0e587fb709051439330"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "set-c64",
@@ -1861,7 +1861,7 @@
       "sha256": "3d39fd6522a549cd3109ffeae0676f7441c74f1d09d2e060375d78a42fb5c875"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "test-sdrr-0",
@@ -1870,7 +1870,7 @@
       "sha256": "c0b392177c1d1644e2751788d1c8fe62ff8b9d377a0765f7b5ecb80eb394b025"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "2040",
@@ -1879,7 +1879,7 @@
       "sha256": "b91ccee5a21e40bd3e6633bc2e68988ee7f2efb8cb0390839850f672eb93e945"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "set-vic20-pal",
@@ -1888,7 +1888,7 @@
       "sha256": "7ddecaa7928fec9cf8c432d671ef62659a29fda4c67350550dcb7922814bf04c"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "c64-no-destestmax",
@@ -1897,7 +1897,7 @@
       "sha256": "6537fb3154b9da371e739d6cc3c264f9ddc4c02488018866405664bfded34ddd"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "bank-c64-char",
@@ -1906,7 +1906,7 @@
       "sha256": "74bc68a7fe4110de386992c4de1a9146526d80501046f460587248f5fef14153"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "ieee-diag",
@@ -1915,7 +1915,7 @@
       "sha256": "04310246a548cea59e205637890eb848f6980583852b03011d11d6533818aa38"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "vic20-ntsc",
@@ -1924,7 +1924,7 @@
       "sha256": "a5ffedfa252ab333ce12a8434ac86d5435ae5d0772b192fbda5eb3a74192c7ff"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "third-party-ti994a",
@@ -1933,7 +1933,7 @@
       "sha256": "e92552308206dc15a4e2bab46cc7e131da231d1167fe9fa997852c1be35e0547"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "third-party-coco2",
@@ -1942,7 +1942,7 @@
       "sha256": "724680031cc7eba62cb7feeede56e76ef8a7c5613c3809d17a9d9c3da2578dab"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "pet-4-40-50",
@@ -1951,7 +1951,7 @@
       "sha256": "e3e7bd0738f41dfd1bcdb85f49ca69201c123df59f3de2d076ef6f0a1d6af447"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "bank-1541",
@@ -1960,7 +1960,7 @@
       "sha256": "5eaa2950fe688c7ff66c83f30d3c5402c3a85adf842c7e3a3d48ed088fe2ac04"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "bank-c64-char-fun",
@@ -1969,7 +1969,7 @@
       "sha256": "5a9b1b4c08f93dc5e13454d183ddc926a872467ae5da5148802bd91fd930ec2b"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f411re",
       "model": "ice",
       "rom_config": "4040",
@@ -1978,7 +1978,7 @@
       "sha256": "9ec80b1c7767190ada2ca9a77226238f5c9d3e76c10346785ab2add72356264c"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "bank-vic20-char",
@@ -1987,7 +1987,7 @@
       "sha256": "98e7bcd65b022ebecbf2c3da20c0c09ffe1040f06b910bbf8088eaf99a16adea"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "set-1541",
@@ -1996,7 +1996,7 @@
       "sha256": "73ff771a314d3c3d7707a7dba3228546906676b9b528cfeaddf21d9884a86b22"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "bank-vic20-char-fun",
@@ -2005,7 +2005,7 @@
       "sha256": "a8d8995a13c57bca42aff8263395320dbc75a8581a88cb58c4eb96160ae20074"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "vic20-pal",
@@ -2014,7 +2014,7 @@
       "sha256": "31101e5e6e898969a07bf1ed374d5660ef36599d9d85ab38b89203f31408661b"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "1541",
@@ -2023,7 +2023,7 @@
       "sha256": "3f907c50ce24c6c688d4dbb2775ea2fe53646dc0a16e51842083881dbe4bbdf7"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "set-c64",
@@ -2032,7 +2032,7 @@
       "sha256": "3c2631215906693b9d04bc5fafb664989627fe4c1a33df009bf41ff98ff972e1"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "test-sdrr-0",
@@ -2041,7 +2041,7 @@
       "sha256": "813c5450f8e41f3e786ea8a33254694fbb5af37c11dccfe943272e57229ccb07"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "2040",
@@ -2050,7 +2050,7 @@
       "sha256": "d0f992d77e3e3fb7a1138c6985fd6860dcb0916e1dc06733d963a623a0b57192"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "set-vic20-pal",
@@ -2059,7 +2059,7 @@
       "sha256": "e28998b77229503129cdf6f7823452970a7dffdf5745608b70fd6e26ff822efe"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "c64-no-destestmax",
@@ -2068,7 +2068,7 @@
       "sha256": "7dd7e0138c9ae81fd39697db587771ad83f02da9442d82ea05db0d8b2c09bf4a"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "bank-c64-char",
@@ -2077,7 +2077,7 @@
       "sha256": "60ec15b1bcef3d2f4dbdebfbc4750a5ac69eef6ad6fecb371783c66a07920528"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "ieee-diag",
@@ -2086,7 +2086,7 @@
       "sha256": "f9b8b40ba7a94a7f26b0d80bc28f568359d755debdba516fa03a71ded908e418"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "vic20-ntsc",
@@ -2095,7 +2095,7 @@
       "sha256": "76c7f285eacad14aa03d63f5a9d348682315240ea90c51d2ca9b8ef180738c9a"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "third-party-ti994a",
@@ -2104,7 +2104,7 @@
       "sha256": "7b14ed55729158df3cf3daca131c9a9728e04d26db8675e44f91155f8365e6de"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "third-party-coco2",
@@ -2113,7 +2113,7 @@
       "sha256": "e71a093ba850246e2ed9aa8f2573547bce371c5968f582c25e500a2338e0a3d1"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "pet-4-40-50",
@@ -2122,7 +2122,7 @@
       "sha256": "b37f2a590210604c694ad279667462baba344bb26dfef2e0fe2037ea6c14860d"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "bank-1541",
@@ -2131,7 +2131,7 @@
       "sha256": "fe51e513636c5921dfd72c8d037cc6835fc7f27f4a923c15e2cf3ac853596389"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "bank-c64-char-fun",
@@ -2140,7 +2140,7 @@
       "sha256": "e614cff287686bf9b9bddea235d04c22fecdf558a66ff06a79fecedd6b684c6f"
     },
     {
-      "hw_rev": "24-h",
+      "hw_rev": "ice-24-usb-h",
       "mcu": "f446re",
       "model": "ice",
       "rom_config": "4040",
