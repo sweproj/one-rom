@@ -128,6 +128,7 @@ void setup_gpio(void) {
         if (pin < MAX_USED_GPIOS) {
             GPIO_PAD(sdrr_info.pins->data[ii]) &= ~PAD_OUTPUT_DISABLE;
             GPIO_PAD(sdrr_info.pins->data[ii]) |= PAD_DRIVE(PAD_DRIVE_8MA) | PAD_SLEW_FAST;
+            GPIO_CTRL(pin) = GPIO_CTRL_FUNC_SIO;
         } else {
             LOG("!!! Data pin %d out of range", pin);
         }
@@ -460,10 +461,15 @@ void setup_status_led(void) {
 }
 
 void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats) {
-    (void)on_time;
-    (void)off_time;
-    (void)repeats;
-    LOG("!!! Blink pattern not supported on RP235X: %d, %d, %d", on_time, off_time, repeats);
+    if (sdrr_info.status_led_enabled && sdrr_info.pins->status_port == PORT_0 && sdrr_info.pins->status <= 29) {
+        uint8_t pin = sdrr_info.pins->status;
+        for(uint8_t i = 0; i < repeats; i++) {
+            status_led_on(pin);
+            delay(on_time);
+            status_led_off(pin);
+            delay(off_time);
+        }   
+    }
 }
 
 // Enters bootloader mode.

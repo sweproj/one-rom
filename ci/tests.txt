@@ -148,3 +148,15 @@ test-3p-coco2-f411re:HW_REV=ice-24-f,MCU=f411re,CONFIG=config/third-party/coco2.
 # Can't do yet - unsuppored by make test
 #ice-28-a-f446rc-c64c:HW_REV=ice-28-a,MCU=f446rc,CONFIG=config/28-c64c.mk
 #ice-28-a-f446rc-c1541ii:HW_REV=ice-28-a,MCU=f446rc,CONFIG=config/28-541ii.mk
+
+# PIO tests
+pio-1:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_DEFAULT",HW_REV=fire-24-a,MCU=rp2350,CONFIG=config/c64-no-destestmax.mk
+pio-2:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_DEFAULT",HW_REV=fire-24-a,MCU=rp2350,CONFIG=config/vic20-pal.mk
+pio-3:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_SLOW_CLOCK_KERNAL",HW_REV=fire-24-a,MCU=rp2350,CONFIG=config/vic20-pal.mk
+pio-4:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_SLOW_CLOCK_CHAR",HW_REV=fire-24-a,MCU=rp2350,CONFIG=config/vic20-pal.mk
+pio-5:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_NO_DMA",HW_REV=fire-24-a,MCU=rp2350,CONFIG=config/vic20-pal.mk
+pio-6:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_DEFAULT",HW_REV=fire-24-usb-b,MCU=rp2350,CONFIG=config/c64-no-destestmax.mk
+pio-7:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_DEFAULT",HW_REV=fire-24-usb-b,MCU=rp2350,CONFIG=config/vic20-pal.mk
+pio-8:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_SLOW_CLOCK_KERNAL",HW_REV=fire-24-usb-b,MCU=rp2350,CONFIG=config/vic20-pal.mk
+pio-9:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_SLOW_CLOCK_CHAR",HW_REV=fire-24-usb-b,MCU=rp2350,CONFIG=config/vic20-pal.mk
+pio-10:EXTRA_C_FLAGS="-DRP_PIO -DPIO_CONFIG_NO_DMA",HW_REV=fire-24-usb-b,MCU=rp2350,CONFIG=config/vic20-pal.mk

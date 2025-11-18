@@ -47,7 +47,7 @@ SRCS := src/constants.c src/main.c src/rom_impl.c src/test.c src/utils.c src/vec
 ifeq ($(findstring stm32f4,$(VARIANT)),stm32f4)
 SRCS += src/stm32f4.c
 else ifeq ($(findstring rp2350,$(VARIANT)),rp2350)
-SRCS += src/rp235x.c
+SRCS += src/rp235x.c src/piorom.c
 else
 # Ignore
 endif
@@ -92,7 +92,7 @@ CFLAGS := $(EXTRA_C_FLAGS) $(COMMON_FLAGS) $(SEGGER_RTT_FLAGS) -Werror -I includ
 LDFLAGS := $(COMMON_FLAGS) -Werror -Llink -L$(OUTPUT_DIR) -nostdlib -specs=nosys.specs -specs=nano.specs -Wl,--no-gc-sections -Wl,--fatal-warnings -Wl,-Map=$(MAP)
 
 # Phony targets
-.PHONY: all clean clean-segger segger size flash run
+.PHONY: all clean clean-segger clean-pico-sdk segger size flash run
 
 # Default target
 all: $(BIN) size
@@ -101,7 +101,23 @@ all: $(BIN) size
 $(BUILD_DIR):
 	mkdir -p $@
 
-# Clone the segger repo
+# Build pioasm
+pio-asm: pico-sdk
+	@echo "- Building pioasm"
+	@cd pico-sdk/tools/pioasm && \
+		mkdir -p build && \
+		cd build && \
+		cmake .. && \
+		make
+	@echo "- pioasm binary is at pico-sdk/tools/pioasm/build/pioasm"
+
+# Clone the pico-sdk repo
+pico-sdk:
+	@if [ ! -d "$@" ]; then \
+		git clone https://github.com/raspberrypi/pico-sdk.git; \
+	fi
+
+# Clone the  repo
 segger-rtt:
 	@if [ ! -d "$@" ]; then \
 		git clone https://github.com/piersfinlayson/segger-rtt.git; \
@@ -156,12 +172,16 @@ size: $(ELF)
 clean-segger-src:
 	rm -rf segger-rtt/
 
+# Clean pico-sdk
+clean-pico-sdk:
+	rm -rf pico-sdk/
+
 # Clean build
 clean-build:
 	rm -fr $(BUILD_DIR)
 
 # Clean
-clean: clean-build clean-segger-src
+clean: clean-build clean-segger-src clean-pico-sdk
 
 # Include dependency files
 -include $(BUILD_DIR)/*.d

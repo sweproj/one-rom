@@ -33,6 +33,7 @@
 // #define RP_USE_CP 1  // Use the coprocessor instructions to set the data
 //                      // lines as inputs/outputs.  Slight less performant
 //                      // than SIO access.
+// #define RP_PIO 1     // Use PIO for GPIO access on the RP2350.
 //
 // sdrr-gen also provides the rom images:
 //

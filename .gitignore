@@ -6,6 +6,7 @@ Packager_temp.toml
 *.map
 build/
 segger-rtt/
+pico-sdk/
 build-test/
 builds/
 test/build

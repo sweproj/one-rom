@@ -169,6 +169,18 @@ pub fn flash_firmware(analyse: &mut Analyse) -> Task<AppMessage> {
     if let Some(device_fw_data) = analyse.file_contents.as_ref()
         && let Some(filename) = analyse.fw_file.as_ref()
     {
+        // Get hardware info from firmware file.
+        let hw_info = if let Some(info) = analyse.fw_info.as_ref() {
+            HardwareInfo {
+                board: info.board,
+                model: info.model,
+                mcu_variant: info.mcu_variant,
+            }
+        } else {
+            HardwareInfo::default()
+        };
+
+
         // Update state
         analyse.state = AnalyseState::Flashing;
         analyse.analysis_content = format!("Flashing {filename:?} to device...");
@@ -177,7 +189,7 @@ pub fn flash_firmware(analyse: &mut Analyse) -> Task<AppMessage> {
         Task::done(
             DeviceMessage::FlashFirmware {
                 client: Client::Analyse,
-                hw_info: HardwareInfo::default(),
+                hw_info,
                 data: device_fw_data.clone(),
             }
             .into(),

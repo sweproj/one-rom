@@ -34,6 +34,7 @@
 #define XOSC_BASE           0x40048000  
 #define PLL_SYS_BASE        0x40050000
 #define PLL_USB_BASE        0x40058000
+#define BUSCTRL_BASE        0x40068000
 #define ADC_BASE            0x400a0000
 #define XIP_CTRL_BASE       0x400c8000
 #define XIP_QMI_BASE        0x400d0000
@@ -75,9 +76,13 @@
 #define RESET_DONE      (*((volatile uint32_t *)(RESETS_BASE + 0x08)))
 
 #define RESET_ADC           (1 << 0)
+#define RESET_DMA           (1 << 2)
 #define RESET_IOBANK0       (1 << 6)
 #define RESET_PADS_BANK0    (1 << 9)
 #define RESET_JTAG          (1 << 8)
+#define RESET_PIO0          (1 << 11)
+#define RESET_PIO1          (1 << 12)
+#define RESET_PIO2          (1 << 13)
 #define RESET_PLL_SYS       (1 << 14)
 #define RESET_PLL_USB       (1 << 15)
 #define RESET_SYSINFO       (1 << 21)
@@ -94,7 +99,18 @@
 #define GPIO_READ(pin)      ((GPIO_STATUS(pin) >> GPIO_STATUS_INFROMPAD_BIT) & 1)
 
 #define GPIO_CTRL_FUNC_SIO      0x05
+#define GPIO_CTRL_FUNC_PIO0     0x06
+#define GPIO_CTRL_FUNC_PIO1     0x07
+#define GPIO_CTRL_FUNC_PIO2     0x08
+#define GPIO_CTRL_FUNC_MASK     0x1F
+#define GPIO_CTRL_INOVER_INVERT (0b01 << 16)
+#define GPIO_CTRL_INOVER_MASK   (0b11 << 16)
+#define GPIO_CTRL_OEOVER_INVERT (0b01 << 14)
+#define GPIO_CTRL_OEOVER_MASK   (0b11 << 14)
+#define GPIO_CTRL_OUTOVER_INVERT  (0b01 << 12)
+#define GPIO_CTRL_OUTOVER_MASK    (0b11 << 12)
 #define GPIO_CTRL_RESET         GPIO_CTRL_FUNC_SIO
+
 
 #define IO_BANK0_INTR0 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x230))
 #define IO_BANK0_INTR1 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x234))
@@ -179,6 +195,12 @@
 #define PLL_USB_FBDIV_INT   (*((volatile uint32_t *)(PLL_USB_BASE + 0x08)))
 #define PLL_USB_PRIM        (*((volatile uint32_t *)(PLL_USB_BASE + 0x0C)))
 
+// BUSCTRL Registers
+#define BUSCTRL_BUS_PRIORITY    (*((volatile uint32_t *)(BUSCTRL_BASE + 0x00)))
+
+// DMA Read and Write Priority Bits
+#define BUSCTRL_BUS_PRIORITY_DMA_R_BIT   (1 << 8)
+#define BUSCTRL_BUS_PRIORITY_DMA_W_BIT   (1 << 12)
 
 // ADC Registers
 #define ADC_CS              (*((volatile uint32_t *)(ADC_BASE + 0x00)))
@@ -257,6 +279,8 @@
 #define SIO_GPIO_OE         (*((volatile uint32_t *)(SIO_BASE + 0x30)))
 #define SIO_GPIO_OE_SET     (*((volatile uint32_t *)(SIO_BASE + 0x38)))
 #define SIO_GPIO_OE_CLR     (*((volatile uint32_t *)(SIO_BASE + 0x40)))
+
+#define SIO_GPIO_READ(pin)  (((*(volatile uint32_t*)(SIO_BASE + 0x004)) >> pin) & 1)
 
 // PPB Registers
 #define NVIC_ISER0          (*((volatile uint32_t *)(PBB_BASE + 0x0E100)))

@@ -112,6 +112,14 @@ extern uint32_t _sdrr_runtime_info_end;   // End of .sdrr_runtime_info section i
 
 // Reset handler
 void Reset_Handler(void) {
+    // Enable hard floating point support:
+    // - Same on STM32F4 M4 and RP235X Cortex-M33
+    // - Enable CP10 and CP11 (FP extension) in the Cortex-M33
+    SCB_CPACR |= (0xF << 20); // Enable CP10 and CP11 full access
+    __asm volatile ("dsb");
+    __asm volatile ("isb");
+
+    // Check if we need to enter STM32 DFU (bootloader) mode
 #ifdef STM32F4
     if (sdrr_runtime_info.bootloader_entry == ENTER_BOOTLOADER_MAGIC) {
         // Clear the magic value to avoid re-entering bootloader on next reset

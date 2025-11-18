@@ -21,9 +21,11 @@
 #define SYSCFG_BASE     0x40013800
 #define PWR_BASE        0x40007000
 #define RTC_BASE        0x40002800
+#define SCB_BASE        0xE000ED00
 
 // SCB registers
-#define SCB_AIRCR       (*((volatile uint32_t *)0xE000ED0C))
+#define SCB_AIRCR       (*((volatile uint32_t *)(SCB_BASE + 0x0C)))
+#define SCB_CPACR       (*((volatile uint32_t *)(SCB_BASE + 0x88)))
 
 // NVIC registers
 #define NVIC_ISER0      (*((volatile uint32_t*)0xE000E100))
