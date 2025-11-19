@@ -323,7 +323,7 @@ DISABLE_PRELOAD_TO_RAM ?= 0
 # Another algorithm can be chosen for the single image/set case.  It has no
 # effect in the mutli image set case.
 #
-# default = a
+# default = b
 # a = check CS twice as often as address lines
 # b = check CS and address as frequently as each other
 
