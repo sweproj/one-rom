@@ -6,6 +6,7 @@
 
 - Panic (crash) when analyzing a Fire with a debug probe.  Moved to fork of probe-rs with fix for panic.
 - Allow multi-rom sets to be built
+- Statically link with vcruntime
 
 ## v0.1.2 - 2025-11-09
 
