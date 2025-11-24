@@ -97,10 +97,9 @@ void log_init(void) {
                     break;
             }
 
-            LOG("  ROM #%d: %s, %s, CS1: %s, CS2: %s, CS3: %s",
+            LOG("  ROM #%d: %s, %s",
                 jj, rom->filename,
-                rom_type_str,
-                cs_values[rom->cs1_state], cs_values[rom->cs2_state], cs_values[rom->cs3_state]);
+                rom_type_str);
         }
     }
 

@@ -774,8 +774,8 @@ void* preload_rom_image(const sdrr_rom_set_t *set) {
     }
     LOG("ROM %s preloaded to RAM 0x%08X size %d bytes", filename, (uint32_t)img_dst, img_size);
 #endif // BOOT_LOGGING
-    LOG("Set ROM count: %d, Serving algorithm: %d, multi-ROM CS1 state: %s",
-        set->rom_count, set->serve, cs_values[set->multi_rom_cs1_state]);
+    LOG("Set ROM count: %d, Serving algorithm: %d",
+        set->rom_count, set->serve);
 
     return (void *)img_dst;
 }
