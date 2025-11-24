@@ -20,12 +20,6 @@ fn main() {
     if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
         compile_windows_resources();
     }
-
-    // Force static linking of C runtime on Windows MSVC targets
-    #[cfg(all(windows, target_env = "msvc"))]
-    {
-        println!("cargo:rustc-link-arg=/DEFAULTLIB:libcmt");
-    }
 }
 
 fn compile_windows_resources() {
