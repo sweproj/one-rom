@@ -20,6 +20,9 @@ fn main() {
     if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "windows" {
         compile_windows_resources();
     }
+
+    #[cfg(all(windows, target_env = "msvc"))]
+    static_vcruntime::metabuild();
 }
 
 fn compile_windows_resources() {

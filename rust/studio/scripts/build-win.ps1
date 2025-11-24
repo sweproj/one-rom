@@ -69,7 +69,6 @@ if (-not $NoClean) {
 #
 
 # Build One ROM Studio
-
 Write-Host "Building for target: $Target"
 cargo build --bin onerom-studio --release --target $Target | Out-Host
 if ($LASTEXITCODE -ne 0) {
