@@ -1,6 +1,12 @@
 # Changelog
 
-## v0.1.3 - 2025-??-??
+## v0.1.4 - ????-??-??
+
+### Fixed
+
+- Set Windows PE file and product versions to match Cargo version.
+
+## v0.1.3 - 2025-11-24
 
 ### Fixed
 
