@@ -750,8 +750,11 @@ static void piorom_setup_dma(
     // DMA Channel 1 - Reads ROM data from memory and sends to PIO0 SM2.
     // Also paced by PIO0 SM1 RX FIF DREQ, so runs in lock-step with channel
     // 0.
+    // Pre-load the READ_ADDR register with the first byte of the ROM table.
+    // This byte will never actually get served, as the data lines will be
+    // inputs, but it's more valid than setting to 0.
     dma_reg = DMA_CH_REG(1);
-    dma_reg->read_addr = 0; // To be set by DMA Channel 0
+    dma_reg->read_addr = config->rom_table_addr;
     dma_reg->write_addr = (uint32_t)&PIO0_SM_TXF(sm_data_byte);
     uint32_t ctrl_trig = 
         DMA_CTRL_TRIG_EN |
