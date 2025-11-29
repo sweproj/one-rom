@@ -17,12 +17,15 @@ use log::{debug, error, info, trace, warn};
 use embassy_executor::Spawner;
 use embassy_executor::main as embassy_main;
 use embassy_stm32::gpio::Flex;
-use embassy_stm32::rcc::{
-    AHBPrescaler, APBPrescaler, Pll, PllMul, PllPDiv, PllPreDiv, PllQDiv, PllSource, Sysclk, clocks,
-};
+use embassy_stm32::rcc::clocks;
+
 #[cfg(feature = "repeat")]
 use embassy_time::Timer;
+
 use embedded_alloc::LlffHeap as Heap;
+#[cfg(feature = "usb")]
+use panic_probe as _;
+#[cfg(not(feature = "usb"))]
 use panic_rtt_target as _;
 
 #[cfg(feature = "control")]
@@ -30,8 +33,11 @@ mod control;
 mod error;
 mod info;
 mod logs;
+mod rcc;
 mod rom;
 mod types;
+#[cfg(feature = "usb")]
+mod usb;
 
 pub use error::Error;
 pub use rom::{Id as RomId, Rom};
@@ -40,6 +46,12 @@ use info::{LAB_RAM_INFO, PKG_VERSION};
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
+
+#[cortex_m_rt::pre_init]
+unsafe fn pre_init() {
+    usb::check_bootloader_flag();
+    info::copy_lab_ram_info();
+}
 
 #[embassy_main]
 async fn main(_spawner: Spawner) {
@@ -51,31 +63,38 @@ async fn main(_spawner: Spawner) {
         unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
     }
 
-    logs::init();
+    // Set up clock config
+    let mut config = embassy_stm32::Config::default();
+    #[cfg(feature = "usb")]
+    rcc::configure_hse_usb(&mut config);
+    #[cfg(not(feature = "usb"))]
+    rcc::configure_hsi(&mut config);
+
+    // Get peripherals
+    let p = embassy_stm32::init(config);
+
+    // Configure clocks
+    let clocks = clocks(&p.RCC);
+
+    // Init USB/logging
+    #[cfg(feature = "usb")]
+    {
+        let usb_device = usb::Usb::new(
+            p.USB_OTG_FS,
+            p.PA12,
+            p.PA11,
+        );
+        usb::run(_spawner, usb_device);
+        usb::init_logger();
+    }
+    #[cfg(not(feature = "usb"))]
+    logs::init_rtt();
+
     info!("-----");
     info!("One ROM Lab v{}", PKG_VERSION);
     info!("Copyright (c) 2025 Piers Finlayson");
 
-    // Set up the clocks - assume we are running on an F405RG with max clock
-    // of 168MHz
-    let mut config = embassy_stm32::Config::default();
-    config.rcc.hsi = true;
-    config.rcc.pll_src = PllSource::HSI;
-    config.rcc.pll = Some(Pll {
-        prediv: PllPreDiv::DIV16,
-        mul: PllMul::MUL336,
-        divp: Some(PllPDiv::DIV2),
-        divq: Some(PllQDiv::DIV7),
-        divr: None,
-    });
-    config.rcc.sys = Sysclk::PLL1_P;
-    config.rcc.ahb_pre = AHBPrescaler::DIV1; // 168MHz
-    config.rcc.apb1_pre = APBPrescaler::DIV4; // 42MHz (max for APB1)
-    config.rcc.apb2_pre = APBPrescaler::DIV2; // 84MHz (max for APB2)
-
-    let p = embassy_stm32::init(config);
-
-    let clocks = clocks(&p.RCC);
+    // Log clocks
     info!("-----");
     match clocks.sys.to_hertz() {
         Some(hz) => debug!("SYSCLK: {hz}"),
@@ -129,7 +148,39 @@ async fn main(_spawner: Spawner) {
     }
     rom.init();
 
-    #[cfg(not(feature = "control"))]
+    #[cfg(feature = "control")]
+    {
+        let mut control = control::Control::new(rom);
+        control.run().await;
+    }
+
+    #[cfg(feature = "qa")]
+    {
+        info!("QA mode");
+        info!("Press `d` to enter DFU mode");
+        loop {
+            match rom.read_rom().await {
+                Some(_) => info!("ROM read successfully"),
+                None => info!("Failed to read ROM"),
+            }
+            match embassy_time::with_timeout(
+                embassy_time::Duration::from_secs(5),
+                usb::recv_key(),
+            ).await {
+                Ok(key) => {
+                    if key == b'd' {
+                        info!("Entering DFU mode...");
+                        usb::enter_dfu_mode().await;
+                    }
+                }
+                Err(_) => {
+                    info!("Reading ROM...");
+                }
+            }
+        }
+    }
+
+    #[cfg(not(any(feature = "control", feature = "qa")))]
     {
         loop {
             match rom.read_rom().await {
@@ -148,12 +199,6 @@ async fn main(_spawner: Spawner) {
                 Timer::after_secs(5).await;
             }
         }
-    }
-
-    #[cfg(feature = "control")]
-    {
-        let mut control = control::Control::new(rom);
-        control.run().await;
     }
 }
 

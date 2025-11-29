@@ -28,10 +28,11 @@ fn main() {
         cfg!(feature = "oneshot"),
         cfg!(feature = "control"),
         cfg!(feature = "repeat"),
+        cfg!(feature = "qa"),
     ];
     let count = features.iter().filter(|&&f| f).count();
     if count != 1 {
-        panic!("Exactly one of 'oneshot', 'control', or 'timer' features must be enabled");
+        panic!("Exactly one of 'oneshot', 'control', 'repeat', or 'qa' features must be enabled");
     }
 
     // Set the cargo runner

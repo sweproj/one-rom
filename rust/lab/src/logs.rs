@@ -75,7 +75,9 @@ pub fn dump_buf(buf: &[u8]) {
     }
 }
 
-pub fn init() {
+// Not called when USB is enabled, but required to bring in _SEGGER_RTT
+#[allow(dead_code)]
+pub fn init_rtt() {
     rtt_target::rtt_init_log!(
         log::LevelFilter::Debug,
         rtt_target::ChannelMode::NoBlockSkip,

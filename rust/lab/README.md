@@ -19,12 +19,13 @@ One ROM Lab currently only support STM32F4 based One ROMs - a RP2350 is viable, 
 
 ## Modes
 
-There are three modes of operation:
+There are a number of modes of operation:
 - **Control** - **default** - is controlled via an external device using SWD.  When paired with `Airfrog` this allows the user to manually trigger ROM Reads using Airfrog's web UI.
 - **One-shot** - reads a ROM image once at startup and then stops.  This is useful for automated testing, or for use in environments where SWD is not available.  In this mode, ROM information is output via RTT.
 - **Continuous** - continuously reads a ROM image in a loop, with a brief pause between reads.
+- **QA** - similar to continuous, used to .
 
-These three modes are mutually exclusive, and are selected at [build](#building) time using Cargo features.
+These modes are mutually exclusive, and are selected at [build](#building) time using Cargo features.
 
 ## Building
 
@@ -42,10 +43,12 @@ Modes:
 - `control` - **default** - controlled via SWD (e.g. Airfrog UI)
 - `oneshot` - reads a ROM image once at startup and then stops
 - `repeat` - continuously reads an attached ROM image in a loop
+- `qa` - similar to repeat, designed for QA testing One ROMs
 
 Example build commands:
 
 ```bash
+cargo build --release --no-default-features --features f411re,qa,usb
 cargo build --release --no-default-features --features f405rg,control
 cargo build --release --no-default-features --features f411re,oneshot
 cargo build --release --no-default-features --features f446re,repeat
