@@ -1028,6 +1028,17 @@ void piorom(
             "str  r1, [r3]\n"       // Write byte to SM2 TX (1 cycle)
             "b    1b\n"             // Loop (1 cycle)
 
+            /*
+            // 5 cycle version, eliminating read address stall with branch
+            "ldr  r0, [r2]\n"
+            "1:\n"
+            "ldrb r1, [r0]\n"
+            "str  r5, [r4]\n"
+            "str  r1, [r3]\n"
+            "ldr  r0, [r2]\n"
+            "b    1b\n"
+            */
+
             // Pathological 5 cycle version, requires no IRQ detection in SM1.
             // Shaves char ROM ser ing down to 50MHz.
             //"1:\n"
