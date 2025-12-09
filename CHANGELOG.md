@@ -2,7 +2,13 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.5.6 - 2025-??-??
+## v0.5.6 - 2025-12-?09
+
+### Added
+
+- Support for 2716/2732 ROMs (2716 tested).
+- PIO support for 2316/2716/2732 ROMs (untested)
+- Studio 0.1.4
 
 ### Fixed
 

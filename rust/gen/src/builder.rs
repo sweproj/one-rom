@@ -242,25 +242,103 @@ impl Builder {
                     });
                 }
 
-                // Check that at least one CS line is active (not all ignore)
                 let cs1_active = rom.cs1.is_some() && rom.cs1.unwrap() != CsLogic::Ignore;
                 let cs2_active = rom.cs2.is_some() && rom.cs2.unwrap() != CsLogic::Ignore;
                 let cs3_active = rom.cs3.is_some() && rom.cs3.unwrap() != CsLogic::Ignore;
-
-                if !cs1_active && !cs2_active && !cs3_active {
-                    return Err(Error::InvalidConfig {
-                        error: format!(
-                            "ROM type {} must have at least one active CS line (not all ignore)",
-                            rom.rom_type.name()
-                        ),
-                    });
-                }
 
                 // Check that CS1 cannot be ignore if other CS lines are active
                 if !cs1_active && (cs2_active || cs3_active) {
                     return Err(Error::InvalidConfig {
                         error: format!("CS1 cannot be ignore when CS2 or CS3 are active"),
                     });
+                }
+
+                // Check that CS2 is not ignore if CS3 is active
+                if !cs2_active && cs3_active {
+                    return Err(Error::InvalidConfig {
+                        error: format!("CS2 cannot be ignore when CS3 is active"),
+                    });
+                }
+
+                // Check that the correct CS lines are specified for the ROM
+                // type
+                let required_cs_lines: BTreeSet<&str> = rom
+                    .rom_type
+                    .control_lines()
+                    .iter()
+                    .filter(|line| line.name != "ce" && line.name != "oe")
+                    .map(|line| line.name)
+                    .collect();
+
+                let specified_cs_lines: BTreeSet<&str> = {
+                    let mut lines = BTreeSet::new();
+                    if rom.cs1.is_some() {
+                        lines.insert("cs1");
+                    }
+                    if rom.cs2.is_some() {
+                        lines.insert("cs2");
+                    }
+                    if rom.cs3.is_some() {
+                        lines.insert("cs3");
+                    }
+                    lines
+                };
+
+                if required_cs_lines != specified_cs_lines {
+                    return Err(Error::InvalidConfig {
+                        error: format!(
+                            "ROM type {} requires CS lines {:?}, but specified CS lines are {:?}",
+                            rom.rom_type.name(),
+                            required_cs_lines,
+                            specified_cs_lines
+                        ),
+                    });
+                }
+
+                // Check no extra CS lines specified
+                for line in &["cs1", "cs2", "cs3"] {
+                    if !required_cs_lines.contains(line) && specified_cs_lines.contains(line) {
+                        return Err(Error::InvalidConfig {
+                            error: format!(
+                                "ROM type {} does not use {}, but it is specified",
+                                rom.rom_type.name(),
+                                line
+                            ),
+                        });
+                    }
+                }
+
+                if set.roms.len() == 1 {
+                    // Check none are ignore
+                    for line in &["cs1", "cs2", "cs3"] {
+                        let cs = match *line {
+                            "cs1" => &rom.cs1,
+                            "cs2" => &rom.cs2,
+                            "cs3" => &rom.cs3,
+                            _ => unreachable!(),
+                        };
+                        if let Some(cs_logic) = cs {
+                            if *cs_logic == CsLogic::Ignore {
+                                return Err(Error::InvalidConfig {
+                                    error: format!(
+                                        "{} cannot be ignore for single-ROM sets (ROM {})",
+                                        line.to_uppercase(),
+                                        rom_num
+                                    ),
+                                });
+                            }
+                        }
+                    }
+                } else {
+                    // For multi ROM sets, not all CS lines can be ignore
+                    if !cs1_active {
+                        return Err(Error::InvalidConfig {
+                            error: format!(
+                                "CS1 cannot be ignore for multi-ROM sets (ROM {})",
+                                rom_num
+                            ),
+                        });
+                    }
                 }
 
                 // Validate location if present

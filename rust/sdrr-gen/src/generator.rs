@@ -682,8 +682,13 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
     writeln!(file, "    .reserved2c = {{255}},")?;
     writeln!(file, "    .x1 = {},", board.pin_x1())?;
     writeln!(file, "    .x2 = {},", board.pin_x2())?;
-    writeln!(file, "    .ce = {},", board.pin_ce(RomType::Rom23128))?;
-    writeln!(file, "    .oe = {},", board.pin_oe(RomType::Rom23128))?;
+    let (ce, oe) = if board.rom_pins() == 24 {
+        (board.pin_ce(RomType::Rom2764), board.pin_oe(RomType::Rom2764))
+    } else {
+        (board.pin_ce(RomType::Rom23128), board.pin_oe(RomType::Rom23128))
+    };
+    writeln!(file, "    .ce = {ce},")?;
+    writeln!(file, "    .oe = {oe},")?;
     writeln!(file, "    .x_jumper_pull = {},", board.x_jumper_pull())?;
     writeln!(file, "    .reserved3 = {{0, 0, 0, 0, 0}},")?;
     writeln!(

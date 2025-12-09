@@ -1,6 +1,10 @@
 # Changelog
 
-## v0.1.4 - ????-??-??
+## v0.1.4 - 2025-12-09
+
+### Added
+
+- Support for local files to onerom-fw and onerom-studio.
 
 ### Fixed
 

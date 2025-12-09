@@ -85,6 +85,18 @@ Update links to and `onerom-gen` in others to use the crates.io versions.
 
 ---
 
+Publish `onerom-fw` to crates.io:
+
+```bash
+cd rust
+cargo publish --dry-run -p onerom-fw
+cargo publish -p onerom-fw
+```
+
+Update links to and `onerom-fw` in others to use the crates.io versions.
+
+---
+
 Publish the new version of `sdrr-fw-parser` to crates.io:
 
 ```bash

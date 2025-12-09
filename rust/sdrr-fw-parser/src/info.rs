@@ -161,32 +161,46 @@ impl SdrrInfo {
         let rom_type = self.rom_sets[0].roms[0].rom_type;
         let addr_mask = match rom_type {
             SdrrRomType::Rom2364 => {
-                assert!(pins.cs1_2364 < 16, "CS1 pin for 2364 must be less than 16");
-                pin_to_addr_map[pins.cs1_2364 as usize] = Some(13);
+                assert!(pins.cs1 < 16, "CS1 pin for 2364 must be less than 16");
+                pin_to_addr_map[pins.cs1 as usize] = Some(13);
                 0x1FFF // 13-bit address
             }
             SdrrRomType::Rom2332 => {
-                assert!(pins.cs1_2332 < 16, "CS1 pin for 2332 must be less than 16");
-                assert!(pins.cs2_2332 < 16, "CS2 pin for 2332 must be less than 16");
-                pin_to_addr_map[pins.cs1_2332 as usize] = Some(13);
-                pin_to_addr_map[pins.cs2_2332 as usize] = Some(12);
+                assert!(pins.cs1 < 16, "CS1 pin for 2332 must be less than 16");
+                assert!(pins.cs2 < 16, "CS2 pin for 2332 must be less than 16");
+                pin_to_addr_map[pins.cs1 as usize] = Some(13);
+                pin_to_addr_map[pins.cs2 as usize] = Some(12);
                 0x0FFF // 12-bit address
             }
             SdrrRomType::Rom2316 => {
-                assert!(pins.cs1_2316 < 16, "CS1 pin for 2316 must be less than 16");
-                assert!(pins.cs2_2316 < 16, "CS2 pin for 2316 must be less than 16");
-                assert!(pins.cs3_2316 < 16, "CS3 pin for 2316 must be less than 16");
-                pin_to_addr_map[pins.cs1_2316 as usize] = Some(13);
-                pin_to_addr_map[pins.cs2_2316 as usize] = Some(11);
-                pin_to_addr_map[pins.cs3_2316 as usize] = Some(12);
+                assert!(pins.cs1 < 16, "CS1 pin for 2316 must be less than 16");
+                assert!(pins.cs2 < 16, "CS2 pin for 2316 must be less than 16");
+                assert!(pins.cs3 < 16, "CS3 pin for 2316 must be less than 16");
+                pin_to_addr_map[pins.cs1 as usize] = Some(13);
+                pin_to_addr_map[pins.cs2 as usize] = Some(11);
+                pin_to_addr_map[pins.cs3 as usize] = Some(12);
                 0x07FF // 11-bit address
             }
             SdrrRomType::Rom23128 => {
-                assert!(pins.ce_23128 < 16, "CE pin for 23128 must be less than 16");
-                assert!(pins.oe_23128 < 16, "OE pin for 23128 must be less than 16");
-                pin_to_addr_map[pins.ce_23128 as usize] = Some(15);
-                pin_to_addr_map[pins.oe_23128 as usize] = Some(14);
+                assert!(pins.ce < 16, "CE pin for 23128 must be less than 16");
+                assert!(pins.oe < 16, "OE pin for 23128 must be less than 16");
+                pin_to_addr_map[pins.ce as usize] = Some(15);
+                pin_to_addr_map[pins.oe as usize] = Some(14);
                 0x3FFF // 14-bit address
+            }
+            SdrrRomType::Rom2716 => {
+                assert!(pins.oe < 16, "OE pin for 2716 must be less than 16");
+                assert!(pins.ce < 16, "CE pin for 2716 must be less than 16");
+                pin_to_addr_map[pins.oe as usize] = Some(13);
+                pin_to_addr_map[pins.ce as usize] = Some(11);
+                0x07FF // 11-bit address
+            }
+            SdrrRomType::Rom2732 => {
+                assert!(pins.oe < 16, "OE pin for 2732 must be less than 16");
+                assert!(pins.ce < 16, "CE pin for 2732 must be less than 16");
+                pin_to_addr_map[pins.oe as usize] = Some(13);
+                pin_to_addr_map[pins.ce as usize] = Some(11);
+                0x0FFF // 12-bit address
             }
             _ => {
                 return Err(format!(
@@ -243,6 +257,16 @@ impl SdrrInfo {
                 if let Some(cs2) = cs2 {
                     if cs2 {
                         input_addr |= 1 << 13;
+                    }
+                }
+            }
+            SdrrRomType::Rom2716 | SdrrRomType::Rom2732 => {
+                if cs1 {
+                    input_addr |= 1 << 13;
+                }
+                if let Some(cs2) = cs2 {
+                    if cs2 {
+                        input_addr |= 1 << 12;
                     }
                 }
             }
@@ -442,16 +466,16 @@ pub struct SdrrPins {
     #[deku(count = "16")]
     pub addr: Vec<u8>,
     #[deku(pad_bytes_before = "4")]
-    pub cs1_2364: u8,
-    pub cs1_2332: u8,
-    pub cs1_2316: u8,
-    pub cs2_2332: u8,
-    pub cs2_2316: u8,
-    pub cs3_2316: u8,
+    pub cs1: u8,
+    pub cs2: u8,
+    pub cs3: u8,
+    pub reserved2a: u8,
+    pub reserved2b: u8,
+    pub reserved2c: u8,
     pub x1: u8,
     pub x2: u8,
-    pub ce_23128: u8,
-    pub oe_23128: u8,
+    pub ce: u8,
+    pub oe: u8,
     pub x_jumper_pull: u8,
     #[deku(pad_bytes_before = "5")]
     pub sel0: u8,

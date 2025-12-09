@@ -75,23 +75,30 @@ pub fn fetch_rom_file(url: &str, file: &[u8], extract: Option<String>, cache_ret
     Ok((file, cache))
 }
 
-/// Retrieves a ROM file from a URL, extracting it from a zip file if needed
+/// Retrieves a ROM file from a URL, or locally, extracting it from a zip file if needed
 /// Function will skip using the filename if `file` data if provided (used for caching zip files)
 /// If cache_return is true, the function will return the full file data as well as any extracted data
 /// 
 /// Returns:
 /// - `Ok(Vec<u8>, Vec<u8>)` - The extracted file data and full file data if cache_return
-pub async fn fetch_rom_file_async(url: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
+pub async fn fetch_rom_file_async(file_to_retrieve: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
     let bytes = if file.is_empty() {
         // Get the file itself
-        debug!("Fetching ROM file from {}", url);
-        let response = reqwest::get(url).await.map_err(Error::network)?;
-        if !response.status().is_success() {
-            return Err(Error::Http { status: response.status().as_u16() });
+        debug!("Fetching ROM file from {}", file_to_retrieve);
+
+        if file_to_retrieve.starts_with("http://") || file_to_retrieve.starts_with("https://") {
+            let response = reqwest::get(file_to_retrieve).await.map_err(Error::network)?;
+            if !response.status().is_success() {
+                return Err(Error::Http { status: response.status().as_u16() });
+            }
+            response.bytes().await.map_err(Error::network)?
+        } else {
+            // Local file
+            let data = std::fs::read(file_to_retrieve).map_err(Error::read)?;
+            bytes::Bytes::from(data)
         }
-        response.bytes().await.map_err(Error::network)?
     } else {
-        debug!("Using cached ROM file for {}", url);
+        debug!("Using cached ROM file for {}", file_to_retrieve);
         bytes::Bytes::from(file.to_vec())
     };
 

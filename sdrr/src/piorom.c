@@ -824,30 +824,76 @@ static void piorom_finish_config(
             config->num_cs_pins = 2;
             break;
 
+        case ROM_TYPE_2316:
+            config->num_cs_pins = 3;
+            break;
+
+        case ROM_TYPE_2716:
+        case ROM_TYPE_2732:
+            config->num_cs_pins = 2;
+            break;
+
         default:
-            LOG("!!! PIO ROM serving only supports 2364 and 2332 ROM types");
+            LOG("!!! PIO ROM serving only supports 2364/2332/2316/2732/2716 ROM types");
             limp_mode(LIMP_MODE_INVALID_CONFIG);
             config->num_cs_pins = 1;
             break;
     }
 
-    // Figure out base CS pin from SDRR info
-    if (config->num_cs_pins == 1) {
-        config->cs_base_pin = info->pins->cs1;
-    } else {
-        if (info->pins->cs1 < info->pins->cs2) {
-            if (info->pins->cs2 > (info->pins->cs1 + 1)) {
-                LOG("!!! CS pins for 2332 ROM must be contiguous");
+    switch (rom->rom_type) {
+        case ROM_TYPE_2316:
+        case ROM_TYPE_2332:
+        case ROM_TYPE_2364:
+            // Figure out base CS pin from SDRR info
+            if (config->num_cs_pins == 1) {
+                config->cs_base_pin = info->pins->cs1;
+            } else {
+                if (info->pins->cs1 < info->pins->cs2) {
+                    if (info->pins->cs2 > (info->pins->cs1 + 1)) {
+                        LOG("!!! CS pins for 2332 ROM must be contiguous");
+                        limp_mode(LIMP_MODE_INVALID_CONFIG);
+                    }
+                    config->cs_base_pin = info->pins->cs1;
+                } else {
+                    if (info->pins->cs1 > (info->pins->cs2 + 1)) {
+                        LOG("!!! CS pins for 2332 ROM must be contiguous");
+                        limp_mode(LIMP_MODE_INVALID_CONFIG);
+                    }
+                    config->cs_base_pin = info->pins->cs2;
+                }
+
+                if (config->num_cs_pins == 3) {
+                    if (info->pins->cs3 == (config->cs_base_pin - 1)) {
+                        config->cs_base_pin = info->pins->cs3;
+                    } else if (info->pins->cs3 == (config->cs_base_pin + 2)) {
+                        // cs_base_pin is already correct
+                    } else {
+                        LOG("!!! CS pins for 2316 ROM must be contiguous");
+                        limp_mode(LIMP_MODE_INVALID_CONFIG);
+                    }
+                }
+            }
+            break;
+
+        case ROM_TYPE_2716:
+        case ROM_TYPE_2732:
+            // Use OE/CE instead of CS pins
+            config->cs_base_pin = info->pins->oe;
+            if (info->pins->ce == (config->cs_base_pin + 1)) {
+                // OK
+            } else if (info->pins->ce == (config->cs_base_pin - 1)) {
+                config->cs_base_pin = info->pins->ce;
+            } else {
+                LOG("!!! CE and OE pins for 2716/2732 ROM must be contiguous");
                 limp_mode(LIMP_MODE_INVALID_CONFIG);
             }
-            config->cs_base_pin = info->pins->cs1;
-        } else {
-            if (info->pins->cs1 > (info->pins->cs2 + 1)) {
-                LOG("!!! CS pins for 2332 ROM must be contiguous");
-                limp_mode(LIMP_MODE_INVALID_CONFIG);
-            }
-            config->cs_base_pin = info->pins->cs2;
-        }
+            break;
+
+        default:
+            LOG("!!! PIO ROM serving only supports 2364/2332/2316/2732/2716 ROM types");
+            limp_mode(LIMP_MODE_INVALID_CONFIG);
+            config->num_cs_pins = 1;
+            break;
     }
 
     // Find any CS lines which need to be inverted.  Make sure to make CS

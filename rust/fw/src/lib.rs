@@ -183,7 +183,7 @@ pub async fn get_rom_files_async(builder: &mut Builder) -> Result<(), Error> {
         let source = spec.source;
         let extract = spec.extract;
 
-        // See if we hae the file in our cache
+        // See if we have the file in our cache
         let cache = if let Some(data) = cached_files.get(&source) {
             data.as_slice()
         } else {

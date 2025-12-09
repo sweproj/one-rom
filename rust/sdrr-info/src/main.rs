@@ -119,7 +119,7 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("  {}", error);
         }
         eprintln!();
-    } else {
+    } else if args.output_binary.unwrap_or(false) == false {
         println!("Firmware parsed successfully");
     }
 
@@ -316,29 +316,20 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
             }
             println!();
             println!("Chip select pins:");
-            if pins.cs1_2364 != 0xFF {
-                println!("  2364 CS1: P{}:{}", pins.cs_port, pins.cs1_2364);
+            if pins.cs1 != 0xFF {
+                println!("  CS1: P{}:{}", pins.cs_port, pins.cs1);
             }
-            if pins.cs1_2332 != 0xFF {
-                println!("  2332 CS1: P{}:{}", pins.cs_port, pins.cs1_2332);
+            if pins.cs2 != 0xFF {
+                println!("  CS2: P{}:{}", pins.cs_port, pins.cs2);
             }
-            if pins.cs2_2332 != 0xFF {
-                println!("  2332 CS2: P{}:{}", pins.cs_port, pins.cs2_2332);
+            if pins.cs3 != 0xFF {
+                println!("  CS3: P{}:{}", pins.cs_port, pins.cs3);
             }
-            if pins.cs1_2316 != 0xFF {
-                println!("  2316 CS1: P{}:{}", pins.cs_port, pins.cs1_2316);
+            if pins.ce != 0xFF {
+                println!("  CE: P{}:{}", pins.cs_port, pins.ce);
             }
-            if pins.cs2_2316 != 0xFF {
-                println!("  2316 CS2: P{}:{}", pins.cs_port, pins.cs2_2316);
-            }
-            if pins.cs3_2316 != 0xFF {
-                println!("  2316 CS3: P{}:{}", pins.cs_port, pins.cs3_2316);
-            }
-            if pins.ce_23128 != 0xFF {
-                println!("  23128 CE: P{}:{}", pins.cs_port, pins.ce_23128);
-            }
-            if pins.oe_23128 != 0xFF {
-                println!("  23128 OE: P{}:{}", pins.cs_port, pins.oe_23128);
+            if pins.oe != 0xFF {
+                println!("  OE: P{}:{}", pins.cs_port, pins.oe);
             }
             if pins.x1 != 0xFF {
                 println!("  Multi X1: P{}:{}", pins.cs_port, pins.x1);
