@@ -2,7 +2,13 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.5.6 - 2025-12-?09
+## v0.5.7 - 2025-12-09
+
+### Fixed
+
+- Erroneous CE/OE pin numbers for 2716/2732 ROMs.
+
+## v0.5.6 - 2025-12-09
 
 ### Added
 

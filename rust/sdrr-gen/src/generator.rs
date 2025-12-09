@@ -683,7 +683,8 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
     writeln!(file, "    .x1 = {},", board.pin_x1())?;
     writeln!(file, "    .x2 = {},", board.pin_x2())?;
     let (ce, oe) = if board.rom_pins() == 24 {
-        (board.pin_ce(RomType::Rom2764), board.pin_oe(RomType::Rom2764))
+        // Both 2716 and 2732 share the same CE/OE pins
+        (board.pin_ce(RomType::Rom2716), board.pin_oe(RomType::Rom2716))
     } else {
         (board.pin_ce(RomType::Rom23128), board.pin_oe(RomType::Rom23128))
     };
