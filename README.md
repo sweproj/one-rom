@@ -12,6 +12,10 @@ Replaces failed ROMs in Commodore 64s, VIC-20s, PETs, disk drives and another br
 
 One ROM was formerly known as Software Defined Retro ROM (SDRR).
 
+## Quick Start
+
+See https://onerom.org/start/
+
 ## Key Features
 
 💰 Based on sub-$2 microcontrollers.  **[Choose from Raspberry Pi (Fire 🔥) or STM (Ice ❄️) flavours](docs/MCU-SELECTION.md)**.
@@ -52,56 +56,11 @@ The video below provides an introduction to One ROM:
 
 ## Hardware
 
-This is the RP2350 24-pin version, hardware revison A.  See [sdrr-pcb](sdrr-pcb/README.md) for the hardware designs and documentation.
+This is the Fire 24-pin version, hardware revison A.  See [sdrr-pcb](sdrr-pcb/README.md) for the hardware designs and documentation.
 
 <div style="display: flex; justify-content: center; gap: 20px;">
   <img src="docs/images/one-rom-24-pin-rp2350-rev-a-side.png" alt="One ROM RP2350 24 pin rev A side on" width="400">
 </div>
-
-## Quick Start
-
-See [Getting Started](docs/GETTING-STARTED.md) for detailed instructions on getting started with One ROM.
-
-You have two options
-
-- [use the pre-built binaries](#pre-built-binaries)
-- [build the firmware yourself.](#build-yourself)
-
-### Pre-built Binaries
-
-Use [Airfrog](https://piers.rocks/u/airfrog) or your favourite STM32 programmer to flash the pre-built binaries from the project's [releases](https://github.com/piersfinlayson/software-defined-retro-rom/releases/) page.  Scroll down to the "Assets" section of the latest release, and download the `bin-*.zip` or `elf-*.zip` file for your STM32 variant.  These zip files contain pre-built binaries for the various One ROM image collections, including the C64, VIC-20, PET, and 1541 disk drive.
-
-### Build Yourself
-
-Once you have the project cloned, and the required [dependencies](INSTALL.md) installed, you can build and flash an One ROM image using the following commands - replace `f411re` with your [target MCU variant](docs/MCU-SELECTION.md), and [`config/c64.mk`](/config/c64.mk) with the [configuration](config/README.md#available-configurations) you want to use.
-
-```bash
-# C64 using RP2350
-HW_REV=p24-a MCU=rp2350 CONFIG=config/c64.mk make run
-```
-
-```bash
-# C64 using F411RE
-MCU=f411re CONFIG=config/c64.mk make run
-```
-
-```bash
-# VIC-20 (PAL) using F411RE
-MCU=f411re CONFIG=config/vic20-pal.mk make run
-```
-
-```bash
-# PET 40 column 50Hz using F411RE
-MCU=f411re CONFIG=config/pet-4-40-50.mk make run
-```
-
-This will download the desired ROM images automatically, generate the required firmware, and flash it to One ROM.
-
-### After Flashing
-
-Set the [One ROM jumpers](docs/IMAGE-SELECTION.md) to select the desired ROM image (see the [config file](/config/), or logs from your One ROM device, for which # corresponds to which image) and you're now ready to install the One ROM device in your retro system.
-
-For configuration options, see [Configuration](docs/CONFIGURATION.md) and the [Makefile](Makefile).
 
 ## Documentation
 
