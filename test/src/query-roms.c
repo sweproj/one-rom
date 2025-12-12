@@ -17,34 +17,63 @@ static struct {
 
 void create_address_mangler(json_config_t* config) {
     // Assert CS1 is same for all ROM types
-    assert(config->mcu.pins.cs1.pin_2364 == config->mcu.pins.cs1.pin_2332);
-    assert(config->mcu.pins.cs1.pin_2332 == config->mcu.pins.cs1.pin_2316);
-    assert(config->mcu.pins.cs1.pin_2364 != 255);
+    if (config->rom.pin_count == 24 ) {
+        assert(config->mcu.pins.cs1.pin_2364 == config->mcu.pins.cs1.pin_2332);
+        assert(config->mcu.pins.cs1.pin_2332 == config->mcu.pins.cs1.pin_2316);
+        assert(config->mcu.pins.cs1.pin_2364 != 255);
+    }
     
     memcpy(address_mangler.addr_pins, config->mcu.pins.addr, sizeof(address_mangler.addr_pins));
-    address_mangler.cs1_pin = config->mcu.pins.cs1.pin_2364;
+    if (config->rom.pin_count == 24 ) {
+        address_mangler.cs1_pin = config->mcu.pins.cs1.pin_2364;
+    } else {
+        address_mangler.cs1_pin = config->mcu.pins.cs1.pin_23128;
+        if (address_mangler.cs1_pin == 255) {
+            address_mangler.cs1_pin = config->mcu.pins.ce.pin_27128;
+        }
+    }
     address_mangler.x1_pin = config->mcu.pins.x1;
     address_mangler.x2_pin = config->mcu.pins.x2;
     address_mangler.initialized = 1;
 
-    if ((config->mcu.ports.data_port == config->mcu.ports.addr_port) && (config->mcu.pins.data[0] < 8)) {
-        // If data and address ports are the same, and data lines are 0-7, then
-        // address lines must be 8-23.  Subtract 8 off them so thare are 0-15.
+    if (config->rom.pin_count == 24) {
+        if ((config->mcu.ports.data_port == config->mcu.ports.addr_port) && (config->mcu.pins.data[0] < 8)) {
+            // If data and address ports are the same, and data lines are 0-7, then
+            // address lines must be 8-23.  Subtract 8 off them so thare are 0-15.
+            for (int ii = 0; ii < MAX_ADDR_LINES; ii++) {
+                if (address_mangler.addr_pins[ii] != 255) {
+                    address_mangler.addr_pins[ii] -= 8;
+                }
+            }
+
+            // And the CS and X lines too
+            if (address_mangler.cs1_pin != 255) {
+                address_mangler.cs1_pin -= 8;
+            }
+            if (address_mangler.x1_pin != 255) {
+                address_mangler.x1_pin -= 8;
+            }
+            if (address_mangler.x2_pin != 255) {
+                address_mangler.x2_pin -= 8;
+            }
+        }
+    } else {
+        // CS pins are not part of address space for 28 pin ROMs, but we do
+        // need to left shift address pins
+        
+        // Find the minimum address pin
+        uint8_t min_addr_pin = 255;
         for (int ii = 0; ii < MAX_ADDR_LINES; ii++) {
-            if (address_mangler.addr_pins[ii] != 255) {
-                address_mangler.addr_pins[ii] -= 8;
+            if (address_mangler.addr_pins[ii] < min_addr_pin) {
+                min_addr_pin = address_mangler.addr_pins[ii];
             }
         }
 
-        // And the CS and X lines too
-        if (address_mangler.cs1_pin != 255) {
-            address_mangler.cs1_pin -= 8;
-        }
-        if (address_mangler.x1_pin != 255) {
-            address_mangler.x1_pin -= 8;
-        }
-        if (address_mangler.x2_pin != 255) {
-            address_mangler.x2_pin -= 8;
+        // Now subtract it off all address pins
+        for (int ii = 0; ii < MAX_ADDR_LINES; ii++) {
+            if (address_mangler.addr_pins[ii] != 255) {
+                address_mangler.addr_pins[ii] -= min_addr_pin;
+            }
         }
     }
 }
@@ -72,18 +101,21 @@ uint8_t lookup_rom_byte(uint8_t set, uint16_t mangled_addr) {  // Removed unused
     return rom_set[set].data[mangled_addr];
 }
 
-uint16_t create_mangled_address(uint16_t logical_addr, int cs1, int x1, int x2) {
+uint16_t create_mangled_address(size_t rom_pins, uint16_t logical_addr, int cs1, int x1, int x2) {
     assert(address_mangler.initialized);
-    assert(address_mangler.cs1_pin <= 15);
-    assert(address_mangler.x1_pin <= 15);
-    assert(address_mangler.x2_pin <= 15);
     
     uint16_t mangled = 0;
     
-    // Set CS selection bits (active low)
-    if (cs1) mangled |= (1 << address_mangler.cs1_pin);
-    if (x1)  mangled |= (1 << address_mangler.x1_pin);  
-    if (x2)  mangled |= (1 << address_mangler.x2_pin);
+    if (rom_pins == 24) {
+        assert(address_mangler.cs1_pin <= 15);
+        assert(address_mangler.x1_pin <= 15);
+        assert(address_mangler.x2_pin <= 15);
+
+        // Set CS selection bits (active low)
+        if (cs1) mangled |= (1 << address_mangler.cs1_pin);
+        if (x1)  mangled |= (1 << address_mangler.x1_pin);  
+        if (x2)  mangled |= (1 << address_mangler.x2_pin);
+    }
     
     // Map logical address bits to configured GPIO positions
     for (int i = 0; i < MAX_ADDR_LINES; i++) {
@@ -117,6 +149,15 @@ const char* rom_type_to_string(int rom_type) {
         case ROM_TYPE_2316: return "2316";
         case ROM_TYPE_2332: return "2332";  
         case ROM_TYPE_2364: return "2364";
+        case ROM_TYPE_23128: return "23128";
+        case ROM_TYPE_23256: return "23256";
+        case ROM_TYPE_23512: return "23512";
+        case ROM_TYPE_2716: return "2716";
+        case ROM_TYPE_2732: return "2732";
+        case ROM_TYPE_2764: return "2764";
+        case ROM_TYPE_27128: return "27128";
+        case ROM_TYPE_27256: return "27256";
+        case ROM_TYPE_27512: return "27512";
         default: return "unknown";
     }
 }
@@ -134,11 +175,38 @@ const char* cs_state_to_string(int cs_state) {
 // Get expected ROM size for type
 size_t get_expected_rom_size(int rom_type) {
     switch (rom_type) {
-        case 0: return 2048;  // 2316 = 2KB
-        case 1: return 4096;  // 2332 = 4KB
-        case 2: return 8192;  // 2364 = 8KB
+        case ROM_TYPE_2316: return 2048;
+        case ROM_TYPE_2332: return 4096;
+        case ROM_TYPE_2364: return 8192;
+        case ROM_TYPE_23128: return 16384;
+        case ROM_TYPE_23256: return 32768;
+        case ROM_TYPE_23512: return 65536;
+        case ROM_TYPE_2716: return 2048;
+        case ROM_TYPE_2732: return 4096;
+        case ROM_TYPE_2764: return 8192;
+        case ROM_TYPE_27128: return 16384;
+        case ROM_TYPE_27256: return 32768;
+        case ROM_TYPE_27512: return 65536;
         default: return 0;
     }
+}
+
+int rom_type_from_string(const char* type_str) {
+    if (strcmp(type_str, "2316") == 0) return ROM_TYPE_2316;
+    else if (strcmp(type_str, "2332") == 0) return ROM_TYPE_2332;
+    else if (strcmp(type_str, "2364") == 0) return ROM_TYPE_2364;
+    else if (strcmp(type_str, "23128") == 0) return ROM_TYPE_23128;
+    else if (strcmp(type_str, "23256") == 0) return ROM_TYPE_23256;
+    else if (strcmp(type_str, "23512") == 0) return ROM_TYPE_23512;
+    else if (strcmp(type_str, "2704") == 0) return ROM_TYPE_2704;
+    else if (strcmp(type_str, "2708") == 0) return ROM_TYPE_2708;
+    else if (strcmp(type_str, "2716") == 0) return ROM_TYPE_2716;
+    else if (strcmp(type_str, "2732") == 0) return ROM_TYPE_2732;
+    else if (strcmp(type_str, "2764") == 0) return ROM_TYPE_2764;
+    else if (strcmp(type_str, "27128") == 0) return ROM_TYPE_27128;
+    else if (strcmp(type_str, "27256") == 0) return ROM_TYPE_27256;
+    else if (strcmp(type_str, "27512") == 0) return ROM_TYPE_27512;
+    else return -1; // Unknown type
 }
 
 void print_compiled_rom_info(void) {

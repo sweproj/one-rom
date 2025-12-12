@@ -46,6 +46,7 @@
         "sel": [0, 1, 2],
         "sel_jumper_pull": 1,
         "status": 255
-    }
+    },
+    "serve_mode": "cpu"
   }
 }

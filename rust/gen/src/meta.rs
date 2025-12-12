@@ -146,6 +146,7 @@ impl Metadata {
         }
 
         let mut offset = 0;
+        let rom_pins = self.board.rom_pins();
 
         // Write the header
         offset += self.write_header(&mut buf[offset..])?;
@@ -193,7 +194,7 @@ impl Metadata {
         for (ii, set) in self.rom_sets.iter().enumerate() {
             rom_data_ptrs[ii] = rom_data_ptr;
             rtn_rom_data_ptrs[ii] = rtn_rom_data_ptr;
-            let rom_data_size = set.image_size(&self.board.mcu_family());
+            let rom_data_size = set.image_size(&self.board.mcu_family(), rom_pins);
             rom_data_ptr += rom_data_size as u32;
             rtn_rom_data_ptr += rom_data_size as u32;
         }
@@ -238,6 +239,7 @@ impl Metadata {
                 rom_data_ptrs[ii],
                 actual_rom_array_ptrs[ii],
                 &self.board.mcu_family(),
+                rom_pins,
             )?;
         }
 
@@ -353,7 +355,7 @@ impl Metadata {
     pub fn rom_images_size(&self) -> usize {
         self.rom_sets
             .iter()
-            .map(|set| set.image_size(&self.board.mcu_family()))
+            .map(|set| set.image_size(&self.board.mcu_family(), self.board.rom_pins()))
             .sum()
     }
 
@@ -370,7 +372,7 @@ impl Metadata {
 
         let mut offset = 0;
         for rom_set in &self.rom_sets {
-            let size = rom_set.image_size(&self.board.mcu_family());
+            let size = rom_set.image_size(&self.board.mcu_family(), self.board.rom_pins());
 
             // Fill buffer by calling get_byte for each address
             for addr in 0..size {

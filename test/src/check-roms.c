@@ -18,6 +18,8 @@ int validate_all_rom_sets(json_config_t *json_config, loaded_rom_t *loaded_roms,
     int total_checked = 0;
 
     int overall_rom_idx = 0;
+
+    size_t rom_pins = json_config->rom.pin_count;
     
     // Validate each ROM set
     for (int set_idx = 0; set_idx < sdrr_rom_set_count; set_idx++) {
@@ -29,51 +31,73 @@ int validate_all_rom_sets(json_config_t *json_config, loaded_rom_t *loaded_roms,
         uint8_t num_roms = rom_set[set_idx].rom_count;
         sdrr_serve_t serve = rom_set[set_idx].serve;
 
-        // Single ROM sets for STM32F4 are handled in the if - as a 16KB image.
-        // Both multi-ROM and bank switched sets, and single ROM sets for
-        // RP2350, are handled in the else.
-        if ((num_roms == 1) && (strcmp(json_config->mcu.family, "rp2350"))) {
+        if (num_roms == 1) {
             int loaded_rom_idx = overall_rom_idx;
             printf("- Single ROM set\n");
             printf("  - Testing ROM %d in set %d\n", 0, set_idx);
             printf("    - Type: %s, Name: %s\n", configs[overall_rom_idx].type, configs[loaded_rom_idx].filename);
 
-            // Single ROM: test both CS=0 and CS=1 against expected value.
-            // 2332/2316 ROMs are tested by virtue of their extra CS line(s)
-            // being tested as an address line.
-            for (uint16_t logical_addr = 0; logical_addr < 8192; logical_addr++) {
-                // Get expected value first
-                uint16_t original_addr = logical_addr % loaded_roms[loaded_rom_idx].size;
-                uint8_t expected_byte = loaded_roms[loaded_rom_idx].data[original_addr];
-                
-                // Test CS=0
-                uint16_t mangled_addr_cs0 = create_mangled_address(logical_addr, 0, 0, 0);
-                uint8_t compiled_byte_cs0 = lookup_rom_byte(set_idx, mangled_addr_cs0);
-                uint8_t demangled_byte_cs0 = demangle_byte(compiled_byte_cs0);
-                
-                if (demangled_byte_cs0 != expected_byte) {
-                    if (errors < 5) {
-                        printf("    - CS=0 MISMATCH at logical 0x%04X: expected 0x%02X, got 0x%02X\n", 
-                            logical_addr, expected_byte, demangled_byte_cs0);
+            if (rom_pins == 24) {
+                // Single ROM: test both CS=0 and CS=1 against expected value.
+                // 2332/2316 ROMs are tested by virtue of their extra CS line(s)
+                // being tested as an address line.
+                for (uint16_t logical_addr = 0; logical_addr < 8192; logical_addr++) {
+                    // Get expected value first
+                    uint16_t original_addr = logical_addr % loaded_roms[loaded_rom_idx].size;
+                    uint8_t expected_byte = loaded_roms[loaded_rom_idx].data[original_addr];
+                    
+                    // Test CS=0
+                    uint16_t mangled_addr_cs0 = create_mangled_address(rom_pins, logical_addr, 0, 0, 0);
+                    uint8_t compiled_byte_cs0 = lookup_rom_byte(set_idx, mangled_addr_cs0);
+                    uint8_t demangled_byte_cs0 = demangle_byte(compiled_byte_cs0);
+                    
+                    if (demangled_byte_cs0 != expected_byte) {
+                        if (errors < 5) {
+                            printf("    - CS=0 MISMATCH at logical 0x%04X: expected 0x%02X, got 0x%02X\n", 
+                                logical_addr, expected_byte, demangled_byte_cs0);
+                        }
+                        errors++;
                     }
-                    errors++;
-                }
-                
-                // Test CS=1
-                uint16_t mangled_addr_cs1 = create_mangled_address(logical_addr, 1, 0, 0);
-                uint8_t compiled_byte_cs1 = lookup_rom_byte(set_idx, mangled_addr_cs1);
-                uint8_t demangled_byte_cs1 = demangle_byte(compiled_byte_cs1);
-                
-                if (demangled_byte_cs1 != expected_byte) {
-                    if (errors < 5) {
-                        printf("    - CS=1 MISMATCH at logical 0x%04X: expected 0x%02X, got 0x%02X\n", 
-                            logical_addr, expected_byte, demangled_byte_cs1);
+                    
+                    // Test CS=1
+                    uint16_t mangled_addr_cs1 = create_mangled_address(rom_pins, logical_addr, 1, 0, 0);
+                    uint8_t compiled_byte_cs1 = lookup_rom_byte(set_idx, mangled_addr_cs1);
+                    uint8_t demangled_byte_cs1 = demangle_byte(compiled_byte_cs1);
+                    
+                    if (demangled_byte_cs1 != expected_byte) {
+                        if (errors < 5) {
+                            printf("    - CS=1 MISMATCH at logical 0x%04X: expected 0x%02X, got 0x%02X\n", 
+                                logical_addr, expected_byte, demangled_byte_cs1);
+                        }
+                        errors++;
                     }
-                    errors++;
+                    
+                    checked += 2;
                 }
-                
-                checked += 2;
+            } else {
+                // 28 pin ROMs - CS lines are not in the address space, so
+                // only test appropriate address length
+                size_t max_addr = get_expected_rom_size(configs[overall_rom_idx].type_int);
+                for (uint32_t logical_addr = 0; logical_addr < max_addr; logical_addr++) {
+                    // Get expected value first
+                    uint16_t original_addr = logical_addr % loaded_roms[loaded_rom_idx].size;
+                    uint8_t expected_byte = loaded_roms[loaded_rom_idx].data[original_addr];
+
+                    uint16_t mangled_addr = create_mangled_address(rom_pins, logical_addr, 0, 0, 0);
+                    uint8_t compiled_byte = lookup_rom_byte(set_idx, mangled_addr);
+                    uint8_t demangled_byte = demangle_byte(compiled_byte);
+
+                    if (demangled_byte != expected_byte) {
+                        if (errors < 5) {
+                            printf("    - MISMATCH at logical 0x%04X: expected 0x%02X, got 0x%02X\n", 
+                                logical_addr, expected_byte, demangled_byte);
+                        }
+                        errors++;
+                    }
+                    checked++;
+                }
             }
+
             overall_rom_idx++;
         } else {
             if (serve == SERVE_ADDR_ON_ANY_CS) {
@@ -153,7 +177,7 @@ int validate_all_rom_sets(json_config_t *json_config, loaded_rom_t *loaded_roms,
                 // Test all addresses for this combination
                 int combo_errors = 0;
                 for (uint16_t logical_addr = 0; logical_addr < 8192; logical_addr++) {
-                    uint16_t mangled_addr = create_mangled_address(logical_addr, cs1, x1, x2);
+                    uint16_t mangled_addr = create_mangled_address(rom_pins, logical_addr, cs1, x1, x2);
                     uint8_t compiled_byte = lookup_rom_byte(set_idx, mangled_addr);
                     uint8_t demangled_byte = demangle_byte(compiled_byte);
                     

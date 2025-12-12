@@ -274,8 +274,13 @@ fn generate_roms_implementation_file(
                 )?,
                 McuFamily::Stm32f4 => writeln!(
                     file,
-                    "#define ROM_SET_{}_DATA_SIZE  ROM_IMAGE_SIZE_STM32F4",
-                    ii
+                    "#define ROM_SET_{}_DATA_SIZE  {}",
+                    ii,
+                    if config.board.rom_pins() == 28 {
+                        "ROM_IMAGE_SIZE_STM32F4_28PIN"
+                    } else {
+                        "ROM_IMAGE_SIZE_STM32F4"
+                    }
                 )?,
             }
         } else {
@@ -339,7 +344,13 @@ fn generate_roms_implementation_file(
         // Determine image size based on number of ROMs in the set
         let image_size = if rom_set.roms.len() == 1 {
             match config.board.mcu_family() {
-                McuFamily::Stm32f4 => 16384,
+                McuFamily::Stm32f4 => {
+                    if config.board.rom_pins() == 28 {
+                        65536
+                    } else {
+                        16384
+                    }
+                }
                 McuFamily::Rp2350 => 65536,
             }
         } else {
@@ -461,6 +472,17 @@ fn generate_sdrr_config_header(filename: &Path, config: &Config) -> Result<()> {
         writeln!(file, "#define CCM_RAM_BASE 0x10000000")?;
         writeln!(file, "#define CCM_RAM_SIZE {}", ccm_ram_kb * 1024)?;
         writeln!(file, "#define CCM_RAM_SIZE_KB {}", ccm_ram_kb)?;
+    }
+
+    if config.board.mcu_pio() {
+        if config.mcu_variant.family() != McuFamily::Rp2350 {
+            return Err(anyhow::anyhow!(
+                "PIO is only supported on RP2350 family MCUs"
+            ));
+        }
+        writeln!(file)?;
+        writeln!(file, "// MCU PIO support")?;
+        writeln!(file, "#define RP_PIO 1")?;
     }
 
     writeln!(file)?;
@@ -673,21 +695,34 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
         .join(", ");
     writeln!(file, "    .addr = {{ {} }},", addr_pins_str)?;
 
+    let (cs1, cs2, cs3, ce, oe) = if board.rom_pins() == 24 {
+        // Both 2716 and 2732 share the same CE/OE pins
+        (
+            board.pin_cs1(RomType::Rom2364),
+            board.pin_cs2(RomType::Rom2332),
+            board.pin_cs2(RomType::Rom2316), // This is correctly 2316's CS2
+            board.pin_ce(RomType::Rom2716),
+            board.pin_oe(RomType::Rom2716),
+        )
+    } else {
+        (
+            board.pin_cs1(RomType::Rom23128),
+            board.pin_cs2(RomType::Rom23128),
+            board.pin_cs3(RomType::Rom23128),
+            board.pin_ce(RomType::Rom27128),
+            board.pin_oe(RomType::Rom27128),
+        )
+    };
+
     writeln!(file, "    .reserved2 = {{0, 0, 0, 0}},")?;
-    writeln!(file, "    .cs1 = {},", board.pin_cs1(RomType::Rom2364))?;
-    writeln!(file, "    .cs2 = {},", board.pin_cs2(RomType::Rom2332))?;
-    writeln!(file, "    .cs3 = {},", board.pin_cs2(RomType::Rom2316))?; // This is correctly 2316's CS2
+    writeln!(file, "    .cs1 = {},", cs1)?;
+    writeln!(file, "    .cs2 = {},", cs2)?;
+    writeln!(file, "    .cs3 = {},", cs3)?;
     writeln!(file, "    .reserved2a = {{255}},")?;
     writeln!(file, "    .reserved2b = {{255}},")?;
     writeln!(file, "    .reserved2c = {{255}},")?;
     writeln!(file, "    .x1 = {},", board.pin_x1())?;
     writeln!(file, "    .x2 = {},", board.pin_x2())?;
-    let (ce, oe) = if board.rom_pins() == 24 {
-        // Both 2716 and 2732 share the same CE/OE pins
-        (board.pin_ce(RomType::Rom2716), board.pin_oe(RomType::Rom2716))
-    } else {
-        (board.pin_ce(RomType::Rom23128), board.pin_oe(RomType::Rom23128))
-    };
     writeln!(file, "    .ce = {ce},")?;
     writeln!(file, "    .oe = {oe},")?;
     writeln!(file, "    .x_jumper_pull = {},", board.x_jumper_pull())?;

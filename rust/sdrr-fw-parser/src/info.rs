@@ -130,6 +130,10 @@ impl SdrrInfo {
             .pins
             .as_ref()
             .ok_or("Pin configuration not available")?;
+        
+        // Remap the pins to start from 0, so they can be used as bit indeces
+        let mut pins = pins.clone();
+        pins.base_zero();
 
         if self.rom_sets.is_empty() {
             return Err("No ROM sets available".into());
@@ -160,6 +164,12 @@ impl SdrrInfo {
 
         let rom_type = self.rom_sets[0].roms[0].rom_type;
         let addr_mask = match rom_type {
+            SdrrRomType::Rom2704 | SdrrRomType::Rom2708 => {
+                return Err(format!(
+                    "ROM type {} not supported for address mangling",
+                    rom_type
+                ));
+            }
             SdrrRomType::Rom2364 => {
                 assert!(pins.cs1 < 16, "CS1 pin for 2364 must be less than 16");
                 pin_to_addr_map[pins.cs1 as usize] = Some(13);
@@ -181,13 +191,6 @@ impl SdrrInfo {
                 pin_to_addr_map[pins.cs3 as usize] = Some(12);
                 0x07FF // 11-bit address
             }
-            SdrrRomType::Rom23128 => {
-                assert!(pins.ce < 16, "CE pin for 23128 must be less than 16");
-                assert!(pins.oe < 16, "OE pin for 23128 must be less than 16");
-                pin_to_addr_map[pins.ce as usize] = Some(15);
-                pin_to_addr_map[pins.oe as usize] = Some(14);
-                0x3FFF // 14-bit address
-            }
             SdrrRomType::Rom2716 => {
                 assert!(pins.oe < 16, "OE pin for 2716 must be less than 16");
                 assert!(pins.ce < 16, "CE pin for 2716 must be less than 16");
@@ -202,77 +205,72 @@ impl SdrrInfo {
                 pin_to_addr_map[pins.ce as usize] = Some(11);
                 0x0FFF // 12-bit address
             }
-            _ => {
-                return Err(format!(
-                    "Unsupported ROM type {} for address mangling",
-                    rom_type
-                ));
-            }
+            // For 28 pin ROMs, CS is not part of the address space, so CS not
+            // dealt with here.
+            SdrrRomType::Rom2764 => 0x1FFF,
+            SdrrRomType::Rom23128 | SdrrRomType::Rom27128 => 0x3FFF,
+            SdrrRomType::Rom23256 | SdrrRomType::Rom27256 => 0x7FFF,
+            SdrrRomType::Rom23512 | SdrrRomType::Rom27512 => 0xFFFF,
         };
 
         let overflow = addr & !addr_mask;
-        if overflow != 0 {
+        if addr > addr_mask {
             return Err(format!(
                 "Requested Address 0x{:08X} overflows the address space for ROM type {}",
                 addr, rom_type
             ));
         }
 
-        let mut input_addr = addr & addr_mask;
-        match rom_type {
-            SdrrRomType::Rom2364 => {
-                if cs1 {
-                    input_addr |= 1 << 13;
-                }
-            }
-            SdrrRomType::Rom2332 => {
-                if cs1 {
-                    input_addr |= 1 << 13;
-                }
-                if let Some(cs2) = cs2 {
-                    if cs2 {
-                        input_addr |= 1 << 12;
-                    }
-                }
-            }
-            SdrrRomType::Rom2316 => {
-                if cs1 {
-                    input_addr |= 1 << 13;
-                }
-                if let Some(cs2) = cs2 {
-                    if cs2 {
-                        input_addr |= 1 << 12;
-                    }
-                }
-                if let Some(cs3) = cs3 {
-                    if cs3 {
-                        input_addr |= 1 << 11;
-                    }
-                }
-            }
-            SdrrRomType::Rom23128 => {
-                if cs1 {
-                    input_addr |= 1 << 14;
-                }
-                if let Some(cs2) = cs2 {
-                    if cs2 {
+        let mut input_addr = addr;
+
+        // For 24 pin ROMs, CS is part of address space
+        if rom_type.rom_pins() == 24 {
+            match rom_type {
+                SdrrRomType::Rom2364 => {
+                    if cs1 {
                         input_addr |= 1 << 13;
                     }
                 }
-            }
-            SdrrRomType::Rom2716 | SdrrRomType::Rom2732 => {
-                if cs1 {
-                    input_addr |= 1 << 13;
-                }
-                if let Some(cs2) = cs2 {
-                    if cs2 {
-                        input_addr |= 1 << 12;
+                SdrrRomType::Rom2332 => {
+                    if cs1 {
+                        input_addr |= 1 << 13;
+                    }
+                    if let Some(cs2) = cs2 {
+                        if cs2 {
+                            input_addr |= 1 << 12;
+                        }
                     }
                 }
-            }
-            _ => unreachable!(),
-        };
+                SdrrRomType::Rom2316 => {
+                    if cs1 {
+                        input_addr |= 1 << 13;
+                    }
+                    if let Some(cs2) = cs2 {
+                        if cs2 {
+                            input_addr |= 1 << 12;
+                        }
+                    }
+                    if let Some(cs3) = cs3 {
+                        if cs3 {
+                            input_addr |= 1 << 11;
+                        }
+                    }
+                }
+                SdrrRomType::Rom2716 | SdrrRomType::Rom2732 => {
+                    if cs1 {
+                        input_addr |= 1 << 13;
+                    }
+                    if let Some(cs2) = cs2 {
+                        if cs2 {
+                            input_addr |= 1 << 12;
+                        }
+                    }
+                }
+                _ => unreachable!(),
+            }            
+        }
 
+        // For multi-ROM setups, X1 and X2 are part of address space
         if num_roms > 1 {
             if let Some(x1) = x1 {
                 if x1 {
@@ -286,6 +284,7 @@ impl SdrrInfo {
             }
         }
 
+        // Now actually do the mangling
         let mut result = 0;
         for (pin, item) in pin_to_addr_map.iter().enumerate() {
             if let Some(addr_bit) = item {
@@ -497,5 +496,70 @@ impl SdrrPins {
         // Cannot assert this against SdrrPins size, as contains Vecs, which
         // increase its size.
         Self::SDRR_PINS_SIZE
+    }
+
+    /// Rebases all address lines and, for 24 pin roms, ce/oe, cs and x lines
+    /// to start from zero.  Modifies in place.
+    pub fn base_zero(&mut self) {
+        let mut min_pin = 255u8;
+        for &pin in self.addr.iter() {
+            if pin < min_pin {
+                min_pin = pin;
+            }
+        }
+
+        if self.rom_pins == 24 {
+            if self.cs1 < min_pin {
+                min_pin = self.cs1;
+            }
+            if self.cs2 < min_pin {
+                min_pin = self.cs2;
+            }
+            if self.cs3 < min_pin {
+                min_pin = self.cs3;
+            }
+            if self.x1 < min_pin {
+                min_pin = self.x1;
+            }
+            if self.x2 < min_pin {
+                min_pin = self.x2;
+            }
+            if self.ce < min_pin {
+                min_pin = self.ce;
+            }
+            if self.oe < min_pin {
+                min_pin = self.oe;
+            }
+        }
+
+        for pin in self.addr.iter_mut() {
+            if *pin != 255 {
+                *pin -= min_pin;
+            }
+        }
+
+        if self.rom_pins == 24 {
+            if self.cs1 != 255 {
+                self.cs1 -= min_pin;
+            }
+            if self.cs2 != 255 {
+                self.cs2 -= min_pin;
+            }
+            if self.cs3 != 255 {
+                self.cs3 -= min_pin;
+            }
+            if self.x1 != 255 {
+                self.x1 -= min_pin;
+            }
+            if self.x2 != 255 {
+                self.x2 -= min_pin;
+            }
+            if self.ce != 255 {
+                self.ce -= min_pin;
+            }
+            if self.oe != 255 {
+                self.oe -= min_pin;
+            }
+        }
     }
 }

@@ -62,21 +62,21 @@ impl McuFamily {
     pub fn max_valid_addr_pin(&self) -> u8 {
         match self {
             McuFamily::Stm32f4 => 13, // 15 - 2 (top two reserved for X1/X2)
-            McuFamily::Rp2350 => 23,
+            McuFamily::Rp2350 => 25,
         }
     }
 
     pub fn max_valid_addr_cs_pin(&self) -> u8 {
         match self {
             McuFamily::Stm32f4 => 15,
-            McuFamily::Rp2350 => 23,
+            McuFamily::Rp2350 => 25,
         }
     }
 
     pub fn max_valid_data_pin(&self) -> u8 {
         match self {
             McuFamily::Stm32f4 => 7,
-            McuFamily::Rp2350 => 23,
+            McuFamily::Rp2350 => 25,
         }
     }
 
@@ -174,6 +174,15 @@ pub struct McuPins {
     pub status: u8,
 }
 
+#[derive(Debug, Deserialize, Clone, Default, PartialEq, Eq)]
+pub enum ServeMode {
+    #[default]
+    #[serde(rename = "cpu")]
+    Cpu,
+    #[serde(rename = "pio")]
+    Pio,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mcu {
     #[serde(deserialize_with = "deserialize_mcu_family")]
@@ -182,6 +191,8 @@ pub struct Mcu {
     pub pins: McuPins,
     #[serde(default)]
     pub usb: Option<McuUsb>,
+    #[serde(default)]
+    pub serve_mode: ServeMode,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -291,7 +302,10 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         let min_addr_pin = *config.mcu.pins.addr.iter().min().unwrap();
         let max_addr_pin = *config.mcu.pins.addr.iter().max().unwrap();
 
-        if min_addr_pin % 8 != 0 {
+        // For CPU mode, address pins must start on 8-byte boundary, as when
+        // ubfx is used, the shift is hard-coded to 8.  In PIO mode (only)
+        // there is no such restriction.
+        if config.mcu.serve_mode == ServeMode::Cpu && min_addr_pin % 8 != 0 {
             panic!(
                 "{}: address pins must start on 8-byte boundary, got min pin {}",
                 name, min_addr_pin
@@ -499,6 +513,20 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
                         name, pin_num, port, pin_types
                     );
                 }
+            }
+        }
+    }
+
+    // Validate serve_mode
+    match config.mcu.serve_mode {
+        ServeMode::Cpu => (),
+        ServeMode::Pio => {
+            // Only supported for RP2350
+            if config.mcu.family != McuFamily::Rp2350 {
+                panic!(
+                    "{}: serve_mode Pio is only supported for RP2350 family",
+                    name
+                );
             }
         }
     }

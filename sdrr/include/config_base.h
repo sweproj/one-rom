@@ -261,6 +261,7 @@ typedef struct {
 
 // Maximum ROM image size (F4 family uses a single size for all ROM types)
 #define ROM_IMAGE_SIZE_STM32F4  16384
+#define ROM_IMAGE_SIZE_STM32F4_28PIN 65536
 #define ROM_IMAGE_SIZE_RP235X   65536
 
 // ROM image size for sets of more than 1 ROM image

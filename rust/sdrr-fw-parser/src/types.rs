@@ -310,6 +310,26 @@ impl SdrrRomType {
         }
     }
 
+    /// How many total physical pins this ROM type has
+    pub fn rom_pins(&self) -> usize {
+        match self {
+            SdrrRomType::Rom2316 => 24,
+            SdrrRomType::Rom2332 => 24,
+            SdrrRomType::Rom2364 => 24,
+            SdrrRomType::Rom23128 => 28,
+            SdrrRomType::Rom23256 => 28,
+            SdrrRomType::Rom23512 => 28,
+            SdrrRomType::Rom2704 => 24,
+            SdrrRomType::Rom2708 => 24,
+            SdrrRomType::Rom2716 => 24,
+            SdrrRomType::Rom2732 => 24,
+            SdrrRomType::Rom2764 => 28,
+            SdrrRomType::Rom27128 => 28,
+            SdrrRomType::Rom27256 => 28,
+            SdrrRomType::Rom27512 => 28,
+        }
+    }
+
     /// Returns the maximum addressable location in the ROM
     pub fn max_addr(&self) -> u32 {
         (self.rom_size() - 1) as u32

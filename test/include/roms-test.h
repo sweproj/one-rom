@@ -29,6 +29,7 @@ typedef struct {
     char *filename;
     char *extract_name;
     char *type;     // "2316", "2332", "2364"
+    int type_int;   // ROM_TYPE_2316, etc.
     int cs1;        // 0 or 1
     int cs2;        // 0, 1, or -1 for not specified
     int cs3;        // 0, 1, or -1 for not specified
@@ -56,10 +57,12 @@ typedef struct {
 // query-roms.c
 extern void create_address_mangler(json_config_t* config);
 extern void create_byte_demangler(json_config_t* config);
-extern uint16_t create_mangled_address(uint16_t logical_addr, int cs1_active, int x1_active, int x2_active);
+extern uint16_t create_mangled_address(size_t rom_pins, uint16_t logical_addr, int cs1_active, int x1_active, int x2_active);
 extern uint8_t lookup_rom_byte(uint8_t set, uint16_t mangled_addr);
 extern uint8_t demangle_byte(uint8_t mangled_byte);
 extern const char* rom_type_to_string(int rom_type);
+extern size_t get_expected_rom_size(int rom_type);
+extern int rom_type_from_string(const char* type_str);
 extern const char* cs_state_to_string(int cs_state);
 extern size_t get_expected_rom_size(int rom_type);
 extern void print_compiled_rom_info(void);

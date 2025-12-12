@@ -8,7 +8,7 @@ use std::path::Path;
 
 mod validation;
 
-use validation::{HwConfigJson, McuFamily, Port};
+use validation::{HwConfigJson, McuFamily, Port, ServeMode};
 
 pub const HW_CONFIG_DIRS: [&str; 1] = ["json"];
 pub const HW_CONFIG_SUB_DIRS: [&str; 2] = ["user", "third-party"];
@@ -176,12 +176,16 @@ fn load_all_configs(config_dirs: &[std::path::PathBuf]) -> Vec<HwConfigData> {
                 // Figure out if the address pins will need to be shifted left by the MCU before using as an index
                 let mut under_8 = false;
                 let mut over_15 = false;
+                let mut min_addr_pin = 255;
                 for &phys_pin in &config.mcu.pins.addr {
                     if phys_pin < 8 {
                         under_8 = true;
                     }
                     if phys_pin > 15 {
                         over_15 = true;
+                    }
+                    if phys_pin < min_addr_pin {
+                        min_addr_pin = phys_pin;
                     }
                 }
                 if under_8 && over_15 {
@@ -190,17 +194,20 @@ fn load_all_configs(config_dirs: &[std::path::PathBuf]) -> Vec<HwConfigData> {
                         normalized
                     );
                 }
-                let shift_left_8 = if over_15 { true } else { false };
 
                 // Compute pin maps
                 let mut phys_pin_to_addr_map = [None; 16];
                 for (addr_line, &phys_pin) in config.mcu.pins.addr.iter().enumerate() {
                     let mut phys_pin = phys_pin as usize;
-                    if shift_left_8 {
-                        assert!(phys_pin >= 8);
-                        phys_pin -= 8;
+                    if config.mcu.serve_mode == ServeMode::Cpu {
+                        if min_addr_pin >= 8 {
+                            assert!(phys_pin >= 8);
+                            phys_pin -= 8;
+                            assert!(phys_pin < 16);
+                        }
+                    } else {
+                        phys_pin -= min_addr_pin as usize;
                     }
-                    assert!(phys_pin < 16);
                     phys_pin_to_addr_map[phys_pin] = Some(addr_line);
                 }
 
@@ -387,6 +394,9 @@ fn generate_hw_config_impl(configs: &[HwConfigData]) -> String {
     code.push_str(&generate_mcu_family_method(configs));
     code.push_str("\n\n");
 
+    code.push_str(&generate_mcu_cpu_pio_methods(configs));
+    code.push_str("\n\n");
+
     code.push_str(&generate_port_methods(configs));
     code.push_str("\n\n");
 
@@ -531,6 +541,38 @@ fn generate_mcu_family_method(configs: &[HwConfigData]) -> String {
 
     code.push_str("        }\n");
     code.push_str("    }");
+    code
+}
+
+fn generate_mcu_cpu_pio_methods(configs: &[HwConfigData]) -> String {
+    let mut code = String::new();
+
+    // CPU method
+    code.push_str("    /// Check if the MCU supports CPU mode\n");
+    code.push_str("    pub const fn mcu_cpu(&self) -> bool {\n");
+    code.push_str("        match self {\n");
+    for config in configs {
+        code.push_str(&format!(
+            "            Board::{} => {},\n",
+            config.variant_name, config.config.mcu.serve_mode == ServeMode::Cpu
+        ));
+    }
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+
+    // PIO method
+    code.push_str("    /// Check if the MCU supports PIO mode\n");
+    code.push_str("    pub const fn mcu_pio(&self) -> bool {\n");
+    code.push_str("        match self {\n");
+    for config in configs {
+        code.push_str(&format!(
+            "            Board::{} => {},\n",
+            config.variant_name, config.config.mcu.serve_mode == ServeMode::Pio
+        ));
+    }
+    code.push_str("        }\n");
+    code.push_str("    }");
+
     code
 }
 

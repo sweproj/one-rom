@@ -628,14 +628,21 @@ impl RomSet {
     }
 
     /// Returns the size of the data required for this ROM set, in bytes.
-    pub fn image_size(&self, family: &McuFamily) -> usize {
+    pub fn image_size(&self, family: &McuFamily, rom_pins: u8) -> usize {
         if family == &McuFamily::Rp2350 {
             // RP2350 can address full 64KB space for each ROM set
             65536
         } else {
-            // STM32F4 uses 16KB space for single ROM sets, otherwise 64KB
             match self.set_type {
-                RomSetType::Single => 16384,
+                RomSetType::Single => {
+                    // STM32F4 uses 16KB images for single 24 pin ROMs, and
+                    // 64KB images for 28 pin ROMs.
+                    if rom_pins == 24 {
+                        16384
+                    } else {
+                        65536
+                    }
+                }
                 RomSetType::Banked | RomSetType::Multi => 65536,
             }
         }
@@ -672,11 +679,17 @@ impl RomSet {
                         );
                     }
                     McuFamily::Stm32f4 => {
-                        // Single ROM set: uses entire 16KB space
-                        assert!(
-                            address < 16384,
-                            "Address out of bounds for STM32F4 single ROM set"
-                        );
+                        if board.rom_pins() == 24 {
+                            assert!(
+                                address < 16384,
+                                "Address out of bounds for STM32F4 single 24 pin ROM"
+                            );
+                        } else {
+                            assert!(
+                                address < 65536,
+                                "Address out of bounds for STM32F4 single 28 pin ROM"
+                            );
+                        }
                     }
                 }
                 (0, address)
@@ -994,6 +1007,7 @@ impl RomSet {
         data_ptr: u32,
         rom_array_ptr: u32,
         family: &McuFamily,
+        rom_pins: u8,
     ) -> Result<usize> {
         // Check enough buffer space
         let expected_len = Self::rom_set_metadata_len();
@@ -1012,7 +1026,7 @@ impl RomSet {
         offset += 4;
 
         // Write the ROM data size
-        let data_size = self.image_size(family) as u32;
+        let data_size = self.image_size(family, rom_pins) as u32;
         buf[offset..offset + 4].copy_from_slice(&data_size.to_le_bytes());
         offset += 4;
 

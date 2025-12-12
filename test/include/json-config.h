@@ -27,9 +27,18 @@ typedef struct {
 } mcu_ports_t;
 
 typedef struct {
-    uint8_t pin_2364;
-    uint8_t pin_2332;
     uint8_t pin_2316;
+    uint8_t pin_2332;
+    uint8_t pin_2364;
+    uint8_t pin_23128;
+    uint8_t pin_23256;
+    uint8_t pin_23512;
+    uint8_t pin_2716;
+    uint8_t pin_2732;
+    uint8_t pin_2764;
+    uint8_t pin_27128;
+    uint8_t pin_27256;
+    uint8_t pin_27512;
 } cs_config_t;
 
 typedef struct {
@@ -38,6 +47,8 @@ typedef struct {
     cs_config_t cs1;
     cs_config_t cs2;
     cs_config_t cs3;
+    cs_config_t ce;
+    cs_config_t oe;
     uint8_t x1;
     uint8_t x2;
     uint8_t x_jumper_pull;

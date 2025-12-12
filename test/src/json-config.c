@@ -65,6 +65,15 @@ static void parse_cs_config(json_object* cs_obj, cs_config_t* cs_config) {
     cs_config->pin_2364 = 255;
     cs_config->pin_2332 = 255;
     cs_config->pin_2316 = 255;
+    cs_config->pin_23128 = 255;
+    cs_config->pin_23256 = 255;
+    cs_config->pin_23512 = 255;
+    cs_config->pin_2716 = 255;
+    cs_config->pin_2732 = 255;
+    cs_config->pin_2764 = 255;
+    cs_config->pin_27128 = 255;
+    cs_config->pin_27256 = 255;
+    cs_config->pin_27512 = 255;
     
     json_object* pin_obj;
     if (json_object_object_get_ex(cs_obj, "2364", &pin_obj)) {
@@ -75,6 +84,33 @@ static void parse_cs_config(json_object* cs_obj, cs_config_t* cs_config) {
     }
     if (json_object_object_get_ex(cs_obj, "2316", &pin_obj)) {
         cs_config->pin_2316 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "23128", &pin_obj)) {
+        cs_config->pin_23128 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "23256", &pin_obj)) {
+        cs_config->pin_23256 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "23512", &pin_obj)) {
+        cs_config->pin_23512 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "2716", &pin_obj)) {
+        cs_config->pin_2716 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "2732", &pin_obj)) {
+        cs_config->pin_2732 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "2764", &pin_obj)) {
+        cs_config->pin_2764 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "27128", &pin_obj)) {
+        cs_config->pin_27128 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "27256", &pin_obj)) {
+        cs_config->pin_27256 = json_object_get_int(pin_obj);
+    }
+    if (json_object_object_get_ex(cs_obj, "27512", &pin_obj)) {
+        cs_config->pin_27512 = json_object_get_int(pin_obj);
     }
 }
 
@@ -237,6 +273,16 @@ json_config_t* load_json_config(const char* hw_rev) {
                 parse_cs_config(cs_obj, &config->mcu.pins.cs3);
             } else {
                 error = "cs3";
+            }
+            if (json_object_object_get_ex(pins_obj, "ce", &cs_obj)) {
+                parse_cs_config(cs_obj, &config->mcu.pins.ce);
+            } else {
+                error = "ce";
+            }
+            if (json_object_object_get_ex(pins_obj, "oe", &cs_obj)) {
+                parse_cs_config(cs_obj, &config->mcu.pins.oe);
+            } else {
+                error = "oe";
             }
             
             json_object* pin_obj;

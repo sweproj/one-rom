@@ -27,6 +27,7 @@
 #define FLASH_BASE          0x10000000
 #define XIP_CACHE_BASE      0x18000000
 #define SYSINFO_BASE        0x40000000
+#define SYSCFG_BASE         0x40008000
 #define CLOCKS_BASE         0x40010000
 #define RESETS_BASE         0x40020000
 #define IO_BANK0_BASE       0x40028000
@@ -49,6 +50,13 @@
 #define SYSINFO_CHIP_ID         (*((volatile uint32_t *)(SYSINFO_BASE + 0x00)))
 #define SYSINFO_PACKAGE_SEL     (*((volatile uint32_t *)(SYSINFO_BASE + 0x04)))
 #define SYSINFO_GITREF_RP2350   (*((volatile uint32_t *)(SYSINFO_BASE + 0x14)))
+
+// SYSCFG Registers
+#define SYSCFG_DBGFORCE             (*((volatile uint32_t *)(SYSCFG_BASE + 0x0C)))
+#define SYSCFG_DBGFORCE_ATTACH_BIT  (1 << 3)
+#define SYSCFG_DBGFORCE_SWCLK_BIT   (1 << 2)
+#define SYSCFG_DBGFORCE_SWDI_BIT    (1 << 1)
+#define SYSCFG_DBGFORCE_SWDO_BIT    (1 << 0)
 
 // Clock registers
 #define CLOCK_CLK_GPOUT0_CTRL   (*((volatile uint32_t *)(CLOCKS_BASE + 0x00)))
@@ -85,6 +93,7 @@
 #define RESET_PIO2          (1 << 13)
 #define RESET_PLL_SYS       (1 << 14)
 #define RESET_PLL_USB       (1 << 15)
+#define RESET_SYSCFG        (1 << 20)
 #define RESET_SYSINFO       (1 << 21)
 
 // GPIO registers
@@ -110,7 +119,6 @@
 #define GPIO_CTRL_OUTOVER_INVERT  (0b01 << 12)
 #define GPIO_CTRL_OUTOVER_MASK    (0b11 << 12)
 #define GPIO_CTRL_RESET         GPIO_CTRL_FUNC_SIO
-
 
 #define IO_BANK0_INTR0 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x230))
 #define IO_BANK0_INTR1 (*(volatile uint32_t *)(IO_BANK0_BASE + 0x234))

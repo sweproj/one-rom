@@ -440,6 +440,57 @@ impl Args {
 
         let rom_type = rom_type.ok_or("Missing ROM 'type' parameter")?;
 
+        // Check CS logic specified matches ROM type
+        let control_lines = rom_type.control_lines();
+        for line in control_lines {
+            match line.name {
+                "cs1" => {
+                    if cs1.is_none() {
+                        return Err(format!(
+                            "ROM type {rom_type:?} requires cs1 to be specified",
+                        ));
+                    }
+                }
+                "cs2" => {
+                    if cs2.is_none() {
+                        return Err(format!(
+                            "ROM type {rom_type:?} requires cs2 to be specified",
+                        ));
+                    }
+                }
+                "cs3" => {
+                    if cs3.is_none() {
+                        return Err(format!(
+                            "ROM type {rom_type:?} requires cs3 to be specified",
+                        ));
+                    }
+                }
+                "ce"|"oe" => {
+                    // Not specified
+                }
+                other => {
+                    return Err(format!(
+                        "ROM type {rom_type:?} has unknown control line: {other}",
+                    ));
+                }
+            }
+            if cs1.is_some() && !control_lines.iter().any(|l| l.name == "cs1") {
+                return Err(format!(
+                    "cs1 specified but not used by ROM type {rom_type:?}",
+                ));
+            }
+            if cs2.is_some() && !control_lines.iter().any(|l| l.name == "cs2") {
+                return Err(format!(
+                    "cs2 specified but not used by ROM type {rom_type:?}",
+                ));
+            }
+            if cs3.is_some() && !control_lines.iter().any(|l| l.name == "cs3") {
+                return Err(format!(
+                    "cs3 specified but not used by ROM type {rom_type:?}",
+                ));
+            }
+        }
+
         Ok(RomConfig {
             file,
             original_source: source.to_string(),

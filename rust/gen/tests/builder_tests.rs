@@ -5095,6 +5095,165 @@ mod tests {
     }
 
     // ========================================================================
+    // TEST 77A: Varous invalid CS configurations
+    // ========================================================================
+    fn invalid_config_json(roms: &str) -> String {
+        format!(
+            r#"{{
+            "version": 1,
+            "description": "Invalid CS config",
+            "rom_sets": [{{
+                "type": "single",
+                "roms": [{roms}]
+            }}]
+        }}"#
+        )
+    }
+    #[test]
+    fn test_phase16_invalid_cs_configs() {
+        let invalid_configs = vec![
+            r#"{
+                "file": "test.rom",
+                "type": "2316"
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2316",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2316",
+                "cs1": "active_low",
+                "cs2": "active_low",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2316",
+                "cs1": "active_low",
+                "cs2": "active_low",
+                "cs3": "ignore"
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2332",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2332",
+                "cs1": "ignore",
+                "cs2": "ignore"
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2332",
+                "cs1": "active_low",
+                "cs2": "active_low",
+                "cs3": "active_low"
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2364",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2364",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2364",
+                "cs1": "active_low",
+                "cs2": "active_high"
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "23128",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "23128",
+                "cs1": "ignore",
+                "cs2": "ignore",
+                "cs3": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "23128",
+                "cs1": "active_low",
+                "cs2": "active_low",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2716",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2716",
+                "cs1": "active_low",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2732",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2732",
+                "cs1": "active_low",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2764",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "2764",
+                "cs1": "active_low",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "27128",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "27128",
+                "cs1": "active_low",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "27256",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "27256",
+                "cs1": "active_low",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "27512",
+                "cs1": "ignore",
+            }"#,
+            r#"{
+                "file": "test.rom",
+                "type": "27512",
+                "cs1": "active_low",
+            }"#,
+        ];
+        for config in invalid_configs {
+            let json = invalid_config_json(config);
+            let result = Builder::from_json(&json);
+            assert!(result.is_err(), "Invalid CS config should fail");
+        }
+
+        println!("✓ Phase 16: Invalid CS config correctly rejected");
+    }
+
+    // ========================================================================
     // TEST 78: Valid CS Configuration - 2316 with All CS Active
     // ========================================================================
 

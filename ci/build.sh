@@ -61,6 +61,35 @@ usage() {
 }
 
 #
+# Parse comma-separated variables respecting quoted strings
+# Args: comma_separated_string
+# Returns: Array of variable assignments (one per line)
+#
+parse_vars_with_quotes() {
+    local input="$1"
+    local result=()
+    local current=""
+    local in_quotes=0
+    
+    for ((i=0; i<${#input}; i++)); do
+        local char="${input:i:1}"
+        
+        if [[ "$char" == '"' ]]; then
+            in_quotes=$((1 - in_quotes))
+            current+="$char"
+        elif [[ "$char" == ',' && $in_quotes -eq 0 ]]; then
+            [[ -n "$current" ]] && result+=("$current")
+            current=""
+        else
+            current+="$char"
+        fi
+    done
+    
+    [[ -n "$current" ]] && result+=("$current")
+    printf '%s\n' "${result[@]}"
+}
+
+#
 # Remove the entire builds/ directory
 #
 clean_builds() {
@@ -353,7 +382,7 @@ execute_test() {
     local config_param=""
     
     if [[ -n "$test_vars" ]]; then
-        IFS=',' read -ra var_pairs <<< "$test_vars"
+        mapfile -t var_pairs < <(parse_vars_with_quotes "$test_vars")
         for var_pair in "${var_pairs[@]}"; do
             if [[ "$var_pair" =~ ^MCU= ]]; then
                 mcu_variant="${var_pair#MCU=}"
@@ -394,12 +423,16 @@ execute_test() {
 
     while [[ $attempt -le $max_attempts ]]; do
         echo "    - Attempt $attempt: Executing test '$test_name'"
-        if eval "$make_cmd" > /dev/null; then
+
+        local output
+        if output=$(eval "$make_cmd" 2>&1); then
             success=1
             break
         else
             echo "Test '$test_name' failed on attempt $attempt"
+            echo "$output"
         fi
+
         attempt=$((attempt + 1))
     done
 

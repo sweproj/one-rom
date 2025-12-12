@@ -54,6 +54,7 @@
             "vbus": 9,
             "port": "A"
         }
-    }
+    },
+    "serve_mode": "cpu"
   }
 }

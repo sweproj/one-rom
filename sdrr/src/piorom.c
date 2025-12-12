@@ -821,42 +821,56 @@ static void piorom_finish_config(
             break;
 
         case ROM_TYPE_2332:
+        case ROM_TYPE_23256:
+        case ROM_TYPE_23512:
             config->num_cs_pins = 2;
             break;
 
         case ROM_TYPE_2316:
+        case ROM_TYPE_23128:
             config->num_cs_pins = 3;
             break;
 
         case ROM_TYPE_2716:
         case ROM_TYPE_2732:
+        case ROM_TYPE_2764:
+        case ROM_TYPE_27128:
+        case ROM_TYPE_27256:
+        case ROM_TYPE_27512:
             config->num_cs_pins = 2;
             break;
 
         default:
-            LOG("!!! PIO ROM serving only supports 2364/2332/2316/2732/2716 ROM types");
+            LOG("!!! PIO ROM serving invalid ROM type %d", rom->rom_type);
             limp_mode(LIMP_MODE_INVALID_CONFIG);
             config->num_cs_pins = 1;
             break;
     }
 
+    // Figure out CS pin base
+    uint8_t series_23 = 0;
     switch (rom->rom_type) {
+        // 23 series ROMs - use CS lines
         case ROM_TYPE_2316:
         case ROM_TYPE_2332:
         case ROM_TYPE_2364:
+        case ROM_TYPE_23128:
+        case ROM_TYPE_23256:
+        case ROM_TYPE_23512:
+            series_23 = 1;
             // Figure out base CS pin from SDRR info
             if (config->num_cs_pins == 1) {
                 config->cs_base_pin = info->pins->cs1;
             } else {
                 if (info->pins->cs1 < info->pins->cs2) {
                     if (info->pins->cs2 > (info->pins->cs1 + 1)) {
-                        LOG("!!! CS pins for 2332 ROM must be contiguous");
+                        LOG("!!! CS pins must be contiguous");
                         limp_mode(LIMP_MODE_INVALID_CONFIG);
                     }
                     config->cs_base_pin = info->pins->cs1;
                 } else {
                     if (info->pins->cs1 > (info->pins->cs2 + 1)) {
-                        LOG("!!! CS pins for 2332 ROM must be contiguous");
+                        LOG("!!! CS pins must be contiguous");
                         limp_mode(LIMP_MODE_INVALID_CONFIG);
                     }
                     config->cs_base_pin = info->pins->cs2;
@@ -868,15 +882,20 @@ static void piorom_finish_config(
                     } else if (info->pins->cs3 == (config->cs_base_pin + 2)) {
                         // cs_base_pin is already correct
                     } else {
-                        LOG("!!! CS pins for 2316 ROM must be contiguous");
+                        LOG("!!! CS pins must be contiguous");
                         limp_mode(LIMP_MODE_INVALID_CONFIG);
                     }
                 }
             }
             break;
 
+        // 27 series ROMs - use OE/CE lines
         case ROM_TYPE_2716:
         case ROM_TYPE_2732:
+        case ROM_TYPE_2764:
+        case ROM_TYPE_27128:
+        case ROM_TYPE_27256:
+        case ROM_TYPE_27512:
             // Use OE/CE instead of CS pins
             config->cs_base_pin = info->pins->oe;
             if (info->pins->ce == (config->cs_base_pin + 1)) {
@@ -884,13 +903,13 @@ static void piorom_finish_config(
             } else if (info->pins->ce == (config->cs_base_pin - 1)) {
                 config->cs_base_pin = info->pins->ce;
             } else {
-                LOG("!!! CE and OE pins for 2716/2732 ROM must be contiguous");
+                LOG("!!! CE and OE pins must be contiguous");
                 limp_mode(LIMP_MODE_INVALID_CONFIG);
             }
             break;
 
         default:
-            LOG("!!! PIO ROM serving only supports 2364/2332/2316/2732/2716 ROM types");
+            LOG("!!! PIO ROM serving invalid ROM type %d", rom->rom_type);
             limp_mode(LIMP_MODE_INVALID_CONFIG);
             config->num_cs_pins = 1;
             break;
@@ -899,18 +918,29 @@ static void piorom_finish_config(
     // Find any CS lines which need to be inverted.  Make sure to make CS
     // lines against the pin numbers - the lower pin number is first, whether
     // that is CS1 or CS2 (or CS3).
-    for (int ii = 0; (ii < config->num_cs_pins) && (ii < 3); ii++) {
-        if (info->pins->cs1 == (config->cs_base_pin + ii)) {
-            if (rom->cs1_state == CS_ACTIVE_HIGH) {
-                config->invert_cs[ii] = 1;
-            } else {
-                config->invert_cs[ii] = 0;
-            }
-        } else if (info->pins->cs2 == (config->cs_base_pin + ii)) {
-            if (rom->cs2_state == CS_ACTIVE_HIGH) {
-                config->invert_cs[ii] = 1;
-            } else {
-                config->invert_cs[ii] = 0;
+    //
+    // This isn't required for 27 series ROMs, as both OE and CE are active
+    // low.
+    if (series_23) {
+        for (int ii = 0; (ii < config->num_cs_pins) && (ii < 3); ii++) {
+            if (info->pins->cs1 == (config->cs_base_pin + ii)) {
+                if (rom->cs1_state == CS_ACTIVE_HIGH) {
+                    config->invert_cs[ii] = 1;
+                } else {
+                    config->invert_cs[ii] = 0;
+                }
+            } else if (info->pins->cs2 == (config->cs_base_pin + ii)) {
+                if (rom->cs2_state == CS_ACTIVE_HIGH) {
+                    config->invert_cs[ii] = 1;
+                } else {
+                    config->invert_cs[ii] = 0;
+                }
+            } else if (info->pins->cs3 == (config->cs_base_pin + ii)) {
+                if (rom->cs3_state == CS_ACTIVE_HIGH) {
+                    config->invert_cs[ii] = 1;
+                } else {
+                    config->invert_cs[ii] = 0;
+                }
             }
         }
     }

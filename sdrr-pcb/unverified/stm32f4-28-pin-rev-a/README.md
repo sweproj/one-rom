@@ -2,6 +2,8 @@
 
 **Likely to be rejected** - This first 28 pin prototype does work, but is likely to be replaced by a later revision, and support for this revision may be removed in a future release.
 
+**Update December 2025** - Support is being removed as of firmware 0.5.8, as the future approach is that CS is not embedded in the address space.
+
 **Unverified** - this revision has not yet been tested or confirmed to work.  Order PCBs at your own risk.
 
 23xxx (STM32F4 28 pin) ROM replacement SDRR PCB.
