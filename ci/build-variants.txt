@@ -5,6 +5,7 @@
 # Fire rev A
 rp2350:HW_REV=fire-24-a
 rp2350:HW_REV=fire-24-usb-b
+rp2350:HW_REV=fire-28-a
 
 # Ice rev F
 f401re:HW_REV=ice-24-f
