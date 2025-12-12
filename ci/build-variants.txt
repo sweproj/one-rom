@@ -4,7 +4,11 @@
 
 # Fire rev A
 rp2350:HW_REV=fire-24-a
+
+# Fire rev B
 rp2350:HW_REV=fire-24-usb-b
+
+# Fire 28 rev A
 rp2350:HW_REV=fire-28-a
 
 # Ice rev F
@@ -24,3 +28,9 @@ f401re:HW_REV=ice-24-usb-h
 f411re:HW_REV=ice-24-usb-h
 f405rg:HW_REV=ice-24-usb-h
 f446re:HW_REV=ice-24-usb-h
+
+# Ice 28 rev a
+f401re:HW_REV=ice-28-a
+f411re:HW_REV=ice-28-a
+f405rg:HW_REV=ice-28-a
+f446re:HW_REV=ice-28-a

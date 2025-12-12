@@ -726,6 +726,18 @@ main() {
                     blacklisted_skips=$((blacklisted_skips + 1))
                     continue
                 fi
+
+                # Check pin-count compatibility based on naming
+                if [[ "$config" =~ ^28- ]] && [[ ! "$mcu_line" =~ -28- ]]; then
+                    echo "Skipping pin-incompatible: 28-pin config $config with non-28-pin MCU $mcu"
+                    pin_incompatible_skips=$((pin_incompatible_skips + 1))
+                    continue
+                fi
+                if [[ ! "$config" =~ ^28- ]] && [[ "$mcu_line" =~ -28- ]]; then
+                    echo "Skipping pin-incompatible: non-28-pin config $config with 28-pin MCU $mcu"
+                    pin_incompatible_skips=$((pin_incompatible_skips + 1))
+                    continue
+                fi
                 
                 # Skip size-incompatible combinations
                 if is_size_incompatible "$config" "$mcu" "${size_incompatible[@]}"; then
