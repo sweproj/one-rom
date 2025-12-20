@@ -188,6 +188,45 @@ fn load_all_configs(config_dirs: &[std::path::PathBuf]) -> Vec<HwConfigData> {
                         min_addr_pin = phys_pin;
                     }
                 }
+
+                // If number of ROM pins is 24, we consider X1/X2 and CS pins to be address pins too.
+                if config.rom.pins.quantity == 24 {
+                    if let Some(x1_pin) = config.mcu.pins.x1 {
+                        if x1_pin < min_addr_pin {
+                            min_addr_pin = x1_pin;
+                        }
+                        if x1_pin < 8 {
+                            under_8 = true;
+                        }
+                        if x1_pin > 15 {
+                            over_15 = true;
+                        }
+                    }
+                    if let Some(x2_pin) = config.mcu.pins.x2 {
+                        if x2_pin < min_addr_pin {
+                            min_addr_pin = x2_pin;
+                        }
+                        if x2_pin < 8 {
+                            under_8 = true;
+                        }
+                        if x2_pin > 15 {
+                            over_15 = true;
+                        }
+                    }
+                    // Get "2364" cs1 pin
+                    if let Some(cs1_pin) = config.mcu.pins.cs1.get("2364") {
+                        if *cs1_pin < min_addr_pin {
+                            min_addr_pin = *cs1_pin;
+                        }
+                        if *cs1_pin < 8 {
+                            under_8 = true;
+                        }
+                        if *cs1_pin > 15 {
+                            over_15 = true;
+                        }
+                    }
+                }
+
                 if under_8 && over_15 {
                     panic!(
                         "Address pins in config {} mix low (<8) and high (>15) physical pins, which is not supported",

@@ -39,7 +39,7 @@ void create_address_mangler(json_config_t* config) {
     if (config->rom.pin_count == 24) {
         if ((config->mcu.ports.data_port == config->mcu.ports.addr_port) && (config->mcu.pins.data[0] < 8)) {
             // If data and address ports are the same, and data lines are 0-7, then
-            // address lines must be 8-23.  Subtract 8 off them so thare are 0-15.
+            // address lines must be higher 8-23.  Subtract 8 off them so thare are 0-15.
             for (int ii = 0; ii < MAX_ADDR_LINES; ii++) {
                 if (address_mangler.addr_pins[ii] != 255) {
                     address_mangler.addr_pins[ii] -= 8;

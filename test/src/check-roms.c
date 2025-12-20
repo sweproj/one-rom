@@ -53,8 +53,8 @@ int validate_all_rom_sets(json_config_t *json_config, loaded_rom_t *loaded_roms,
                     
                     if (demangled_byte_cs0 != expected_byte) {
                         if (errors < 5) {
-                            printf("    - CS=0 MISMATCH at logical 0x%04X: expected 0x%02X, got 0x%02X\n", 
-                                logical_addr, expected_byte, demangled_byte_cs0);
+                            printf("    - CS=0 MISMATCH at logical 0x%04X: mangled addr: 0x%04X expected 0x%02X, got 0x%02X\n", 
+                                logical_addr, mangled_addr_cs0, expected_byte, demangled_byte_cs0);
                         }
                         errors++;
                     }
@@ -66,8 +66,8 @@ int validate_all_rom_sets(json_config_t *json_config, loaded_rom_t *loaded_roms,
                     
                     if (demangled_byte_cs1 != expected_byte) {
                         if (errors < 5) {
-                            printf("    - CS=1 MISMATCH at logical 0x%04X: expected 0x%02X, got 0x%02X\n", 
-                                logical_addr, expected_byte, demangled_byte_cs1);
+                            printf("    - CS=1 MISMATCH at logical 0x%04X: mangled addr: 0x%04X expected 0x%02X, got 0x%02X\n", 
+                                logical_addr, mangled_addr_cs1, expected_byte, demangled_byte_cs1);
                         }
                         errors++;
                     }
