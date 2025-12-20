@@ -18,6 +18,7 @@ use log::{debug, error, info, trace, warn};
 
 use onerom_config::hw::{Board, Model};
 use onerom_config::mcu::{Family, MCU_VARIANTS, Variant as McuVariant};
+use onerom_config::rom::RomType;
 use onerom_fw::net::{Release, Releases};
 
 use crate::app::{AppMessage, progress_tick_subscription};
@@ -26,6 +27,7 @@ use crate::hw::HardwareInfo;
 use crate::studio::{Message as StudioMessage, RuntimeInfo};
 use crate::style::Style;
 
+pub use build::Active;
 pub use msg::Message;
 
 /// Create tab internal state
@@ -37,6 +39,12 @@ enum State {
     Flashing,
     Saving,
     Loading,
+    UserBuilding {
+        valid_rom_types: Vec<RomType>,
+        rom_type: Option<RomType>,
+        cs: Vec<Option<Active>>,
+        data: Option<String>,
+    },
 }
 
 impl State {
@@ -46,6 +54,10 @@ impl State {
 
     pub const fn is_busy(&self) -> bool {
         !self.is_idle()
+    }
+
+    pub const fn is_user_building(&self) -> bool {
+        matches!(self, State::UserBuilding{ .. })
     }
 }
 

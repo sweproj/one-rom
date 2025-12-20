@@ -10,6 +10,8 @@ use log::{debug, error, info, trace, warn};
 use rfd::FileDialog;
 use std::path::PathBuf;
 
+use onerom_config::rom::ROM_TYPES;
+
 use crate::app::AppMessage;
 use crate::config::Config;
 use crate::create::{Create, Message, State};
@@ -152,6 +154,26 @@ pub fn config_selected(create: &mut Create, config: Config) -> Task<AppMessage> 
         Config::SelectLocalFile => {
             // Open file dialog to select local config file
             Task::future(select_local_config_file())
+        }
+        Config::BuildConfig => {
+            // Get the selected rom pins from the selected hardware
+            let rom_pins: u8 = create.selected_hw_info.board
+                .map_or(24, |board| board.rom_pins());
+
+                // build a vec of rom_types that match the selected rom pins
+            let rom_types = ROM_TYPES
+                .iter()
+                .filter(|rt| rt.rom_pins() == rom_pins)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            create.state = State::UserBuilding {
+                valid_rom_types: rom_types,
+                rom_type: None,
+                cs: vec![],
+                data: None,
+            };
+            Task::none()
         }
         config => {
             // Have config details - get Studio to download it

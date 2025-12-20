@@ -496,6 +496,15 @@ fn generate_rom_type_impl(config: &RomTypesConfig) -> String {
     code.push_str("\n\n");
 
     code.push_str("}\n");
+
+    // Display impl
+    code.push_str("\n");
+    code.push_str("impl core::fmt::Display for RomType {\n");
+    code.push_str("    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {\n");
+    code.push_str("        write!(f, \"{}\", self.name())\n");  
+    code.push_str("    }\n");
+    code.push_str("}\n");
+
     code
 }
 

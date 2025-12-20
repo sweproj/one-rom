@@ -13,6 +13,8 @@ use crate::studio::Message as StudioMessage;
 use crate::{ManifestType, PathType};
 use crate::{app_manifest, internal_error};
 
+use onerom_config::rom::RomType;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectedConfig {
     pub config: Config,
@@ -140,8 +142,10 @@ impl ConfigManifest {
     }
 
     fn add_special(&mut self) {
-        // Add the SelectLocalFile entry at the start
+
+        // Add the SelectLocalFile and BuildConfig entries at the start
         self.internal_configs.insert(0, Config::SelectLocalFile);
+        //self.internal_configs.insert(0, Config::BuildConfig);
     }
 
     /// Return names of the configs
@@ -209,8 +213,18 @@ pub enum Config {
     /// User has opted to upload their own configuration file
     File { filename: PathBuf },
 
+    /// User has built their own config in the app
+    Built { 
+        rom_type: RomType,
+        chip_select: Vec<u8>,
+        data: Vec<u8>,
+    },
+
     /// Dummy entry in the picklist to allow the user to select their own file
     SelectLocalFile,
+
+    /// Dummy entry in the picklist to allow the user to build their own config
+    BuildConfig,
 
     /// Config from the network manifest
     Network { url: String, name: String },
@@ -229,8 +243,14 @@ impl std::fmt::Display for Config {
             Config::SelectLocalFile => {
                 write!(f, "Select Local File...")
             }
+            Config::BuildConfig => {
+                write!(f, "Build Config in Studio...")
+            }
             Config::Network { name, .. } => {
                 write!(f, "{name}")
+            }
+            Config::Built { .. } => {
+                write!(f, "Built in Studio")
             }
         }
     }
@@ -243,6 +263,11 @@ impl From<SelectedConfig> for Config {
 }
 
 impl Config {
+    /// Is this a built config?
+    pub fn is_built(&self) -> bool {
+        matches!(self, Config::Built { .. })
+    }
+
     /// Is this a local file config?
     pub fn is_file(&self) -> bool {
         matches!(self, Config::File { .. })
@@ -254,7 +279,7 @@ impl Config {
     }
 
     pub fn is_special(&self) -> bool {
-        matches!(self, Config::SelectLocalFile)
+        matches!(self, Config::SelectLocalFile | Config::BuildConfig)
     }
 
     /// Get URL if network config
@@ -286,11 +311,13 @@ impl Config {
                 .to_string_lossy()
                 .to_string(),
             Config::SelectLocalFile => "none".to_string(),
+            Config::BuildConfig => "none".to_string(),
             Config::Network { name, .. } => {
                 // Strip off file extension if present
                 let name = name.split('.').next().unwrap_or(name);
                 name.to_string()
             }
+            Config::Built { .. } => "Built in Studio".to_string(),
         }
     }
 
@@ -307,7 +334,12 @@ impl Config {
                 internal_error!("Save filename requested for SelectLocalFile config.");
                 "unknown".to_string()
             }
+            Config::BuildConfig => {
+                internal_error!("Save filename requested for BuildConfig config.");
+                "unknown".to_string()
+            }
             Config::Network { .. } => self.name(),
+            Config::Built { .. } => "built_in_studio".to_string(),
         }
     }
 }
@@ -344,4 +376,62 @@ pub fn load_config_file(config: Config) -> AppMessage {
     } else {
         unreachable!();
     }
+}
+
+/// Generate a built config
+pub fn generate_built_config(config: Config) -> AppMessage {
+    assert!(config.is_built());
+    let (rom_type, chip_select, data) = match &config {
+        Config::Built { rom_type, chip_select, data } => (rom_type, chip_select, data),
+        _ => unreachable!(),
+    };
+
+    let rom_type_json = rom_type.name();
+    let data_json = hex::encode(&data);
+    let chip_select_json = if chip_select.is_empty() {
+        "".to_string()
+    } else {
+        let mut cs_str = String::new();
+        for (index, cs) in chip_select.iter().enumerate() {
+            if index == 0 {
+                cs_str.push_str(
+                    &format!(
+                        "\n                    \"cs{index}\" = \"{}\"",
+                        if index == 0 {
+                            "active_low"
+                        } else {
+                            "active_high"
+                        }
+                    )
+                );
+            } else {
+                cs_str.push_str(&format!(",\n                    \"{}\"", cs));
+            }
+        }
+        cs_str
+    };
+
+    let json = format!(r#"{{
+    "$schema": "https://images.onerom.org/configs/schema.json",
+    "version": 1,
+    "name": "Studio Generated",
+    "description": "A One ROM configuration built in One ROM Studio",
+    "notes": "None",
+    "categories": [],
+    "rom_sets": [
+        {{
+            "type": "single",
+            "roms": [
+                {{
+                    "description": "A single ROM",
+                    "file": "base16:{data_json}",
+                    "type": "{rom_type_json}"{chip_select_json}
+                }}
+            ]
+        }}
+    ]
+}}"#);
+
+    StudioMessage::ConfigLoaded(Ok(config.with_data(json.as_bytes().to_vec()))).into()
+
 }

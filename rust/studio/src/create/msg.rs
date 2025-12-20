@@ -11,12 +11,13 @@ use std::path::PathBuf;
 
 use onerom_config::hw::{Board, Model};
 use onerom_config::mcu::Variant as McuVariant;
+use onerom_config::rom::RomType;
 use onerom_fw::net::Release;
 
 use crate::app::AppMessage;
 use crate::config::Config;
 use crate::create::Create;
-use crate::create::build::{build_image, build_image_result};
+use crate::create::build::{build_image, build_image_result, build_json_config_from_state};
 use crate::create::file::{
     config_loaded, config_selected, save_firmware, save_firmware_complete, save_firmware_filename,
 };
@@ -25,6 +26,9 @@ use crate::create::hw::{
 };
 use crate::studio::RuntimeInfo;
 use crate::task_from_msg;
+
+use super::State;
+use super::build::{Active, select_cs_active, select_data_vec, select_rom_type};
 
 /// Create Messages
 #[derive(Debug, Clone)]
@@ -68,6 +72,13 @@ pub enum Message {
 
     // Progress tick from subscription during operation
     ProgressTick,
+
+    // User building custom configuration
+    BuildingSelectRomType(RomType),
+    BuildingSelectCsActive(usize, Active),
+    BuildingSelectDataVec(Vec<u8>),
+    BuildingComplete,
+    BuildingCancelled,
 }
 
 // Main Create Message handling function
@@ -142,6 +153,24 @@ pub fn message(create: &mut Create, runtime_info: &RuntimeInfo, msg: Message) ->
             create.progress_tick();
             Task::none()
         }
+
+        // User building custom configuration
+        Message::BuildingSelectRomType(rom_type) => select_rom_type(create, rom_type),
+        Message::BuildingSelectCsActive(index, active) => select_cs_active(create, index, active),
+        Message::BuildingSelectDataVec(data) => select_data_vec(create, data),
+        Message::BuildingComplete => {
+            debug!("User completed custom configuration build");
+            // Create a Built config from the create state
+            let task = build_json_config_from_state(create);
+            create.state = State::Idle;
+            task
+        }
+        Message::BuildingCancelled => {
+            debug!("User cancelled custom configuration build");
+            create.state = State::Idle;
+            create.set_display_content("Custom configuration build cancelled.");
+            Task::none()
+        }
     }
 }
 
@@ -188,6 +217,18 @@ impl std::fmt::Display for Message {
             }
 
             Message::ProgressTick => write!(f, "ProgressTick"),
+
+            Message::BuildingSelectRomType(rom_type) => {
+                write!(f, "BuildingSelectRomType({rom_type})")
+            }
+            Message::BuildingSelectCsActive(index, active) => {
+                write!(f, "BuildingSelectCsActive({}, {})", index, active)
+            }
+            Message::BuildingSelectDataVec(data) => {
+                write!(f, "BuildingSelectDataVec(len={})", data.len())
+            }
+            Message::BuildingComplete => write!(f, "BuildingComplete"),
+            Message::BuildingCancelled => write!(f, "BuildingCancelled"),
         }
     }
 }

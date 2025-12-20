@@ -20,6 +20,7 @@ use crate::analyse::Analyse;
 use crate::app::AppMessage;
 use crate::config::{
     Config, ConfigManifest, SelectedConfig, download_config_async, load_config_file,
+    generate_built_config,
 };
 use crate::create::{Create, Message as CreateMessage};
 use crate::hw::HardwareInfo;
@@ -743,6 +744,11 @@ impl Studio {
                 internal_error!("SelectLocalFile should be handled before Studio");
                 return Task::none();
             }
+            Config::BuildConfig => {
+                internal_error!("BuildConfig should be handled before Studio");
+                return Task::none();
+            }
+            Config::Built { .. } => Task::done(generate_built_config(config.clone())),
         };
 
         // Set the selected config

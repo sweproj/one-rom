@@ -72,6 +72,7 @@ arc-swap = "1.7"
 chrono = "0.4"
 directories = "6.0"
 futures = "0.3"
+hex = "0.4"
 iced = { version = "0.13", features = ["tokio", "image"] }
 log = "0.4"
 open = "5.3"

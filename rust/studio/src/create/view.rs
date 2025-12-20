@@ -18,6 +18,8 @@ use crate::studio::RuntimeInfo;
 use crate::style::Style;
 use crate::{AppLink, AppMessage};
 
+use super::build::{Active, ACTIVE_STATES};
+
 /// Create tab view
 pub fn view<'a>(
     create: &'a Create,
@@ -25,32 +27,128 @@ pub fn view<'a>(
     device: &Device,
     style: &'a Style,
 ) -> Element<'a, AppMessage> {
-    // Create the "Select Hardware" section
-    let mut columns = select_hardware_element(create);
+    if !create.state.is_user_building() {
+        // Create the "Select Hardware" section
+        let mut columns = select_hardware_element(create);
 
-    // Add firmware row if hardware selected
-    if create.hardware_selected() {
-        columns = columns
-            .push(firmware_row(create, runtime_info))
-            .push(Style::horiz_line());
+        // Add firmware row if hardware selected
+        if create.hardware_selected() {
+            columns = columns
+                .push(firmware_row(create, runtime_info))
+                .push(Style::horiz_line());
+        }
+
+        // Add config row if hardware selected and release selected and configs exist
+        if create.hardware_selected() && runtime_info.firmware_selected() {
+            columns = columns
+                .push(rom_config_row(create, runtime_info, style))
+                .push(Style::horiz_line());
+        }
+
+        // Add build section if ready to build
+        if create.ready_to_build(runtime_info) {
+            let (button_row, window_container) = build_section(create, runtime_info, device);
+
+            columns = columns.push(button_row);
+            columns = columns.push(window_container);
+        }
+
+        columns.spacing(20).into()
+    } else {
+        // User building custom config - build custom view
+        let (rom_types, rom_type, cs, data) = match &create.state {
+            crate::create::State::UserBuilding { valid_rom_types, rom_type, cs, data } => (valid_rom_types, rom_type, cs, data),
+            _ => unreachable!(),
+        };
+
+        // Add a ROM type picklist row
+        let pick_list = Style::pick_list_small(
+            rom_types.as_slice(),
+            rom_type.clone(),
+            |rt| Message::BuildingSelectRomType(rt).into(),
+        );
+
+        // Build the CS picker(s)
+        let cs_pickers = if let Some(rom_type) = rom_type {
+            let control_lines = rom_type.control_lines();
+            let cs_lines = control_lines
+                .iter()
+                .filter(|cl| cl.name.starts_with("cs"));
+            let mut pickers = Vec::new();
+            for (i, _cs_line) in cs_lines.enumerate() {
+                let msg = move |active: Active| {
+                    Message::BuildingSelectCsActive(i, active).into()
+                };
+                let current = cs.get(i).cloned().flatten();
+                let picker = Style::pick_list_small(
+                    ACTIVE_STATES,
+                    current,
+                    msg,
+                );
+                pickers.push(picker);
+            }
+            pickers
+        } else {
+            Vec::new()
+        };
+
+        // Build the data vector input area
+        let data_input = Style::box_scrollable_text(
+            data.as_deref().unwrap_or(""),
+            100.0,
+            false,
+        );
+
+        // Now construct the view
+        let mut column = column![
+            row![
+                Style::text_h3("ROM Type:"),
+                pick_list,
+            ].spacing(20)
+            .align_y(iced::alignment::Vertical::Center),
+        ];
+        if !cs_pickers.is_empty() {
+            let mut cs_row = row![Style::text_h3("Chip Selects:")].spacing(20)
+                .align_y(iced::alignment::Vertical::Center);
+            for picker in cs_pickers {
+                cs_row = cs_row.push(picker);
+            }
+            column = column.push(cs_row);
+        }
+        column = column.push(
+            row![
+                Style::text_h3("Data Vector:"),
+                data_input,
+            ]
+            .spacing(20)
+            .align_y(iced::alignment::Vertical::Center),
+        );
+
+        // Add done and cancel buttons
+        let done_button = Style::text_button_small(
+            "Done",
+            Some(Message::BuildingComplete.into())
+            ,
+            true,
+        );
+        let cancel_button = Style::text_button_small(
+            "Cancel",
+            Some(Message::BuildingCancelled.into()),
+            true,
+        );
+
+        column = column.push(
+            row![
+                done_button,
+                cancel_button,
+            ]
+            .spacing(20)
+            .align_y(iced::alignment::Vertical::Center),
+        );
+
+        column.spacing(20).into()
     }
 
-    // Add config row if hardware selected and release selected and configs exist
-    if create.hardware_selected() && runtime_info.firmware_selected() {
-        columns = columns
-            .push(rom_config_row(create, runtime_info, style))
-            .push(Style::horiz_line());
-    }
-
-    // Add build section if ready to build
-    if create.ready_to_build(runtime_info) {
-        let (button_row, window_container) = build_section(create, runtime_info, device);
-
-        columns = columns.push(button_row);
-        columns = columns.push(window_container);
-    }
-
-    columns.spacing(20).into()
 }
 
 // Add the ROM config selection row

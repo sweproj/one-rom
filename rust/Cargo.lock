@@ -4576,6 +4576,7 @@ dependencies = [
  "embed-resource",
  "futures",
  "git2",
+ "hex",
  "iced",
  "log",
  "onerom-config",
