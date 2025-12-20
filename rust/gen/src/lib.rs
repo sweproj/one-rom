@@ -102,7 +102,9 @@ pub enum Error {
     BadLocation {
         id: usize,
         reason: String,
-    }
+    },
+    Base64,
+    Base16,
 }
 type Result<T> = core::result::Result<T, Error>;
 

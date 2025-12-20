@@ -2,12 +2,15 @@
 //
 // MIT License
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as base64_engine;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
 use onerom_config::fw::FirmwareVersion;
 use onerom_config::hw::Board as HwBoard;
 use onerom_config::mcu::Variant as McuVariant;
+use onerom_gen::Error as GenError;
 
 use crate::Error;
 
@@ -45,17 +48,38 @@ pub async fn fetch_license_async(url: &str) -> Result<String, Error> {
 /// 
 /// Returns:
 /// - `Ok(Vec<u8>, Vec<u8>)` - The extracted file data and full file if cache_return
-pub fn fetch_rom_file(url: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
+pub fn fetch_rom_file(file_to_retrieve: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
     let bytes = if file.is_empty() {
-        // Get the file itself
-        debug!("Fetching ROM file from {}", url);
-        let response = reqwest::blocking::get(url).map_err(Error::network)?;
-        if !response.status().is_success() {
-            return Err(Error::Http { status: response.status().as_u16() });
+        // Get the file itself  
+        debug!("Fetching ROM file from {}", file_to_retrieve);
+
+        if file_to_retrieve.starts_with("base64:") {
+            // Base64 encoded file
+            let b64_data = file_to_retrieve.trim_start_matches("base64:");
+            let data = base64_engine.decode(b64_data).map_err(|_| Error::parse(GenError::Base64))?;
+            bytes::Bytes::from(data)
+        } else if file_to_retrieve.starts_with("base16:") || file_to_retrieve.starts_with("hex:") {
+            let hex_data = if file_to_retrieve.starts_with("base16:") {
+                file_to_retrieve.trim_start_matches("base16:")
+            } else {
+                file_to_retrieve.trim_start_matches("hex:")
+            };
+            let hex_data = &hex_data.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+            let data = hex::decode(hex_data).map_err(|_| Error::parse(GenError::Base16))?;
+            bytes::Bytes::from(data)
+        } else if file_to_retrieve.starts_with("http://") || file_to_retrieve.starts_with("https://") {
+            let response = reqwest::blocking::get(file_to_retrieve).map_err(Error::network)?;
+            if !response.status().is_success() {
+                return Err(Error::Http { status: response.status().as_u16() });
+            }
+            response.bytes().map_err(Error::network)?
+        } else {
+            // Local file
+            let data = std::fs::read(file_to_retrieve).map_err(Error::read)?;
+            bytes::Bytes::from(data)
         }
-        response.bytes().map_err(Error::network)?
     } else {
-        debug!("Using cached ROM file for {}", url);
+        debug!("Using cached ROM file for {}", file_to_retrieve);
         bytes::Bytes::from(file.to_vec())
     };
 
@@ -86,7 +110,22 @@ pub async fn fetch_rom_file_async(file_to_retrieve: &str, file: &[u8], extract: 
         // Get the file itself
         debug!("Fetching ROM file from {}", file_to_retrieve);
 
-        if file_to_retrieve.starts_with("http://") || file_to_retrieve.starts_with("https://") {
+        if file_to_retrieve.starts_with("base64:") {
+            // Base64 encoded file
+            let b64_data = file_to_retrieve.trim_start_matches("base64:");
+            let data = base64_engine.decode(b64_data).map_err(|_| Error::parse(GenError::Base64))?;
+            bytes::Bytes::from(data)
+        } else if file_to_retrieve.starts_with("base16:") || file_to_retrieve.starts_with("hex:") {
+            let hex_data = if file_to_retrieve.starts_with("base16:") {
+                file_to_retrieve.trim_start_matches("base16:")
+            } else {
+                file_to_retrieve.trim_start_matches("hex:")
+            };
+            // Strip whitespace from hex data
+            let hex_data = &hex_data.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+            let data = hex::decode(hex_data).map_err(|_| Error::parse(GenError::Base16))?;
+            bytes::Bytes::from(data)
+        } else if file_to_retrieve.starts_with("http://") || file_to_retrieve.starts_with("https://") {
             let response = reqwest::get(file_to_retrieve).await.map_err(Error::network)?;
             if !response.status().is_success() {
                 return Err(Error::Http { status: response.status().as_u16() });

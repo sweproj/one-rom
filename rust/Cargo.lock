@@ -4489,9 +4489,11 @@ dependencies = [
 name = "onerom-fw"
 version = "0.1.5"
 dependencies = [
+ "base64 0.22.1",
  "bytes",
  "clap",
  "env_logger",
+ "hex",
  "log",
  "onerom-config",
  "onerom-gen",
