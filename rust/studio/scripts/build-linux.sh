@@ -71,6 +71,45 @@ if [ "$DEPS" = true ]; then
     fi
     echo "libudev-dev:arm64 is installed."
 
+    # Enable amd64 architecture
+    sudo dpkg --add-architecture amd64
+
+    # Force the ports repo to arm64 only
+    if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+        sudo cp /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources.bak
+        
+        # Add Architectures: arm64 after every Types: line that doesn't already have an Architectures line in that stanza
+        sudo awk '
+            /^Types:/ { in_stanza=1; types_line=$0; has_arch=0; next }
+            /^Architectures:/ && in_stanza { has_arch=1; print "Architectures: arm64"; next }
+            /^$/ { 
+                if (in_stanza && !has_arch && types_line) {
+                    print types_line
+                    print "Architectures: arm64"
+                    types_line=""
+                }
+                in_stanza=0
+                print
+                next
+            }
+            in_stanza && types_line { print types_line; print "Architectures: arm64"; types_line=""; print; next }
+            { print }
+        ' /etc/apt/sources.list.d/ubuntu.sources.bak | sudo tee /etc/apt/sources.list.d/ubuntu.sources > /dev/null
+    fi
+
+    # Create amd64 sources
+    CODENAME=$(lsb_release -sc)
+    printf "Types: deb\nURIs: http://archive.ubuntu.com/ubuntu\nSuites: %s %s-updates %s-security\nComponents: main universe\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\nArchitectures: amd64\n" "$CODENAME" "$CODENAME" "$CODENAME" | sudo tee /etc/apt/sources.list.d/ubuntu-amd64.sources > /dev/null
+
+    sudo apt update && sudo apt install -y libudev-dev:amd64 libusb-1.0-0-dev:amd64
+
+    # Verify they actually installed
+    if ! dpkg -l | grep -q "libudev-dev.*amd64"; then
+        echo "ERROR: libudev-dev:amd64 not installed" >&2
+        exit 1
+    fi
+    echo "libudev-dev:amd64 is installed."
+
     # Install the Rust targets
     rustup target add x86_64-unknown-linux-gnu
     rustup target add aarch64-unknown-linux-gnu
@@ -101,6 +140,9 @@ fi
 
 # Build One ROM Studio
 PACKAGER_TARGET="x86_64-unknown-linux-gnu"
+export PKG_CONFIG_SYSROOT_DIR=/
+export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
+export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
 echo "Building for target: $PACKAGER_TARGET"
 cargo build --bin onerom-studio --release --target $PACKAGER_TARGET
 
