@@ -155,7 +155,7 @@ mod tests {
         let config = RomTypesConfig::from_json(&String::from_utf8_lossy(json))
             .expect("Failed to parse JSON config");
 
-        assert_eq!(config.rom_types.len(), 14);
+        assert_eq!(config.rom_types.len(), 15);
 
         let rom_2364 = config.rom_types.get("2364").unwrap();
         assert_eq!(rom_2364.pins, 24);
