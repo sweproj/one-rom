@@ -17,7 +17,7 @@ esp32 = []
 
 [dependencies]
 onerom-config = { version = "0.2.5" }
-onerom-gen = { path="../gen", version = "0.2.3" }
+onerom-gen = { version = "0.2.3" }
 
 airfrog-rpc = { version = "0.1.0" }
 deku = { version = "0.19", default-features = false, features = ["alloc"] }
