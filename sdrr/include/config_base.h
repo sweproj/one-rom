@@ -283,6 +283,7 @@ typedef enum {
     ROM_TYPE_27128,
     ROM_TYPE_27256,
     ROM_TYPE_27512,
+    ROM_TYPE_231024,
 } sdrr_rom_type_t;
 
 // CS state enumeration
