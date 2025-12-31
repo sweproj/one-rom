@@ -39,6 +39,7 @@ There are also some other inconsistencies between types:
 | 23128 | 16KB | 14 (A0-A13) | CS1 (pin 20), CS2 (pin 22), CS3 (pin 27) | None |
 | 23256 | 32KB | 15 (A0-A14) | CS1 (pin 20), CS2 (pin 22) | None |
 | 23512 | 64KB | 16 (A0-A15) | CS1 (pin 20), CS2 (pin 22) | None |
+| 231024 | 128KB | 17 (A0-A16) | CS1 (pin 20) | None |
 
 ## 24-pin EPROM Family (27xx)
 
@@ -91,36 +92,36 @@ There are also some other inconsistencies between types:
 
 ### 28-pin Package
 
-| Pin | 23128 | 23256 | 23512 | 2764 | 27128 | 27256 | 27512 |
-|-----|------|------|------|------|------|------|------|
-| 1 | NC | NC | A15 | VPP | VPP | VPP | A15 |
-| 2 | A12 | A12 | A12 | A12 | A12 | A12 | A12 |
-| 3 | A7 | A7 | A7 | A7 | A7 | A7 | A7 |
-| 4 | A6 | A6 | A6 | A6 | A6 | A6 | A6 |
-| 5 | A5 | A5 | A5 | A5 | A5 | A5 | A5 |
-| 6 | A4 | A4 | A4 | A4 | A4 | A4 | A4 |
-| 7 | A3 | A3 | A3 | A3 | A3 | A3 | A3 |
-| 8 | A2 | A2 | A2 | A2 | A2 | A2 | A2 |
-| 9 | A1 | A1 | A1 | A1 | A1 | A1 | A1 |
-| 10 | A0 | A0 | A0 | A0 | A0 | A0 | A0 |
-| 11 | D0 | D0 | D0 | D0 | D0 | D0 | D0 |
-| 12 | D1 | D1 | D1 | D1 | D1 | D1 | D1 |
-| 13 | D2 | D2 | D2 | D2 | D2 | D2 | D2 |
-| 14 | GND | GND | GND | GND | GND | GND | GND |
-| 15 | D3 | D3 | D3 | D3 | D3 | D3 | D3 |
-| 16 | D4 | D4 | D4 | D4 | D4 | D4 | D4 |
-| 17 | D5 | D5 | D5 | D5 | D5 | D5 | D5 |
-| 18 | D6 | D6 | D6 | D6 | D6 | D6 | D6 |
-| 19 | D7 | D7 | D7 | D7 | D7 | D7 | D7 |
-| 20 | CS1 | CS1 | CS1 | /CE | /CE | /CE | /CE+PE |
-| 21 | A10 | A10 | A10 | A10 | A10 | A10 | A10 |
-| 22 | CS2 | CS2 | CS2 | /OE | /OE | /OE+PE | /OE+VPP |
-| 23 | A11 | A11 | A11 | A11 | A11 | A11 | A11 |
-| 24 | A9 | A9 | A9 | A9 | A9 | A9 | A9 |
-| 25 | A8 | A8 | A8 | A8 | A8 | A8 | A8 |
-| 26 | A13 | A13 | A13 | NC | A13 | A13 | A13 |
-| 27 | CS3 | A14 | A14 | /PGM | /PGM | A14 | A14 |
-| 28 | VCC | VCC | VCC | VCC | VCC | VCC | VCC |
+| Pin | 23128 | 23256 | 23512 | 231024 | 2764 | 27128 | 27256 | 27512 |
+|-----|------|------|------|------|------|------|------|------|
+| 1 | NC | NC | A15 | A15 | VPP | VPP | VPP | A15 |
+| 2 | A12 | A12 | A12 | A12 | A12 | A12 | A12 | A12 |
+| 3 | A7 | A7 | A7 | A7 | A7 | A7 | A7 | A7 |
+| 4 | A6 | A6 | A6 | A6 | A6 | A6 | A6 | A6 |
+| 5 | A5 | A5 | A5 | A5 | A5 | A5 | A5 | A5 |
+| 6 | A4 | A4 | A4 | A4 | A4 | A4 | A4 | A4 |
+| 7 | A3 | A3 | A3 | A3 | A3 | A3 | A3 | A3 |
+| 8 | A2 | A2 | A2 | A2 | A2 | A2 | A2 | A2 |
+| 9 | A1 | A1 | A1 | A1 | A1 | A1 | A1 | A1 |
+| 10 | A0 | A0 | A0 | A0 | A0 | A0 | A0 | A0 |
+| 11 | D0 | D0 | D0 | D0 | D0 | D0 | D0 | D0 |
+| 12 | D1 | D1 | D1 | D1 | D1 | D1 | D1 | D1 |
+| 13 | D2 | D2 | D2 | D2 | D2 | D2 | D2 | D2 |
+| 14 | GND | GND | GND | GND | GND | GND | GND | GND |
+| 15 | D3 | D3 | D3 | D3 | D3 | D3 | D3 | D3 |
+| 16 | D4 | D4 | D4 | D4 | D4 | D4 | D4 | D4 |
+| 17 | D5 | D5 | D5 | D5 | D5 | D5 | D5 | D5 |
+| 18 | D6 | D6 | D6 | D6 | D6 | D6 | D6 | D6 |
+| 19 | D7 | D7 | D7 | D7 | D7 | D7 | D7 | D7 |
+| 20 | CS1 | CS1 | CS1 | CS1 | /CE | /CE | /CE | /CE+PE |
+| 21 | A10 | A10 | A10 | A10 | A10 | A10 | A10 | A10 |
+| 22 | CS2 | CS2 | CS2 | A16 | /OE | /OE | /OE+PE | /OE+VPP |
+| 23 | A11 | A11 | A11 | A11 | A11 | A11 | A11 | A11 |
+| 24 | A9 | A9 | A9 | A9 | A9 | A9 | A9 | A9 |
+| 25 | A8 | A8 | A8 | A8 | A8 | A8 | A8 | A8 |
+| 26 | A13 | A13 | A13 | A13 | NC | A13 | A13 | A13 |
+| 27 | CS3 | A14 | A14 | A14 | /PGM | /PGM | A14 | A14 |
+| 28 | VCC | VCC | VCC | VCC | VCC | VCC | VCC | VCC |
 
 ## Detailed Pinouts
 
@@ -212,6 +213,20 @@ There are also some other inconsistencies between types:
 | Data (D0-D7) | 11,12,13,15,16,17,18,19 | 8 data lines |
 | CS1 | 20 | Configurable polarity |
 | CS2 | 22 | Configurable polarity |
+| VCC | 28 | +5V |
+| GND | 14 | 0V |
+
+### 231024 - 128KB mask ROM with 1 configurable CS line
+
+**Package:** 28-pin DIP  
+**Capacity:** 131072 bytes  
+**Control:** 1 configurable CS line  
+
+| Function | Pins | Notes |
+|----------|------|-------|
+| Address (A0-A16) | 10,9,8,7,6,5,4,3,25,24,21,23,2,26,27,1,22 | 17 address lines |
+| Data (D0-D7) | 11,12,13,15,16,17,18,19 | 8 data lines |
+| CS1 | 20 | Configurable polarity |
 | VCC | 28 | +5V |
 | GND | 14 | 0V |
 

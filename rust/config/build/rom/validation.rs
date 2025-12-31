@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 
-const MAX_ADDRESS_LINES: usize = 16;
+const MAX_ADDRESS_LINES: usize = 17;
 const DATA_LINE_COUNT: usize = 8;
 const MIN_PIN_NUMBER: u8 = 1;
 const VALID_PIN_COUNTS: &[u8] = &[24, 28];

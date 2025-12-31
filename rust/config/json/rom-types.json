@@ -319,6 +319,58 @@
                 }
             ]
         },
+        "231024": {
+            "description": "128KB mask ROM with 1 configurable CS line",
+            "pins": 28,
+            "size": 131072,
+            "address": [
+                10,
+                9,
+                8,
+                7,
+                6,
+                5,
+                4,
+                3,
+                25,
+                24,
+                21,
+                23,
+                2,
+                26,
+                27,
+                1,
+                22
+            ],
+            "data": [
+                11,
+                12,
+                13,
+                15,
+                16,
+                17,
+                18,
+                19
+            ],
+            "control": {
+                "cs1": {
+                    "pin": 20,
+                    "type": "configurable"
+                }
+            },
+            "power": [
+                {
+                    "name": "VCC",
+                    "pin": 28,
+                    "voltage": "+5V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 14,
+                    "voltage": "0V"
+                }
+            ]
+        },
         "2704": {
             "description": "512B EPROM with multiple supply voltages",
             "pins": 24,
