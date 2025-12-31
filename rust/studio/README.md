@@ -17,37 +17,21 @@ Steps:
     cp manifest/app-schema.json ../../../one-rom-images/studio/app-schema.json
     ```
 
-2. Create Mac build - on a Mac, using a local terminal (not ssh) with the appropriate Apple Developer ID certificate installed in the Login keychain:
+2. Use the `build-release.sh` script to build Studio for all platforms and architectures.  This requires ssh access to build machines for each platform and clones the current main branch to build from:
 
     ```bash
-    scripts/build-mac.sh
+    scripts/build-release.sh pin=WIN_SIGNING_PIN
     ```
 
-    Will pop-up for Apple ID credentials for code signing and notarization.
+    Artifacts are placed in the `dist/` directory.
 
-3. Create Windows build - on a Windows machine, using a local powershell, with smartcard plugged in:
-
-    ```powershell
-    .\scripts\build-windows.ps1
-    ``` 
-
-    Will prompt for smartcard pin.
-
-4. Create Linux builds - on a Linux (x86_64) machine:
-
-    ```bash
-    scripts/build-linux.sh
-    ```
-
-5. Copy the built installers from the `dist/` directory on each platform to the Linux machine's `dist/` directory.
-
-6. On the Linux machine, run the release script to upload the files and update the manifest - assumes you have the images.onerom.org github repo at ../../../one-rom-images:
+3. Run the release script to upload the files and update the manifest - assumes you have the images.onerom.org github repo at ../../../one-rom-images:
 
     ```bash
     scripts/release.py --input-dir dist --output-dir ../../../one-rom-images
     ```
 
-7. Commit one-rom-images changes and push:
+4. Commit one-rom-images changes and push:
 
     ```bash
     cd ../../../one-rom-images
@@ -56,16 +40,16 @@ Steps:
     git push
     ```
 
-8. Tag the current commit with the version and push:
+5. Tag the current commit with the version and push:
 
     ```bash
     git tag studio-vX.Y.Z
     git push origin studio-vX.Y.Z
     ```
 
-9. Check new releases appear at https://onerom.org/studio/
+6. Check new releases appear at https://onerom.org/studio/
 
-10. Update the Studio manifest `one-rom-images/studio.json` with the latest version.
+7. Update the Studio manifest `one-rom-images/studio.json` with the latest version.
 
 ## Updating Mac Icons
 
