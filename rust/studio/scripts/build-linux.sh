@@ -45,65 +45,80 @@ done
 # Install required packages
 if [ "$DEPS" = true ]; then
     echo "Installing dependencies..."
+
+    # Clean up any Ubuntu repo files from previous runs
+    sudo rm -f /etc/apt/sources.list.d/ubuntu-ports.list
+    sudo rm -f /etc/apt/sources.list.d/ubuntu-amd64.sources
+    sudo rm -f /etc/apt/sources.list.d/ubuntu-archive.list
+
     sudo apt update && sudo apt install -y libudev-dev libusb-1.0-0-dev gcc-aarch64-linux-gnu
 
-    # Also need aarch64 libudev-dev and libusb files
-    sudo dpkg --add-architecture arm64
-
-    # On Ubuntu 22.04 and earlier, arm64 packages need ports.ubuntu.com
+    # Detect OS and host architecture
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        if [ "$ID" = "ubuntu" ] && [ "$VERSION_ID" = "22.04" ]; then
-            echo "Configuring ports.ubuntu.com for arm64 packages (Ubuntu 22.04)"
-            sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
-            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main universe" | sudo tee -a /etc/apt/sources.list
-            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main universe" | sudo tee -a /etc/apt/sources.list
-            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main universe" | sudo tee -a /etc/apt/sources.list
+        OS_ID="$ID"
+    else
+        echo "ERROR: Cannot detect OS" >&2
+        exit 1
+    fi
+    HOST_ARCH=$(dpkg --print-architecture)
+    echo "Detected OS: $OS_ID, host architecture: $HOST_ARCH"
+
+    if [ "$OS_ID" = "debian" ]; then
+        # On Debian, native repos support both architectures
+        sudo dpkg --add-architecture arm64
+        sudo dpkg --add-architecture amd64
+        sudo apt update && sudo apt install -y libudev-dev:arm64 libusb-1.0-0-dev:arm64
+        sudo apt install -y libudev-dev:amd64 libusb-1.0-0-dev:amd64
+
+    elif [ "$OS_ID" = "ubuntu" ]; then
+        # On Ubuntu, architectures need different repos
+        CODENAME=$(lsb_release -sc)
+        
+        # Restrict existing repos to native architecture before adding foreign arch
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo cp /etc/apt/sources.list.d/ubuntu.sources /tmp/ubuntu.sources.backup
+            sudo sed -i '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
+            sudo sed -i "/^Types:/a Architectures: ${HOST_ARCH}" /etc/apt/sources.list.d/ubuntu.sources
         fi
+        
+        if [ "$HOST_ARCH" = "amd64" ]; then
+            # On x86_64 host: add arm64 packages from ports.ubuntu.com
+            sudo dpkg --add-architecture arm64
+            echo "Configuring ports.ubuntu.com for arm64 packages"
+            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME} main universe" | sudo tee /etc/apt/sources.list.d/ubuntu-ports.list
+            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-updates main universe" | sudo tee -a /etc/apt/sources.list.d/ubuntu-ports.list
+            echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${CODENAME}-security main universe" | sudo tee -a /etc/apt/sources.list.d/ubuntu-ports.list
+            sudo apt update && sudo apt install -y libudev-dev:arm64 libusb-1.0-0-dev:arm64
+            
+            # amd64 packages already available from native repos
+            sudo apt install -y libudev-dev:amd64 libusb-1.0-0-dev:amd64
+            
+        elif [ "$HOST_ARCH" = "arm64" ]; then
+            # On arm64 host: arm64 packages already available from native repos
+            sudo apt install -y libudev-dev:arm64 libusb-1.0-0-dev:arm64
+            
+            # Add amd64 packages from archive.ubuntu.com
+            sudo dpkg --add-architecture amd64
+            echo "Configuring archive.ubuntu.com for amd64 packages"
+            echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu ${CODENAME} main universe" | sudo tee /etc/apt/sources.list.d/ubuntu-archive.list
+            echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu ${CODENAME}-updates main universe" | sudo tee -a /etc/apt/sources.list.d/ubuntu-archive.list
+            echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu ${CODENAME}-security main universe" | sudo tee -a /etc/apt/sources.list.d/ubuntu-archive.list
+            sudo apt update && sudo apt install -y libudev-dev:amd64 libusb-1.0-0-dev:amd64
+        fi
+
+    else
+        echo "ERROR: Unsupported OS: $OS_ID" >&2
+        exit 1
     fi
 
-    sudo apt update && sudo apt install -y libudev-dev:arm64 libusb-1.0-0-dev:arm64
-
-    # Verify they actually installed
+    # Verify packages installed
     if ! dpkg -l | grep -q "libudev-dev.*arm64"; then
         echo "ERROR: libudev-dev:arm64 not installed" >&2
         exit 1
     fi
     echo "libudev-dev:arm64 is installed."
 
-    # Enable amd64 architecture
-    sudo dpkg --add-architecture amd64
-
-    # Force the ports repo to arm64 only
-    if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-        sudo cp /etc/apt/sources.list.d/ubuntu.sources /etc/apt/sources.list.d/ubuntu.sources.bak
-        
-        # Add Architectures: arm64 after every Types: line that doesn't already have an Architectures line in that stanza
-        sudo awk '
-            /^Types:/ { in_stanza=1; types_line=$0; has_arch=0; next }
-            /^Architectures:/ && in_stanza { has_arch=1; print "Architectures: arm64"; next }
-            /^$/ { 
-                if (in_stanza && !has_arch && types_line) {
-                    print types_line
-                    print "Architectures: arm64"
-                    types_line=""
-                }
-                in_stanza=0
-                print
-                next
-            }
-            in_stanza && types_line { print types_line; print "Architectures: arm64"; types_line=""; print; next }
-            { print }
-        ' /etc/apt/sources.list.d/ubuntu.sources.bak | sudo tee /etc/apt/sources.list.d/ubuntu.sources > /dev/null
-    fi
-
-    # Create amd64 sources
-    CODENAME=$(lsb_release -sc)
-    printf "Types: deb\nURIs: http://archive.ubuntu.com/ubuntu\nSuites: %s %s-updates %s-security\nComponents: main universe\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\nArchitectures: amd64\n" "$CODENAME" "$CODENAME" "$CODENAME" | sudo tee /etc/apt/sources.list.d/ubuntu-amd64.sources > /dev/null
-
-    sudo apt update && sudo apt install -y libudev-dev:amd64 libusb-1.0-0-dev:amd64
-
-    # Verify they actually installed
     if ! dpkg -l | grep -q "libudev-dev.*amd64"; then
         echo "ERROR: libudev-dev:amd64 not installed" >&2
         exit 1
@@ -114,7 +129,7 @@ if [ "$DEPS" = true ]; then
     rustup target add x86_64-unknown-linux-gnu
     rustup target add aarch64-unknown-linux-gnu
 
-    # Install cargo-debg if not already installed
+    # Install cargo-deb if not already installed
     # Forced to ensure it builds against glibc version on this system
     cargo install cargo-deb --locked --force
 else
