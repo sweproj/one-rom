@@ -487,6 +487,7 @@ impl Rom {
             RomType::Rom27128 => 11,
             RomType::Rom27256 => 12,
             RomType::Rom27512 => 13,
+            RomType::Rom231024 => 14,
         }
     }
 }
