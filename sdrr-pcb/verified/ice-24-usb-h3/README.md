@@ -1,7 +1,5 @@
 # One ROM Ice USB H2 24 Pin 
 
-**Unverified**: Very similar electrically to H2.
-
 Very similar to [rev H2](../stm32f4-24-pin-rev-h/README.md) but with the following changes:
 - Make holes for BOOT0/3V3 jumpers larger to make them easier to jump.
 - Added inline resistor between VBUS and PA9, to avoid potential ESD damage to STM32F4.
