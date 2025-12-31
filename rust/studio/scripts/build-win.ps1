@@ -128,6 +128,7 @@ foreach ($Target in $Targets) {
     # Create temporary versioned Packager.toml
     $PackagerContent = Get-Content "Packager.toml"
     $PackagerContent = $PackagerContent -replace "%VERSION%", $Version
+    $PackagerContent = $PackagerContent -replace "%TARGET%", $Target
     $TempPackagerPath = "Packager_temp.toml"
 
     # Write the temporary Packager.toml
