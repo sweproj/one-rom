@@ -483,7 +483,6 @@ fn generate_sdrr_config_header(filename: &Path, config: &Config) -> Result<()> {
         writeln!(file)?;
         writeln!(file, "// MCU PIO support")?;
         writeln!(file, "#define RP_PIO 1")?;
-        writeln!(file, "#define PIO_CONFIG_SLOW_CLOCK_CHAR 1")?;
     }
 
     writeln!(file)?;
