@@ -44,6 +44,7 @@ pcb-rev-e:HW_REV=ice-24-e,MCU=f401re,CONFIG=config/test-sdrr-0.mk
 pcb-rev-f:HW_REV=ice-24-f,MCU=f401re,CONFIG=config/test-sdrr-0.mk
 pcb-rev-g:HW_REV=ice-24-g,MCU=f401re,CONFIG=config/test-sdrr-0.mk
 pcb-rev-h:HW_REV=ice-24-usb-h,MCU=f401re,CONFIG=config/test-sdrr-0.mk
+pcb-rev-i:HW_REV=ice-24-i,MCU=f401re,CONFIG=config/test-sdrr-0.mk
 pcb-rev-pa:HW_REV=fire-24-a,MCU=rp2350,CONFIG=config/test-sdrr-0.mk
 pcb-rev-pb:HW_REV=fire-24-usb-b,MCU=rp2350,CONFIG=config/test-sdrr-0.mk
 pcb-rev-pc:HW_REV=fire-24-c,MCU=rp2350,CONFIG=config/test-sdrr-0.mk
