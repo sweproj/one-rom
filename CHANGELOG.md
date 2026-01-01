@@ -2,7 +2,7 @@
 
 All notables changes between versions are documented in this file.
 
-## v0.5.9 - 2026-??-??
+## v0.5.9 - 2026-01-01
 
 This release adds new One ROM hardware revisions and ROM type support.
 
@@ -11,6 +11,7 @@ This release adds new One ROM hardware revisions and ROM type support.
 - 231024 (28 pin) ROM type support.
 - Hardware revision ice-24-i - Combined Pro (SWD) and USB 24 pin Ice version.
 - Hardware revision fire-24-c - Combined Pro (SWD) and USB 24 pin Fire version.
+- Hardware revisions fire-28-a2 and fire-28-a3 - Combined Pro (SWD) and USB 28 pin Fire versions.
 
 ### Crates
 
