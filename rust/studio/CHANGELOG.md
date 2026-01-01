@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.6 - 2026-??-??
+
+### Added
+
+- 231024 ROM support in JSON config files.
+- fire-24-c
+
 ## v0.1.5 - 2025-12-12
 
 ### Added

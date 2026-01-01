@@ -14,6 +14,13 @@ This release adds 28 pin ROM support for the new One ROM Fire 28-pin version, fi
 - Hardware revision ice-24-i - Combined Pro (SWD) and USB 24 pin Ice version.
 - Hardware revision fire-24-c - Combined Pro (SWD) and USB 24 pin Fire version.
 
+### Versions
+
+- onerom-config 0.2.5, 0.2.6
+- onerom-fw 0.1.5
+- onerom-gen 0.2.3
+- sdrr-fw-parser 0.5.7
+
 ## v0.5.7 - 2025-12-09
 
 ### Fixed
