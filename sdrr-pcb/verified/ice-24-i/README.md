@@ -1,6 +1,6 @@
-# One ROM Ice USB H2 24 Pin 
+# One ROM Ice USB I 24 Pin 
 
-**Unverified**: Similar to ice-24-c.
+Similar to ice-24-usb-h, but adds SWD programming pins and reduces image select pins to 2 (from 5).  Future firmware versions may extend from 2 to 4 image select pins without the need for additional hardware revisions (but utilising the SWD pins).
 
 There is a single set of gerbers, and two sets of POS/BOM files:
 - One for the STM32F411RET6 MCU.
