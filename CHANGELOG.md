@@ -2,6 +2,10 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.5.10 - 2026-??-??
+
+
+
 ## v0.5.9 - 2026-01-01
 
 This release adds new One ROM hardware revisions and ROM type support.
