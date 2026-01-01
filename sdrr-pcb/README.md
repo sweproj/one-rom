@@ -13,7 +13,7 @@ Last Updated 2026-01-01.
 
 The current recommended 24 pin hardware revision is [fire-24-c](./verified/fire-24-c/README.md).  This is a combined Pro (SWD) and USB version, with 2 image select pins and 2 X (special function) pins.  It supports PIO and CPU serving algorithms.
 
-The current recommended 28 pin hardware revision is [fire-28-a2](./verified/fire-28-a2/README.md).  This is a combined Pro (SWD) and USB version, with 2 image select pins.  (The 28 pin version does not have X pins.)  It supports PIO and CPU serving algorithms.  (Note that SWD pins CLK/DIO are incorrectly silkscreened in this revision - CLK is DIO and vice versa.)
+The current recommended 28 pin hardware revision is [fire-28-a2](./verified/fire-28-a2/README.md).  This is a combined Pro (SWD) and USB version, with 2 image select pins.  (The 28 pin version does not have X pins.)  It supports PIO and CPU serving algorithms.  Note that SWD pins CLK/DIO are incorrectly silkscreened in this revision - CLK is DIO and vice versa.  If this labelling is a concern, use currently unverified revision A3 [fire-28-a3](./unverified/fire-28-a3/README.md), which corrects this silkscreen error.
 
 ### Ice (STM32F4)
 
