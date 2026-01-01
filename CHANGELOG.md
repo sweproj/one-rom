@@ -2,24 +2,30 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.5.9 - 2026-??-??
+
+This release adds new One ROM hardware revisions and ROM type support.
+
+### Added
+
+- 231024 (28 pin) ROM type support.
+- Hardware revision ice-24-i - Combined Pro (SWD) and USB 24 pin Ice version.
+- Hardware revision fire-24-c - Combined Pro (SWD) and USB 24 pin Fire version.
+
+### Crates
+
+- onerom-config 0.2.5, 0.2.6
+- onerom-fw 0.1.5, 0.1.6
+- onerom-gen 0.2.3, 0.2.4
+- sdrr-fw-parser 0.5.7, 0.5.8
+
 ## v0.5.8 - 2025-12-12
 
 This release adds 28 pin ROM support for the new One ROM Fire 28-pin version, fire-28-a.
 
-??? 231024 support
-
 ### Added
 
 - Support for 28 pin ROM types using fire-28-a.  23128 has been tested in a C64C. wotj 2764, 27128, 27256 and 27512 tested in an EEPROM reader.  It is STRONGLY recommended NOT to use an EEPROM reader to read One ROM, as it may apply 12V to pin A9.
-- Hardware revision ice-24-i - Combined Pro (SWD) and USB 24 pin Ice version.
-- Hardware revision fire-24-c - Combined Pro (SWD) and USB 24 pin Fire version.
-
-### Versions
-
-- onerom-config 0.2.5, 0.2.6
-- onerom-fw 0.1.5
-- onerom-gen 0.2.3
-- sdrr-fw-parser 0.5.7
 
 ## v0.5.7 - 2025-12-09
 
