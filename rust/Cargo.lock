@@ -5924,7 +5924,7 @@ dependencies = [
 
 [[package]]
 name = "sdrr-gen"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "anyhow",
  "bytes",
