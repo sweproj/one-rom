@@ -123,13 +123,15 @@ echo "=== Starting macOS build... ==="
 echo "Unlocking macOS keychain..."
 ssh -t "$MACOS_HOST" "security unlock-keychain ~/Library/Keychains/login.keychain-db"
 echo "Continuing macOS build..."
+start=$(date +%s)
 set +e
-ssh "$MACOS_HOST" "zsh -l -c 'cd $STUDIO_DIR && scripts/build-mac.sh nodeps noclean nosign'" > /tmp/studio-build-mac.log 2>&1
+ssh "$MACOS_HOST" "zsh -l -c 'cd $STUDIO_DIR && scripts/build-mac.sh'" > /tmp/studio-build-mac.log 2>&1
 mac_status=$?
 set -e
+end=$(date +%s)
 echo "Locking macOS keychain..."
 ssh "$MACOS_HOST" "security lock-keychain ~/Library/Keychains/login.keychain-db"
-echo "macOS build completed (status: $mac_status)"
+echo "macOS build completed (status: $mac_status) in $((end - start)) seconds"
 if [ $mac_status -ne 0 ]; then
   echo "macOS build log:"
   cat /tmp/studio-build-mac.log
@@ -137,11 +139,13 @@ fi
 
 echo ""
 echo "=== Starting Linux build... ==="
+start=$(date +%s)
 set +e
-ssh "$LINUX_HOST" "bash -l -c 'cd $STUDIO_DIR && scripts/build-linux.sh nodeps noclean'" > /tmp/studio-build-linux.log 2>&1
+ssh "$LINUX_HOST" "bash -l -c 'cd $STUDIO_DIR && scripts/build-linux.sh'" > /tmp/studio-build-linux.log 2>&1
 linux_status=$?
 set -e
-echo "Linux build completed (status: $linux_status)"
+end=$(date +%s)
+echo "Linux build completed (status: $linux_status) in $((end - start)) seconds"
 if [ $linux_status -ne 0 ]; then
   echo "Linux build log:"
   cat /tmp/studio-build-linux.log
@@ -149,17 +153,17 @@ fi
 
 echo ""
 echo "=== Starting Windows build... ==="
+start=$(date +%s)
 set +e
-ssh "$WINDOWS_HOST" ". 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\Tools\Launch-VsDevShell.ps1'; cd $STUDIO_DIR; .\scripts\build-win.ps1 nodeps noclean nosign $WINDOWS_PIN" > /tmp/studio-build-win.log 2>&1
+ssh "$WINDOWS_HOST" ". 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\Tools\Launch-VsDevShell.ps1'; cd $STUDIO_DIR; .\scripts\build-win.ps1 $WINDOWS_PIN" > /tmp/studio-build-win.log 2>&1
 win_status=$?
 set -e
-echo "Windows build completed (status: $win_status)"
+end=$(date +%s)
+echo "Windows build completed (status: $win_status) in $((end - start)) seconds"
 if [ $win_status -ne 0 ]; then
     echo "Windows build log:"
     cat /tmp/studio-build-win.log
 fi
-
-set -e # Re-enable exit on error
 
 echo ""
 echo "=== Collecting build artifacts ==="
