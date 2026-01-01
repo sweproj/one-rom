@@ -80,7 +80,8 @@ fi
 cd builds/one-rom-build
 echo "Updating repository..."
 git checkout main
-git pull
+git fetch origin
+git reset --hard origin/main
 cd rust/studio
 echo "Cleaning dist directory..."
 rm -f dist/*
@@ -103,7 +104,8 @@ if (!(Test-Path builds\one-rom-build)) {
 cd builds\one-rom-build
 Write-Host "Updating repository..."
 git checkout main
-git pull
+git fetch origin
+git reset --hard origin/main
 cd rust\studio
 Write-Host "Cleaning dist directory..."
 if (Test-Path dist) {

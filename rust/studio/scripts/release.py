@@ -23,6 +23,7 @@ from urllib.request import urlopen
 MANIFEST_URL = "https://images.onerom.org/studio/releases.json"
 EXPECTED_TARGETS = {
     "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
     "universal-apple-darwin",
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",
@@ -46,7 +47,12 @@ def identify_target(filename):
     lower = filename.lower()
     
     if lower.endswith('.exe'):
-        return 'x86_64-pc-windows-msvc'
+        if 'aarch64' in lower or 'arm64' in lower:
+            return 'aarch64-pc-windows-msvc'
+        elif 'x86_64' in lower or 'x64' in lower or 'amd64' in lower:
+            return 'x86_64-pc-windows-msvc'
+        else:
+            error(f"Could not determine architecture for Windows file: {filename}")
     elif lower.endswith('.dmg'):
         return 'universal-apple-darwin'
     elif lower.endswith('.deb'):
