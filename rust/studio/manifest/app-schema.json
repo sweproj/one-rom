@@ -7,7 +7,7 @@
     "latest_app_version": {
       "description": "Latest application version available",
       "type": "string",
-      "default": "0.1.6"
+      "default": "0.1.7"
     },
     "link_urls": {
       "description": "Links used by the application within the UI",
