@@ -8,9 +8,9 @@ The most flexible ROM replacement for your retro computer.
 
 ## Quick Start
 
-If you have a One ROM USB, you can use the web-based [One ROM USB Programmer](https://onerom.piers.rocks/) to flash the firmware directly from your browser.
+Use [One ROM Studio](https://onerom.org/studio) to configure and build custom firmware images for your One ROM.
 
-For a non-USB One ROM, choose the binary image below matching your hardware and chosen ROM image(s), and flash it to your One ROM.
+Alternatively, download pre-built firmware images from the releases below.
 
 ## File Types
 
