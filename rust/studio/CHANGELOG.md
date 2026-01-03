@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.7 - 2026-01-03
+
+### Added
+
+- #77 - Support for serving multi-ROM sets using Fire PIO algorithm.
+
 ## v0.1.6 - 2026-01-01
 
 ### Added

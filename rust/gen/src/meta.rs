@@ -11,7 +11,8 @@ use alloc::vec::Vec;
 
 use onerom_config::hw::Board;
 
-use crate::{Error, FIRMWARE_SIZE, METADATA_VERSION, Result, image::RomSet};
+use crate::{Error, FIRMWARE_SIZE, METADATA_VERSION, Result};
+use crate::image::{RomSet, RomSetType};
 
 pub const PAD_METADATA_BYTE: u8 = 0xFF;
 
@@ -36,6 +37,7 @@ pub struct Metadata {
     board: Board,
     rom_sets: Vec<RomSet>,
     filenames: bool,
+    pio: bool,
 }
 
 impl Metadata {
@@ -44,7 +46,16 @@ impl Metadata {
             board,
             rom_sets,
             filenames,
+            pio: false,
         }
+    }
+
+    pub fn set_pio(mut self) {
+        self.pio = true;
+    }
+
+    pub fn pio(&self) -> bool {
+        self.pio
     }
 
     const fn header_len(&self) -> usize {
@@ -372,11 +383,26 @@ impl Metadata {
 
         let mut offset = 0;
         for rom_set in &self.rom_sets {
+            // For PIO based multi-ROM sets, we need to flip the sense of the
+            // CS1/X1 and X2 (if applicable) lines, as the PIO algorithm is
+            // implemented differently in this case, and the CS1/X1/X2 lines
+            // are all flipped in hardware.  Without this image flipping, the
+            // wrong bytes would be served.
+            let flip_cs1_x = if self.pio() {
+                if rom_set.set_type == RomSetType::Multi {
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
             let size = rom_set.image_size(&self.board.mcu_family(), self.board.rom_pins());
 
             // Fill buffer by calling get_byte for each address
             for addr in 0..size {
-                buf[offset + addr] = rom_set.get_byte(addr, &self.board);
+                buf[offset + addr] = rom_set.get_byte(addr, &self.board, flip_cs1_x);
             }
 
             offset += size;

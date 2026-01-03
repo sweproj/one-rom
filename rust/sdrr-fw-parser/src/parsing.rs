@@ -139,7 +139,9 @@ pub(crate) struct SdrrExtraInfoHeader {
     pub vbus_pin: u8,
     pub reserved1: [u8; 1],
 
-    pub _post: [u8; 248],
+    pub runtime_info_ptr: u32,
+
+    pub _post: [u8; 244],
 }
 
 impl SdrrExtraInfoHeader {
@@ -389,6 +391,7 @@ pub(crate) async fn read_extra_info<R: Reader>(
         usb_dfu: header.usb_dfu != 0,
         usb_port,
         vbus_pin,
+        runtime_info_ptr: header.runtime_info_ptr,
     })
 }
 

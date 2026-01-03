@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #
 # build.sh - Build all MCU variant and config combinations for One ROM project

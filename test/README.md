@@ -24,4 +24,10 @@ These tests have an external dependency on `libcurl` and `libzip` which are used
 sudo apt install libcurl4-openssl-dev libzip-dev libjson-c-dev
 ```
 
+On macOS with Homebrew:
+
+```bash
+brew install curl libzip json-c
+```
+
 Note that this test suite does _not_ yet use the pin mapping from [`rust/config/json`](/rust/config/json/README.md), so will report errors for hardware revisions other than `24-d`, `24-e` and `24-f`.

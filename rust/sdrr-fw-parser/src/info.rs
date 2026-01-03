@@ -89,6 +89,9 @@ pub struct SdrrInfo {
     pub board: Option<Board>,
     pub model: Option<Model>,
     pub mcu_variant: Option<McuVariant>,
+
+    // Located in extra info structure
+    pub runtime_info_ptr: u32,
 }
 
 impl SdrrInfo {
@@ -386,6 +389,9 @@ pub struct SdrrExtraInfo {
 
     /// Pin number for VBUS detection
     pub vbus_pin: u8,
+
+    /// Location of runtime info in RAM
+    pub runtime_info_ptr: u32,
 }
 
 /// Information about a set of ROMs in an SDRR firmware

@@ -665,7 +665,7 @@ impl RomSet {
 
     /// Gets a byte from the ROM set at the given address (as far as the MCU is
     /// concerned) and returns the byte, ready for the MCU to serve.
-    pub fn get_byte(&self, address: usize, board: &Board) -> u8 {
+    pub fn get_byte(&self, address: usize, board: &Board, invert_cs1_x: bool) -> u8 {
         // Hard-coded assumption that X1/X2 (STM32F4) are pins 14/15 for
         // single ROM sets and banked ROM sets.  However, for RP2350 they may
         // be other pins.
@@ -720,11 +720,13 @@ impl RomSet {
             Self::truncate_phys_pin_to_addr_map(&mut phys_pin_to_addr_map, num_addr_lines);
 
             return self.roms[rom_index].get_byte(&phys_pin_to_addr_map, masked_address, board);
-        }
+        } 
+
 
         // Multiple ROMs: check CS line states to select responding ROM.  This
         // code can handle any X1/X2 positions - but the above can't.
         assert!(address < 65536, "Address out of bounds for multi-ROM set");
+
         for (index, rom_in_set) in self.roms.iter().enumerate() {
             // Get the physical addr and data pin mappings.  We have to
             // retrieve this for each ROM in the set, as each ROM may be
@@ -743,15 +745,24 @@ impl RomSet {
             let cs_pin = board.cs_bit_for_rom_in_set(rom_in_set.rom_type, index);
             assert!(cs_pin <= 15, "Internal error: CS pin is > 15");
 
-            fn is_pin_active(active_high: bool, address: usize, pin: u8) -> bool {
-                if active_high {
-                    (address & (1 << pin)) != 0
+            fn is_pin_active(active_high: bool, invert_cs1_x: bool, address: usize, pin: u8) -> bool {
+                if !invert_cs1_x {
+                    if active_high {
+                        (address & (1 << pin)) != 0
+                    } else {
+                        (address & (1 << pin)) == 0
+                    }
                 } else {
-                    (address & (1 << pin)) == 0
+                    // Invert the logic for this read
+                    if active_high {
+                        (address & (1 << pin)) == 0
+                    } else {
+                        (address & (1 << pin)) != 0
+                    }
                 }
             }
 
-            let cs_active = is_pin_active(pins_active_high, address, cs_pin);
+            let cs_active = is_pin_active(pins_active_high, invert_cs1_x, address, cs_pin);
 
             if cs_active {
                 // Verify exactly one CS pin is active
@@ -759,17 +770,15 @@ impl RomSet {
                 let x1_pin = board.bit_x1();
                 let x2_pin = board.bit_x2();
 
-                let cs1_is_active = is_pin_active(pins_active_high, address, cs1_pin);
-                let x1_is_active = is_pin_active(pins_active_high, address, x1_pin);
-                let x2_is_active = is_pin_active(pins_active_high, address, x2_pin);
+                let cs1_is_active = is_pin_active(pins_active_high, invert_cs1_x, address, cs1_pin);
+                let x1_is_active = is_pin_active(pins_active_high, invert_cs1_x, address, x1_pin);
+                let x2_is_active = is_pin_active(pins_active_high, invert_cs1_x, address, x2_pin);
 
                 let active_count = [cs1_is_active, x1_is_active, x2_is_active]
                     .iter()
                     .filter(|&&x| x)
                     .count();
 
-                // Only return the byte for a single CS active, otherwise
-                // it'll get a "blank" byte
                 if active_count == 1 && self.check_rom_cs_requirements(rom_in_set, address, board) {
                     return rom_in_set.get_byte(&phys_pin_to_addr_map, address, board);
                 }

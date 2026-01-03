@@ -12,6 +12,8 @@
 //
 
 #if defined(BOOT_LOGGING)
+extern uint32_t _sdrr_runtime_info_start;
+extern uint32_t _ram_rom_image_start[];
 // Logging function to output various debug information via RTT
 void log_init(void) {
     LOG("%s", log_divider);
@@ -31,6 +33,12 @@ void log_init(void) {
     } else {
         LOG("Status LED: disabled");
     }
+
+    DEBUG("sdrr_info located at: 0x%08X", (uint32_t)&sdrr_info);
+    DEBUG("sdrr_extra_info located at: 0x%08X", (uint32_t)sdrr_info.extra);
+    DEBUG("RAM ROM table located at: 0x%08X", (uint32_t)&_ram_rom_image_start);
+    DEBUG("sdrr_runtime_info located at: 0x%08X", (uint32_t)sdrr_info.extra->runtime_info);
+    DEBUG("RTT control block located at: 0x%08X", (uint32_t)sdrr_info.extra->rtt);
 
     platform_logging();
 

@@ -2,9 +2,11 @@
 GEN_OUTPUT_DIR ?= output
 OUTPUT_DIR := ../$(GEN_OUTPUT_DIR)
 
-# Quick test harness for ROM data validation
 CC = gcc
-CFLAGS = -Werror -Wall -Wextra -g -I include -I../sdrr/include -I../output
+
+# Note the output -D'__attribute__(x)=' is to neutralise section headers in
+# the auto-generated source files, which macOS doesn't like.
+CFLAGS = -Werror -Wall -Wextra -g -I include -I../sdrr/include -I../output -I../output -D'__attribute__(x)='
 LDFLAGS = -lcurl -lzip -ljson-c
 TARGET = image-test
 BUILD_DIR = build
@@ -13,6 +15,14 @@ SRCS = src/main.c src/check-roms.c src/roms-config.c src/query-roms.c src/json-c
 OBJS := $(addprefix $(BUILD_DIR)/,$(notdir $(SRCS:.c=.o)))
 ROMS_SRC := $(OUTPUT_DIR)/roms.c
 ROMS_OBJ := $(BUILD_DIR)/roms.o
+
+# macOS homebrew support
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    BREW_PREFIX := $(shell brew --prefix)
+    CFLAGS += -I$(BREW_PREFIX)/include
+    LDFLAGS += -L$(BREW_PREFIX)/lib
+endif
 
 # Convenience target
 all: $(BUILD_DIR)/$(TARGET)

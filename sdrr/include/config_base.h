@@ -125,6 +125,7 @@ typedef struct {
 
 // Forward declarations
 struct onerom_metadata_header_t;
+struct sdrr_runtime_info_t;
 
 // Extra information stored in flash
 typedef struct {
@@ -139,8 +140,11 @@ typedef struct {
     uint8_t vbus_pin;
     uint8_t reserved1[1];
 
+    // Added in 0.5.10
+    const struct sdrr_runtime_info_t* runtime_info;
+
     // Padding to make 256 bytes long
-    uint8_t _post[248];
+    uint8_t _post[244];
 } sdrr_extra_info_t;
 
 // Main SDRR information data structure
@@ -218,7 +222,7 @@ typedef struct {
     // Pointer to metadata.
     //
     // In pre-v0.5.0 firmware versions this was used as a pointer to rom_sets.
-    // We have now added an addition structure and redirection to rom_sets,
+    // We have now added an additional structure and redirection to rom_sets,
     // pointing to them within the metadata header.  
     //
     // Offset: 44

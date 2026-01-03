@@ -80,16 +80,16 @@ SECTIONS
     /* RAM sections */
     /* ------------ */
 
-    /* This is sdrr_runtime_info_t.  This must come at the start of RAM, */
-    /* so that it is easy to analyse RAM and find it.  It contains useful */
-    /* runtime information about One ROM, like what ROM is being served and, */
-    /* if so configured, the number of ROM accesses. */
-    INCLUDE "ram_sdrr_runtime_info.ld"
-
     /* Reserved space in RAM to store the ROM image, so it can be looked-up */
     /* directly from RAM.  This is specified so on the RP2350 we can set it */
     /* to a specific SRAM bank, to try and avoid bus contention. */
     INCLUDE "ram_rom_image.ld"
+
+    /* This is sdrr_runtime_info_t.  This is pointed to by sdrr_info_t, */
+    /* so that it is easy to analyse RAM and find it.  It contains useful */
+    /* runtime information about One ROM, like what ROM is being served and, */
+    /* if so configured, the number of ROM accesses. */
+    INCLUDE "ram_sdrr_runtime_info.ld"
 
     /* Next include space for any functions that may be copied to RAM. It */
     /* doesn't really matter where these go. */

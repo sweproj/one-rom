@@ -1,6 +1,6 @@
 [package]
 name = "sdrr-fw-parser"
-version = "0.5.8"
+version = "0.5.9"
 edition = "2024"
 authors = ["Piers Finlayson <piers@piers.rocks>"]
 description = "One ROM firmware parser"
@@ -17,7 +17,7 @@ esp32 = []
 
 [dependencies]
 onerom-config = { version = "0.2.6" }
-onerom-gen = { version = "0.2.4" }
+onerom-gen = { version = "0.2.5" }
 
 airfrog-rpc = { version = "0.1.0" }
 deku = { version = "0.19", default-features = false, features = ["alloc"] }

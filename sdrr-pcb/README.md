@@ -11,7 +11,7 @@ Last Updated 2026-01-01.
 
 ### Fire (RP2350)
 
-The current recommended 24 pin hardware revisions are [fire-24-a](./verified/rp2350-24-pin-rev-a/README.md) (Pro/SWD) and [fire-24-usb-b](./verified/fire-24-usb-b/README.md) (USB).
+The current recommended 24 pin hardware revision is [fire-24-c](./verified/fire-24-c/README.md).  This is a combined Pro (SWD) and USB version, with 2 image select jumpers.  It supports PIO and CPU serving algorithms.  There are 2 image select jumpers.  This is recommended over revisions A (Pro only) and B (USB only).
 
 The current recommended 28 pin hardware revision is [fire-28-a2](./verified/fire-28-a2/README.md).  This is a combined Pro (SWD) and USB version, with 2 image select pins.  (The 28 pin version does not have X pins.)  It supports PIO and CPU serving algorithms.  Note that SWD pins CLK/DIO are incorrectly silkscreened in this revision - CLK is DIO and vice versa.  If this labelling is a concern, use currently unverified revision A3 [fire-28-a3](./unverified/fire-28-a3/README.md), which corrects this silkscreen error.
 

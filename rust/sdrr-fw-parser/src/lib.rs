@@ -244,6 +244,25 @@ impl<'a, R: Reader> Parser<'a, R> {
         parse_and_validate_runtime_info(&runtime_buf)
     }
 
+    async fn retrieve_runtime_header_from_info(&mut self, info: &SdrrInfo) -> Result<SdrrRuntimeInfoHeader, String> {
+        let runtime_info_ptr = info.runtime_info_ptr;
+        if runtime_info_ptr < self.base_ram_address && runtime_info_ptr != 0xFFFF_FFFF_u32{
+            return Err(format!(
+                "Invalid runtime info pointer: 0x{:08X}",
+                runtime_info_ptr
+            ));
+        }
+
+        // Read the runtime info header
+        let mut runtime_buf = [0u8; SdrrRuntimeInfoHeader::size()];
+        self.reader
+            .read(runtime_info_ptr, &mut runtime_buf)
+            .await
+            .map_err(|_| "Failed to read SDRR runtime info")?;
+        // Parse and validate runtime info using the helper
+        parse_and_validate_runtime_info(&runtime_buf)
+    }
+
     /// Function to do a brief check whether this is an SDRR device.
     ///
     /// Returns:
@@ -265,7 +284,14 @@ impl<'a, R: Reader> Parser<'a, R> {
                 None
             }
         };
-        let ram = match self.parse_ram().await {
+
+        let ram = if let Some(flash) = &flash {
+            self.parse_ram_from_info(flash).await
+        } else {
+            self.parse_ram().await 
+        };
+
+        let ram = match ram {
             Ok(r) => Some(r),
             Err(e) => {
                 warn!("Failed to parse RAM: {}", e);
@@ -368,14 +394,17 @@ impl<'a, R: Reader> Parser<'a, R> {
         };
 
         // Parse extra info
-        let extra_info =
+        let (extra_info, runtime_info_ptr) =
             match parsing::read_extra_info(self.reader, header.extra_ptr, self.base_flash_address)
                 .await
             {
-                Ok(info) => Some(info),
+                Ok(info) => {
+                    let runtime_info_ptr = info.runtime_info_ptr;
+                    (Some(info), runtime_info_ptr)
+                }
                 Err(e) => {
                     parse_errors.push(ParseError::new("Extra Info", e));
-                    None
+                    (None, 0xFFFF_FFFF_u32)
                 }
             };
 
@@ -527,23 +556,33 @@ impl<'a, R: Reader> Parser<'a, R> {
             board,
             model,
             mcu_variant,
+            runtime_info_ptr,
         })
     }
 
-    pub async fn parse_ram(&mut self) -> Result<SdrrRuntimeInfo, String> {
-        // Parse and validate runtime info using the helper
-        let runtime_info = self.retrieve_runtime_header().await?;
-
+    async fn parse_ram_from_runtime_info(&mut self, runtime_info: SdrrRuntimeInfoHeader) -> Result<SdrrRuntimeInfo, String> {
         Ok(SdrrRuntimeInfo {
             image_sel: runtime_info.image_sel,
             rom_set_index: runtime_info.rom_set_index,
             count_rom_access: runtime_info.count_rom_access,
             last_parsed_access_count: runtime_info.access_count,
-            account_count_address: STM32F4_RAM_BASE
+            account_count_address: self.base_ram_address
                 + SdrrRuntimeInfoHeader::access_count_offset() as u32,
             rom_table_address: runtime_info.rom_table_ptr,
             rom_table_size: runtime_info.rom_table_size,
         })
+    }
+
+    async fn parse_ram(&mut self) -> Result<SdrrRuntimeInfo, String> {
+        // Parse and validate runtime info using the helper
+        let runtime_info = self.retrieve_runtime_header().await?;
+        self.parse_ram_from_runtime_info(runtime_info).await
+    }
+
+    async fn parse_ram_from_info(&mut self, info: &SdrrInfo) -> Result<SdrrRuntimeInfo, String> {
+        // Parse and validate runtime info using the helper
+        let runtime_info = self.retrieve_runtime_header_from_info(info).await?;
+        self.parse_ram_from_runtime_info(runtime_info).await
     }
 
     async fn read_string_at_ptr(&mut self, ptr: u32) -> Result<String, String> {
