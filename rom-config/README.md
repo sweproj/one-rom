@@ -34,14 +34,18 @@ A slightly more advanced config with 2 ROM images:
     "rom_sets": [
         {
             "type": "single",
-            "description": "A simple ROM set with 2 ROMs",
             "roms": [
                 {
                     "description": "ROM 1",
                     "file": "http://example.com/rom1.bin",
                     "type": "2364",
                     "cs1": "active_low"
-                },
+                }
+            ]
+        },
+        {
+            "type": "single",
+            "roms": [
                 {
                     "description": "ROM 2",
                     "file": "http://example.com/rom2.bin",
@@ -53,6 +57,10 @@ A slightly more advanced config with 2 ROM images:
     ]
 }
 ```
+
+## 23 vs 27 Series ROMs
+
+You do not need specify CS line behaviour for 27 series ROMs, as they automatically use /CE and /OE (both active low) logic.
 
 ## Complex Configs
 
