@@ -80,6 +80,8 @@ pub enum RomTypeByte {
     Type2364 = 0x00,
     Type2332 = 0x01,
     Type2316 = 0x02,
+    Type23128 = 0x03,
+    Type27512 = 0x04,
 }
 
 impl RomTypeByte {
@@ -88,6 +90,8 @@ impl RomTypeByte {
             0x00 => Ok(RomTypeByte::Type2364),
             0x01 => Ok(RomTypeByte::Type2332),
             0x02 => Ok(RomTypeByte::Type2316),
+            0x03 => Ok(RomTypeByte::Type23128),
+            0x04 => Ok(RomTypeByte::Type27512),
             _ => Err(Error::ParseError),
         }
     }
@@ -101,6 +105,12 @@ impl RomTypeByte {
 /// the ROM, which was mask programmed at factory for the original ROM chips.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RomType {
+    /// A 27512 ROM
+    Type27512,
+
+    /// A 23128 ROM
+    Type23128 { cs1: CsActive, cs2: CsActive, cs3: CsActive },
+
     /// A 2364 ROM
     Type2364 { cs: CsActive },
 
@@ -122,6 +132,9 @@ impl core::fmt::Display for RomType {
 }
 
 impl RomType {
+    const CS1_23128_ADDR: usize = 17;
+    const CS2_23128_ADDR: usize = 16;
+    const CS3_23128_ADDR: usize = 14;
     const CS_2364_ADDR: usize = 13;
     const CS1_2332_ADDR: usize = 13;
     const CS2_2332_ADDR: usize = 12;
@@ -131,21 +144,50 @@ impl RomType {
 
     /// Returns the max size of ROM supported by this object.
     pub const fn max_size() -> usize {
-        8192
+        65536
     }
 
     /// Returns the size of this ROM.
     pub const fn size(&self) -> usize {
         match self {
+            RomType::Type27512 => 65536,
+            RomType::Type23128 { .. } => 16384,
             RomType::Type2364 { .. } => 8192,
             RomType::Type2332 { .. } => 4096,
             RomType::Type2316 { .. } => 2048,
         }
     }
 
+    /// Returns number of pins this ROM type has
+    pub const fn rom_pins(&self) -> usize {
+        match self {
+            RomType::Type27512 => 28,
+            RomType::Type23128 { .. } => 28,
+            RomType::Type2364 { .. } => 24,
+            RomType::Type2332 { .. } => 24,
+            RomType::Type2316 { .. } => 24,
+        }
+    }
+
+    pub const fn invalid_addr_lines(&self) -> &'static [u8] {
+        match self {
+            RomType::Type27512  => &[],
+            RomType::Type23128 { .. } => &[15],
+            RomType::Type2364 { .. } => &[],
+            RomType::Type2332 { .. } => &[],
+            RomType::Type2316 { .. } => &[],
+        }
+    }
+
     /// Returns the active CS mask for this ROM type.
     pub fn cs_active_mask(&self) -> usize {
         match self {
+            RomType::Type27512 => 0,
+            RomType::Type23128 { cs1, cs2, cs3 } => {
+                cs1.bit() << Self::CS1_23128_ADDR
+                    | cs2.bit() << Self::CS2_23128_ADDR
+                    | cs3.bit() << Self::CS3_23128_ADDR
+            }
             RomType::Type2364 { cs } => cs.bit() << Self::CS_2364_ADDR,
             RomType::Type2332 { cs1, cs2 } => {
                 cs1.bit() << Self::CS1_2332_ADDR | cs2.bit() << Self::CS2_2332_ADDR
@@ -165,6 +207,8 @@ impl RomType {
 
     pub const fn type_str(&self) -> &'static str {
         match self {
+            RomType::Type27512 => "27512",
+            RomType::Type23128 { .. } => "23128",
             RomType::Type2364 { .. } => "2364",
             RomType::Type2332 { .. } => "2332",
             RomType::Type2316 { .. } => "2316",
@@ -173,6 +217,17 @@ impl RomType {
 
     pub const fn cs_str(&self) -> &'static str {
         match self {
+            RomType::Type27512 => "N/A",
+            RomType::Type23128 { cs1, cs2, cs3 } => match (cs1, cs2, cs3) {
+                (CsActive::Low, CsActive::Low, CsActive::Low) => "CS1 Low, CS2 Low, CS3 Low",
+                (CsActive::Low, CsActive::Low, CsActive::High) => "CS1 Low, CS2 Low, CS3 High",
+                (CsActive::Low, CsActive::High, CsActive::Low) => "CS1 Low, CS2 High, CS3 Low",
+                (CsActive::Low, CsActive::High, CsActive::High) => "CS1 Low, CS2 High, CS3 High",
+                (CsActive::High, CsActive::Low, CsActive::Low) => "CS1 High, CS2 Low, CS3 Low",
+                (CsActive::High, CsActive::Low, CsActive::High) => "CS1 High, CS2 Low, CS3 High",
+                (CsActive::High, CsActive::High, CsActive::Low) => "CS1 High, CS2 High, CS3 Low",
+                (CsActive::High, CsActive::High, CsActive::High) => "CS1 High, CS2 High, CS3 High",
+            },
             RomType::Type2364 { cs } => match cs {
                 CsActive::Low => "CS Low",
                 CsActive::High => "CS High",
@@ -207,6 +262,13 @@ impl RomType {
             return Err(Error::ParseError);
         }
         match RomTypeByte::from_byte(buf[0])? {
+            RomTypeByte::Type27512 => Ok(RomType::Type27512 {}),
+            RomTypeByte::Type23128 => {
+                let cs1 = CsActiveByte::from_byte(buf[1])?.into();
+                let cs2 = CsActiveByte::from_byte(buf[2])?.into();
+                let cs3 = CsActiveByte::from_byte(buf[3])?.into();
+                Ok(RomType::Type23128 { cs1, cs2, cs3 })
+            }
             RomTypeByte::Type2364 => {
                 let cs = CsActiveByte::from_byte(buf[1])?.into();
                 Ok(RomType::Type2364 { cs })
@@ -231,6 +293,18 @@ impl RomType {
             return Err(Error::ParseError);
         }
         match self {
+            RomType::Type27512 => {
+                buf[0] = RomTypeByte::Type27512.to_byte();
+                buf[1] = 0;
+                buf[2] = 0;
+                buf[3] = 0;
+            }
+            RomType::Type23128 { cs1, cs2, cs3 } => {
+                buf[0] = RomTypeByte::Type23128.to_byte();
+                buf[1] = CsActiveByte::from(*cs1).to_byte();
+                buf[2] = CsActiveByte::from(*cs2).to_byte();
+                buf[3] = CsActiveByte::from(*cs3).to_byte();
+            }
             RomType::Type2364 { cs } => {
                 buf[0] = RomTypeByte::Type2364.to_byte();
                 buf[1] = CsActiveByte::from(*cs).to_byte();
@@ -255,8 +329,49 @@ impl RomType {
 }
 
 // Enumeration of all possible ROM types.
-const NUM_ROM_TYPES: usize = 14;
+const NUM_ROM_TYPES: usize = 23;
 const ALL_ROM_TYPES: [RomType; NUM_ROM_TYPES] = [
+    RomType::Type27512 {},
+    RomType::Type23128 {
+        cs1: CsActive::Low,
+        cs2: CsActive::Low,
+        cs3: CsActive::Low,
+    },
+    RomType::Type23128 {
+        cs1: CsActive::Low,
+        cs2: CsActive::Low,
+        cs3: CsActive::High,
+    },
+    RomType::Type23128 {
+        cs1: CsActive::Low,
+        cs2: CsActive::High,
+        cs3: CsActive::Low,
+    },
+    RomType::Type23128 {
+        cs1: CsActive::Low,
+        cs2: CsActive::High,
+        cs3: CsActive::High,
+    },
+    RomType::Type23128 {
+        cs1: CsActive::High,
+        cs2: CsActive::Low,
+        cs3: CsActive::Low,
+    },
+    RomType::Type23128 {
+        cs1: CsActive::High,
+        cs2: CsActive::Low,
+        cs3: CsActive::High,
+    },
+    RomType::Type23128 {
+        cs1: CsActive::High,
+        cs2: CsActive::High,
+        cs3: CsActive::Low,
+    },
+    RomType::Type23128 {
+        cs1: CsActive::High,
+        cs2: CsActive::High,
+        cs3: CsActive::High,
+    },
     RomType::Type2364 { cs: CsActive::Low },
     RomType::Type2364 { cs: CsActive::High },
     RomType::Type2332 {

@@ -45,6 +45,7 @@ pub static mut LAB_RAM_INFO: RamInfo = RamInfo {
 
 // This section gets called before main(), and copies the info from flash to
 // RAM.
+#[cfg(not(feature = "rp2350"))]
 pub fn copy_lab_ram_info() {
     unsafe extern "C" {
         static __lab_ram_info_load: u8;

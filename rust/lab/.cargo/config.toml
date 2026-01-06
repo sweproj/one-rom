@@ -1,5 +1,5 @@
 [build]
-target = "thumbv7em-none-eabi"
+target = "thumbv7em-none-eabihf"
 
 [target.thumbv7em-none-eabi]
 # `runner.sh` is created dynamically by build.rs based on the chosen chip ID

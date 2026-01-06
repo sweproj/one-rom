@@ -94,6 +94,12 @@ fn process_rom_csv(filename: &str) -> Vec<String> {
         };
 
         let rom_type_code = match rom_type {
+            "23128" => format!(
+                "RomType::Type23128{{ cs1: CsActive::{}, cs2: CsActive::{}, cs3: CsActive::{} }}",
+                cs_active(cs1),
+                cs_active(cs2),
+                cs_active(cs3),
+            ),
             "2364" => format!("RomType::Type2364{{ cs: CsActive::{} }}", cs_active(cs1)),
             "2332" => format!(
                 "RomType::Type2332{{ cs1: CsActive::{}, cs2: CsActive::{} }}",

@@ -1,6 +1,6 @@
-//! One ROM Lab firmware
+//! One ROM Lab firmware - RP2350
 
-// Copyright (c) 2025 Piers Finlayson <piers@piers.rocks>
+// Copyright (c) 2026 Piers Finlayson <piers@piers.rocks>
 //
 // MIT licence
 
@@ -16,28 +16,18 @@ use log::{debug, error, info, trace, warn};
 
 use embassy_executor::Spawner;
 use embassy_executor::main as embassy_main;
-use embassy_stm32::gpio::Flex;
-use embassy_stm32::rcc::clocks;
-
+use embassy_rp::gpio::{Flex, Level, Output};
 #[cfg(feature = "repeat")]
 use embassy_time::Timer;
 
 use embedded_alloc::LlffHeap as Heap;
-#[cfg(feature = "usb")]
-use panic_probe as _;
-#[cfg(not(feature = "usb"))]
 use panic_rtt_target as _;
 
-#[cfg(feature = "control")]
-mod control;
 mod error;
 mod info;
 mod logs;
-mod rcc;
 mod rom;
 mod types;
-#[cfg(feature = "usb")]
-mod usb;
 
 pub use error::Error;
 pub use rom::{Id as RomId, Rom};
@@ -46,12 +36,6 @@ use info::{LAB_RAM_INFO, PKG_VERSION};
 
 #[global_allocator]
 static HEAP: Heap = Heap::empty();
-
-#[cortex_m_rt::pre_init]
-unsafe fn pre_init() {
-    usb::check_bootloader_flag();
-    info::copy_lab_ram_info();
-}
 
 #[embassy_main]
 async fn main(_spawner: Spawner) {
@@ -63,39 +47,29 @@ async fn main(_spawner: Spawner) {
         unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
     }
 
-    // Set up clock config
-    let mut config = embassy_stm32::Config::default();
-    #[cfg(feature = "usb")]
-    rcc::configure_hse_usb(&mut config);
-    #[cfg(not(feature = "usb"))]
-    rcc::configure_hsi(&mut config);
+    // Initialize peripherals with default config
+    let p = embassy_rp::init(Default::default());
 
-    // Get peripherals
-    let p = embassy_stm32::init(config);
+    // Set up the LED
+    let mut led = Output::new(p.PIN_29, Level::Low);
 
-    // Configure clocks
-    let clocks = clocks(&p.RCC);
-
-    // Init USB/logging
-    #[cfg(feature = "usb")]
-    {
-        let usb_device = usb::Usb::new(p.USB_OTG_FS, p.PA12, p.PA11);
-        usb::run(_spawner, usb_device);
-        usb::init_logger();
+    // Flash LED to show we're alive
+    for _ in 0..3 {
+        led.set_high();
+        embassy_time::Timer::after_millis(200).await;
+        led.set_low();
+        embassy_time::Timer::after_millis(200).await;
     }
-    #[cfg(not(feature = "usb"))]
+
+    // Init logging
     logs::init_rtt();
 
     info!("-----");
     info!("One ROM Lab v{}", PKG_VERSION);
-    info!("Copyright (c) 2025 Piers Finlayson");
+    info!("Copyright (c) 2026 Piers Finlayson");
 
-    // Log clocks
     info!("-----");
-    match clocks.sys.to_hertz() {
-        Some(hz) => debug!("SYSCLK: {hz}"),
-        None => warn!("SYSCLK: Unknown"),
-    }
+    debug!("RP2350 target");
 
     debug!(
         "One ROM Lab Flash Info address: {:#010X}",
@@ -109,32 +83,36 @@ async fn main(_spawner: Spawner) {
         );
     }
 
-    // Collate the address and data pins
+    // fire-28-a
     let addr_pins = [
-        Flex::new(p.PC5),
-        Flex::new(p.PC4),
-        Flex::new(p.PC6),
-        Flex::new(p.PC7),
-        Flex::new(p.PC3),
-        Flex::new(p.PC2),
-        Flex::new(p.PC1),
-        Flex::new(p.PC0),
-        Flex::new(p.PC8),
-        Flex::new(p.PC13),
-        Flex::new(p.PC11),
-        Flex::new(p.PC12),
-        Flex::new(p.PC9),
-        Flex::new(p.PC10), // 2364 CS pin, set as "A13"
+        Flex::new(p.PIN_25),
+        Flex::new(p.PIN_24),
+        Flex::new(p.PIN_23),
+        Flex::new(p.PIN_22),
+        Flex::new(p.PIN_21),
+        Flex::new(p.PIN_19),
+        Flex::new(p.PIN_20),
+        Flex::new(p.PIN_18),
+        Flex::new(p.PIN_14),
+        Flex::new(p.PIN_12),
+        Flex::new(p.PIN_11),
+        Flex::new(p.PIN_13),
+        Flex::new(p.PIN_17),
+        Flex::new(p.PIN_15),
+        Flex::new(p.PIN_10),
+        Flex::new(p.PIN_16),
+        Flex::new(p.PIN_8),
+        Flex::new(p.PIN_9),
     ];
     let data_pins = [
-        Flex::new(p.PA7),
-        Flex::new(p.PA6),
-        Flex::new(p.PA5),
-        Flex::new(p.PA4),
-        Flex::new(p.PA3),
-        Flex::new(p.PA2),
-        Flex::new(p.PA1),
-        Flex::new(p.PA0),
+        Flex::new(p.PIN_7),
+        Flex::new(p.PIN_6),
+        Flex::new(p.PIN_5),
+        Flex::new(p.PIN_0),
+        Flex::new(p.PIN_1),
+        Flex::new(p.PIN_2),
+        Flex::new(p.PIN_3),
+        Flex::new(p.PIN_4),
     ];
 
     // Create the ROM object
@@ -153,25 +131,12 @@ async fn main(_spawner: Spawner) {
     #[cfg(feature = "qa")]
     {
         info!("QA mode");
-        info!("Press `d` to enter DFU mode");
         loop {
             match rom.read_rom().await {
                 Some(_) => info!("ROM read successfully"),
                 None => info!("Failed to read ROM"),
             }
-            match embassy_time::with_timeout(embassy_time::Duration::from_secs(5), usb::recv_key())
-                .await
-            {
-                Ok(key) => {
-                    if key == b'd' {
-                        info!("Entering DFU mode...");
-                        usb::enter_dfu_mode().await;
-                    }
-                }
-                Err(_) => {
-                    info!("Reading ROM...");
-                }
-            }
+            //embassy_time::Timer::after_secs(5).await;
         }
     }
 

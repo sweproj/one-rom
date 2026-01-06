@@ -8,14 +8,14 @@
 
 use alloc::string::String;
 use embassy_executor::Spawner;
-use embassy_stm32::usb::{Config, DmPin, DpPin, Driver};
-use embassy_stm32::{bind_interrupts, Peri, usb};
 use embassy_stm32::peripherals::{self, USB_OTG_FS};
-use embassy_usb::class::cdc_acm::{CdcAcmClass, Receiver, Sender, State};
-use embassy_usb::{Builder, Config as UsbConfig, UsbDevice};
+use embassy_stm32::usb::{Config, DmPin, DpPin, Driver};
+use embassy_stm32::{Peri, bind_interrupts, usb};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
-use log::{Log, Metadata, Record, LevelFilter};
+use embassy_usb::class::cdc_acm::{CdcAcmClass, Receiver, Sender, State};
+use embassy_usb::{Builder, Config as UsbConfig, UsbDevice};
+use log::{LevelFilter, Log, Metadata, Record};
 
 bind_interrupts!(struct Irqs {
     OTG_FS => usb::InterruptHandler<peripherals::USB_OTG_FS>;
@@ -54,7 +54,7 @@ impl Usb {
         config.manufacturer = Some("piers.rocks");
         config.product = Some("One ROM Lab");
         config.serial_number = Some("n/a");
-        
+
         // Required for Windows to bind CDC driver
         config.device_class = 0xEF;
         config.device_sub_class = 0x02;
@@ -81,10 +81,7 @@ impl Usb {
             cdc_acm: class,
             usb_device: usb,
         }
-
     }
-
-
 }
 
 pub fn run(spawner: Spawner, usb: Usb) {
@@ -185,4 +182,3 @@ pub async fn enter_dfu_mode() -> ! {
     }
     cortex_m::peripheral::SCB::sys_reset();
 }
-

@@ -6,3 +6,4 @@ name,part,checksum,sha1,rom_type,cs1,cs2,cs3
 "C64 Character (English)","901225-01",0x0007f7f8,adc7c31e18c7c7413d54802ef2f4193da14711aa,2332,0,1
 "C64 Dead Test (Rev 3)","314139-03",0x00115f0c,3bc1222252faa645f2485cbe16352fe23039cac3,2364,0
 "DesTest Max (v0.1)","",0x000bde04,f21a59ef4b0916adc5d394bacbd82e6f7172d351,2364,0
+"C64C KERNAL+BASIC (Rev 1)","251913-01",0x001e0460,765372a0e16cbb0adf23a07b80f6b682b39fbf88,23128,0,0,1

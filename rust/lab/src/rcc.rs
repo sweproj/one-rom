@@ -4,14 +4,14 @@
 
 //! RCC (clock) configuration for One ROM Lab
 
-#[cfg(feature = "usb")]
-use embassy_stm32::time::Hertz;
+use embassy_stm32::Config;
 use embassy_stm32::rcc::{
     AHBPrescaler, APBPrescaler, Pll, PllMul, PllPDiv, PllPreDiv, PllSource, Sysclk,
 };
 #[cfg(feature = "usb")]
 use embassy_stm32::rcc::{Hse, HseMode, PllQDiv};
-use embassy_stm32::Config;
+#[cfg(feature = "usb")]
+use embassy_stm32::time::Hertz;
 
 // Configure max clock using HSI
 #[cfg(not(feature = "usb"))]

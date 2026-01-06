@@ -13,32 +13,43 @@ keywords = ["embedded", "rom", "eeprom", "eprom", "flash"]
 name = "onerom-lab"
 path = "src/main.rs"
 
+[[bin]]
+name = "onerom-lab-fire"
+path = "src/main_rp.rs"
+
 [features]
-default = [ "f411re", "usb", "qa" ]
-f405rg = [ "embassy-stm32/stm32f405rg" ]
-f401re = [ "embassy-stm32/stm32f401re" ]
-f411re = [ "embassy-stm32/stm32f411re" ]
-f446re = [ "embassy-stm32/stm32f446re" ]
+default = [ "validate-24-ice" ]
+validate-24-ice = [ "f411re", "usb", "qa", "pin-24" ]
+validate-28-fire = [ "rp2350", "qa", "pin-28" ]
+stm32f4 = [ "cortex-m/critical-section-single-core", "embassy-time/tick-hz-32_768" ]
+f405rg = [ "embassy-stm32/stm32f405rg", "stm32f4" ]
+f401re = [ "embassy-stm32/stm32f401re", "stm32f4" ]
+f411re = [ "embassy-stm32/stm32f411re", "stm32f4" ]
+f446re = [ "embassy-stm32/stm32f446re", "stm32f4" ]
+rp2350 = [ "embassy-rp/rp235xa" ]
 qa = []
 control = []
 oneshot = []
 repeat = []
 usb = ["embassy-usb","panic-probe"]
+pin-24 = []
+pin-28 = []
 
 [dependencies]
 onerom-protocol = { version = "0.1.0" }
-onerom-database = { version = "0.1.0" }
+onerom-database = { path="../database", version = "0.1.1" }
 
 airfrog-rpc = { version = "0.1.1" }
 embassy-executor = { version = "0.7.0", features = ["executor-thread", "arch-cortex-m", "nightly" ]}
 embassy-futures = { version = "0.1.1" }
-embassy-stm32 = { version = "0.4.0", features = [ "memory-x", "time-driver-any", "unstable-pac", "exti" ]}
+embassy-stm32 = { version = "0.4.0", features = [ "memory-x", "time-driver-any", "unstable-pac", "exti" ], optional = true }
+embassy-rp = { version = "0.8.0", features = [ "rt", "unstable-pac", "time-driver", "intrinsics", "critical-section-impl", "imagedef-secure-exe", "boot2-generic-03h" ], optional = true }
 embassy-sync = { version = "0.7.0" }
-embassy-time = { version = "0.5", features = [ "tick-hz-32_768", "generic-queue-8" ] }
+embassy-time = { version = "0.5", features = [ "generic-queue-8" ] }
 embassy-usb = { version = "0.5", optional = true }
 embedded-alloc = { version = "0.6" }
 portable-atomic = { version = "1.10", features = [ "critical-section" ] }
-cortex-m = { version = "0.7.6", features = [ "critical-section-single-core" ] }
+cortex-m = { version = "0.7.6", features = [] }
 cortex-m-rt = { version = "0.7.0"}
 static_cell = { version = "2.1", features = [ "nightly" ] }
 embedded-hal = { version = "1.0.0"}

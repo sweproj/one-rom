@@ -17,6 +17,24 @@ You need female headers on the top of your One ROM PCB in order to use the Lab f
 
 One ROM Lab currently only support STM32F4 based One ROMs - a RP2350 is viable, with the appropriate changes to support `embassy-rp`.
 
+## Validating One ROMs
+
+The current primary use case for lab is to validate One ROMs before shipping them to customers.  This is done by reading the ROM image, calculating its SHA1 hash, and comparing it to the expected hash from the database.
+
+To build One ROM Lab firmware for validating 24 pin One ROMs (with lab running on hw revision ice-24-usb-h) use:
+
+```bash
+cargo build --no-default-features --features validate-24-ice --target thumbv7em-none-eabihf --bin onerom-lab
+```
+
+To build One ROM Lab firmware for validating 28 pin One ROMs (with lab running on hw revision fire-28-a) use:
+
+```bash
+cargo build --no-default-features --features validate-28-fire --target thumbv8m.main-none-eabihf --bin onerom-lab-fire
+```
+
+Note that the 28 pin Fire version does not currently support USB.
+
 ## Modes
 
 There are a number of modes of operation:

@@ -8,6 +8,9 @@
 use log::{debug, error, info, trace, warn};
 
 use alloc::vec::Vec;
+#[cfg(feature = "rp2350")]
+use embassy_rp::gpio::{Flex, Pull};
+#[cfg(not(feature = "rp2350"))]
 use embassy_stm32::gpio::{Flex, Pull, Speed};
 use embassy_time::{Duration, Instant, Timer};
 
@@ -129,6 +132,27 @@ impl Rom {
         self.last_read_duration = Some(end - start);
     }
 
+    #[allow(dead_code)]
+    async fn read_with_cs_toggle(&mut self) {
+        let max_addr = 1 << AddressLines::NUM_ADDR_LINES;
+        let start = Instant::now();
+
+        for ii in 0..max_addr {
+            // Set CS inactive (all high or whatever makes it inactive)
+            self.address.set(0x3FFFF); // All CS lines inactive
+            Timer::after_micros(1).await;
+
+            // Set to target address with CS active
+            self.address.set(ii);
+            Timer::after_micros(1).await;
+            self.buf[ii] = self.data.read();
+        }
+        self.address.init();
+
+        let end = Instant::now();
+        self.last_read_duration = Some(end - start);
+    }
+
     // Reads the ROM data with, resetting address lines to inputs (i.e. tri-
     // stating them) in between reads.
     #[allow(dead_code)]
@@ -179,6 +203,15 @@ impl Rom {
         let mut matches = Matches::default();
 
         for (ii, rom_type) in RomType::all().iter().enumerate() {
+            #[cfg(feature = "pin-24")]
+            if rom_type.rom_pins() == 28 {
+                continue;
+            }
+            #[cfg(feature = "pin-28")]
+            if rom_type.rom_pins() == 24 {
+                continue;
+            }
+
             // Build a temporary copy of the ROM data, based on this particular
             // ROM type and CS behaviour
             let size = rom_type.size();
@@ -192,6 +225,12 @@ impl Rom {
             let sum: u32 = checksum(&buf[0..size]);
             let sha1 = sha1_digest(&buf[0..size]);
             let (mut good, mut bad) = identify_rom(rom_type, sum, sha1);
+            info!(
+                "sum and sha1 for {}: {:#010X}, {}",
+                rom_type.type_str(),
+                sum,
+                hex::encode(sha1)
+            );
 
             matches.good.append(&mut good);
             matches.bad.append(&mut bad);
@@ -213,7 +252,10 @@ impl Rom {
     /// the results.  `Self::last_read_duration()` provides the time taken to
     /// do the read of the ROM.
     pub async fn detect(&mut self) {
+        #[cfg(feature = "pin-24")]
         self.read_fast().await;
+        #[cfg(feature = "pin-28")]
+        self.read_with_cs_toggle().await;
         self.id();
     }
 
@@ -288,6 +330,13 @@ impl Rom {
             } else {
                 info!("No matches found in database - ROM information follows:");
                 for id in ids {
+                    if id.rom_type.rom_pins() == 28 {
+                        continue;
+                    }
+                    #[cfg(feature = "pin-28")]
+                    if id.rom_type.rom_pins() == 24 {
+                        continue;
+                    }
                     if !id.all_zeros() && !id.all_ones() {
                         log_rom_id(id);
                     }
@@ -311,11 +360,20 @@ struct AddressLines {
 }
 
 impl AddressLines {
+    #[cfg(feature = "pin-24")]
     const NUM_ADDR_LINES: usize = 14;
+    #[cfg(feature = "pin-28")]
+    const NUM_ADDR_LINES: usize = 18;
 
     fn init(&mut self) {
         for pin in self.address.iter_mut() {
+            #[cfg(not(feature = "rp2350"))]
             pin.set_as_input(Pull::None);
+            #[cfg(feature = "rp2350")]
+            {
+                pin.set_pull(Pull::None);
+                pin.set_as_input();
+            }
         }
     }
 
@@ -325,7 +383,10 @@ impl AddressLines {
 
         // Set address pins as outputs and drive them
         for (i, pin) in self.address.iter_mut().enumerate() {
+            #[cfg(not(feature = "rp2350"))]
             pin.set_as_output(Speed::High);
+            #[cfg(feature = "rp2350")]
+            pin.set_as_output();
             if address & (1 << i) != 0 {
                 pin.set_high();
             } else {
@@ -362,7 +423,13 @@ impl DataLines {
 
     fn init(&mut self) {
         for pin in self.pins_mut() {
+            #[cfg(not(feature = "rp2350"))]
             pin.set_as_input(Pull::Down);
+            #[cfg(feature = "rp2350")]
+            {
+                pin.set_pull(Pull::Down);
+                pin.set_as_input();
+            }
         }
     }
 
