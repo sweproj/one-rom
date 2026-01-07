@@ -19,7 +19,7 @@ path = "src/main_rp.rs"
 
 [features]
 default = [ "validate-24-ice" ]
-validate-24-ice = [ "f411re", "usb", "qa", "pin-24" ]
+validate-24-ice = [ "f411re", "qa", "pin-24" ]
 validate-28-fire = [ "rp2350", "qa", "pin-28" ]
 stm32f4 = [ "cortex-m/critical-section-single-core", "embassy-time/tick-hz-32_768" ]
 f405rg = [ "embassy-stm32/stm32f405rg", "stm32f4" ]
