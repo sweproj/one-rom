@@ -26,6 +26,8 @@ This board requires both top and bottom assembly, as many passives are located o
 
 As ever, take care that every parts is positioned correctly before ordering.  In particular note the pink pin one dot is located in the appropriate corner for each IC, and that diodes are oriented correctly.
 
+JLC queried the first run of these boards, specifically whether D1 (the status LED) was oriented correctly, as due to aesthetic reasons, a negative marker is not present on the silkscreen.  Negative should be to the left, when viewing the board top with the silkscreen upright.
+
 ## Changelog
 
 ## BOM
