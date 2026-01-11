@@ -16,8 +16,8 @@ std = ["deku/std"]
 esp32 = []
 
 [dependencies]
-onerom-config = { path="../config", version = "0.2.7" }
-onerom-gen = { path="../gen", version = "0.2.6" }
+onerom-config = { version = "0.2.7" }
+onerom-gen = { version = "0.2.6" }
 
 airfrog-rpc = { version = "0.1.0" }
 deku = { version = "0.19", default-features = false, features = ["alloc"] }

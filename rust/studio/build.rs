@@ -56,7 +56,7 @@ fn compile_windows_resources() {
     let parts: Vec<&str> = cargo_version.split('.').collect();
     let file_version = format!(
         "{},{},{},0",
-        parts.get(0).unwrap_or(&"0"),
+        parts.first().unwrap_or(&"0"),
         parts.get(1).unwrap_or(&"0"),
         parts.get(2).unwrap_or(&"0")
     );

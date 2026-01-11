@@ -16,7 +16,7 @@ categories = ["embedded", "hardware-support"]
 schemars = ["dep:schemars", "onerom-config/schemars"]
 
 [dependencies]
-onerom-config = { path="../config", version = "0.2.7" }
+onerom-config = { version = "0.2.7" }
 
 schemars = { version = "1.0", optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
