@@ -9,6 +9,7 @@ Promote fire-24-c to verified and recommended 24-pin Fire version.
 ### Added
 
 - issue #77 - Support for serving multi-ROM sets using Fire PIO algorithm.
+- ROM types for 32 and 40 pin ROMs
 
 ### Changed
 

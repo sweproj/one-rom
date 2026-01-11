@@ -319,6 +319,31 @@
                     "description": "128KB mask ROM with 1 configurable CS line - 131072 bytes, 28-pin package",
                     "type": "string",
                     "const": "231024"
+                },
+                {
+                    "description": "128KB EPROM with fixed active-low CE/OE - 131072 bytes, 32-pin package",
+                    "type": "string",
+                    "const": "27C010"
+                },
+                {
+                    "description": "256KB EPROM with fixed active-low CE/OE - 262144 bytes, 32-pin package",
+                    "type": "string",
+                    "const": "27C020"
+                },
+                {
+                    "description": "512KB EPROM with fixed active-low CE/OE - 524288 bytes, 32-pin package",
+                    "type": "string",
+                    "const": "27C040"
+                },
+                {
+                    "description": "1MB EPROM with fixed active-low CE/OE - 1048576 bytes, 32-pin package",
+                    "type": "string",
+                    "const": "27C080"
+                },
+                {
+                    "description": "0.5MB EPROM with fixed active-low CE/OE - 524288 bytes, 40-pin package",
+                    "type": "string",
+                    "const": "27C400"
                 }
             ]
         },
