@@ -887,6 +887,363 @@
                     "voltage": "0V"
                 }
             ]
+        },
+        "27C010": {
+            "description": "128KB EPROM with fixed active-low CE/OE",
+            "pins": 32,
+            "size": 131072,
+            "address": [
+                12,
+                11,
+                10,
+                9,
+                8,
+                7,
+                6,
+                5,
+                27,
+                26,
+                23,
+                25,
+                4,
+                28,
+                29,
+                3,
+                2
+            ],
+            "data": [
+                13,
+                14,
+                15,
+                17,
+                18,
+                19,
+                20,
+                21
+            ],
+            "control": {
+                "ce": {
+                    "pin": 22,
+                    "type": "fixed_active_low"
+                },
+                "oe": {
+                    "pin": 24,
+                    "type": "fixed_active_low"
+                }
+            },
+            "programming": {
+                "vpp": {
+                    "pin": 1,
+                    "read_state": "x"
+                },
+                "pgm": {
+                    "pin": 31,
+                    "read_state": "x"
+                }
+            },
+            "power": [
+                {
+                    "name": "VCC",
+                    "pin": 32,
+                    "voltage": "+5V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 16,
+                    "voltage": "0V"
+                }
+            ]
+        },
+        "27C020": {
+            "description": "256KB EPROM with fixed active-low CE/OE",
+            "pins": 32,
+            "size": 262144,
+            "address": [
+                12,
+                11,
+                10,
+                9,
+                8,
+                7,
+                6,
+                5,
+                27,
+                26,
+                23,
+                25,
+                4,
+                28,
+                29,
+                3,
+                2,
+                30
+            ],
+            "data": [
+                13,
+                14,
+                15,
+                17,
+                18,
+                19,
+                20,
+                21
+            ],
+            "control": {
+                "ce": {
+                    "pin": 22,
+                    "type": "fixed_active_low"
+                },
+                "oe": {
+                    "pin": 24,
+                    "type": "fixed_active_low"
+                }
+            },
+            "programming": {
+                "vpp": {
+                    "pin": 1,
+                    "read_state": "x"
+                },
+                "pgm": {
+                    "pin": 31,
+                    "read_state": "x"
+                }
+            },
+            "power": [
+                {
+                    "name": "VCC",
+                    "pin": 32,
+                    "voltage": "+5V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 16,
+                    "voltage": "0V"
+                }
+            ]
+        },
+        "27C040": {
+            "description": "512KB EPROM with fixed active-low CE/OE",
+            "pins": 32,
+            "size": 524288,
+            "address": [
+                12,
+                11,
+                10,
+                9,
+                8,
+                7,
+                6,
+                5,
+                27,
+                26,
+                23,
+                25,
+                4,
+                28,
+                29,
+                3,
+                2,
+                30,
+                31
+            ],
+            "data": [
+                13,
+                14,
+                15,
+                17,
+                18,
+                19,
+                20,
+                21
+            ],
+            "control": {
+                "ce": {
+                    "pin": 22,
+                    "type": "fixed_active_low"
+                },
+                "oe": {
+                    "pin": 24,
+                    "type": "fixed_active_low"
+                }
+            },
+            "programming": {
+                "vpp": {
+                    "pin": 1,
+                    "read_state": "x"
+                },
+                "pgm": {
+                    "pin": 22,
+                    "read_state": "chip_select"
+                }
+            },
+            "power": [
+                {
+                    "name": "VCC",
+                    "pin": 32,
+                    "voltage": "+5V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 16,
+                    "voltage": "0V"
+                }
+            ]
+        },
+        "27C080": {
+            "description": "1MB EPROM with fixed active-low CE/OE",
+            "pins": 32,
+            "size": 1048576,
+            "address": [
+                12,
+                11,
+                10,
+                9,
+                8,
+                7,
+                6,
+                5,
+                27,
+                26,
+                23,
+                25,
+                4,
+                28,
+                29,
+                3,
+                2,
+                30,
+                31,
+                1
+            ],
+            "data": [
+                13,
+                14,
+                15,
+                17,
+                18,
+                19,
+                20,
+                21
+            ],
+            "control": {
+                "ce": {
+                    "pin": 22,
+                    "type": "fixed_active_low"
+                },
+                "oe": {
+                    "pin": 24,
+                    "type": "fixed_active_low"
+                }
+            },
+            "programming": {
+                "vpp": {
+                    "pin": 24,
+                    "read_state": "chip_select"
+                },
+                "pgm": {
+                    "pin": 22,
+                    "read_state": "chip_select"
+                }
+            },
+            "power": [
+                {
+                    "name": "VCC",
+                    "pin": 32,
+                    "voltage": "+5V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 16,
+                    "voltage": "0V"
+                }
+            ]
+        },
+        "27C400" : {
+            "description": "0.5MB EPROM with fixed active-low CE/OE",
+            "pins": 40,
+            "size": 524288,
+            "address": [
+                29,
+                9,
+                8,
+                7,
+                6,
+                5,
+                4,
+                3,
+                2,
+                40,
+                39,
+                38,
+                37,
+                36,
+                35,
+                34,
+                33,
+                32,
+                1
+            ],
+            "data": [
+                13,
+                15,
+                17,
+                19,
+                22,
+                24,
+                26,
+                28,
+                14,
+                16,
+                18,
+                20,
+                23,
+                25,
+                27,
+                29
+            ],
+            "control": {
+                "ce": {
+                    "pin": 10,
+                    "type": "fixed_active_low"
+                },
+                "oe": {
+                    "pin": 12,
+                    "type": "fixed_active_low"
+                }
+            },
+            "word_size": {
+                "byte": {
+                    "pin": 31,
+                    "type": "byte_low"
+                }
+            },
+            "programming": {
+                "vpp": {
+                    "pin": 31,
+                    "read_state": "word_size"
+                },
+                "pgm": {
+                    "pin": 10,
+                    "read_state": "chip_select"
+                }
+            },
+            "power": [
+                {
+                    "name": "VCC",
+                    "pin": 21,
+                    "voltage": "+5V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 11,
+                    "voltage": "0V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 30,
+                    "voltage": "0V"
+                }
+            ]
         }
     }
 }

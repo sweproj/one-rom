@@ -48,7 +48,7 @@ There are also some other inconsistencies between types:
             roms,
             config,
         ));
-        doc.push_str("\n");
+        doc.push('\n');
     }
 
     if let Some(roms) = families.get("mask_28pin") {
@@ -57,7 +57,7 @@ There are also some other inconsistencies between types:
             roms,
             config,
         ));
-        doc.push_str("\n");
+        doc.push('\n');
     }
 
     if let Some(roms) = families.get("eprom_24pin") {
@@ -66,7 +66,7 @@ There are also some other inconsistencies between types:
             roms,
             config,
         ));
-        doc.push_str("\n");
+        doc.push('\n');
     }
 
     if let Some(roms) = families.get("eprom_28pin") {
@@ -75,22 +75,22 @@ There are also some other inconsistencies between types:
             roms,
             config,
         ));
-        doc.push_str("\n");
+        doc.push('\n');
     }
 
     // Pin comparison tables
     doc.push_str("## Pin Function Comparison\n\n");
     doc.push_str(&generate_pin_comparison_table_24pin(config));
-    doc.push_str("\n");
+    doc.push('\n');
     doc.push_str(&generate_pin_comparison_table_28pin(config));
-    doc.push_str("\n");
+    doc.push('\n');
 
     // Detailed pinout tables
     doc.push_str("## Detailed Pinouts\n\n");
     let sorted_roms = get_sorted_rom_types(config);
     for (type_name, rom_type) in sorted_roms {
         doc.push_str(&generate_detailed_pinout(type_name, rom_type));
-        doc.push_str("\n");
+        doc.push('\n');
     }
 
     doc
@@ -119,7 +119,7 @@ fn group_by_family(config: &RomTypesConfig) -> BTreeMap<&'static str, Vec<(&Stri
 
         families
             .entry(key)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push((type_name, rom_type));
     }
 
@@ -191,7 +191,7 @@ fn generate_pin_comparison_table_24pin(config: &RomTypesConfig) -> String {
     for _ in &roms_24pin {
         table.push_str("------|");
     }
-    table.push_str("\n");
+    table.push('\n');
 
     // Generate row for each pin
     for pin in 1..=24 {
@@ -200,7 +200,7 @@ fn generate_pin_comparison_table_24pin(config: &RomTypesConfig) -> String {
             let function = get_pin_function(pin, rom_type);
             table.push_str(&format!(" {} |", function));
         }
-        table.push_str("\n");
+        table.push('\n');
     }
 
     table
@@ -234,7 +234,7 @@ fn generate_pin_comparison_table_28pin(config: &RomTypesConfig) -> String {
     for _ in &roms_28pin {
         table.push_str("------|");
     }
-    table.push_str("\n");
+    table.push('\n');
 
     // Generate row for each pin
     for pin in 1..=28 {
@@ -243,7 +243,7 @@ fn generate_pin_comparison_table_28pin(config: &RomTypesConfig) -> String {
             let function = get_pin_function(pin, rom_type);
             table.push_str(&format!(" {} |", function));
         }
-        table.push_str("\n");
+        table.push('\n');
     }
 
     table
@@ -472,6 +472,7 @@ fn get_pin_function(pin: u8, rom_type: &RomType) -> String {
     }
 
     // Check programming pins
+    #[allow(clippy::collapsible_if)]
     if let Some(ref prog) = rom_type.programming {
         if let Some(ref vpp) = prog.vpp {
             if vpp.pin == pin {

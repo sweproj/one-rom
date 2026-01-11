@@ -282,7 +282,7 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         let min_data_pin = *config.mcu.pins.data.iter().min().unwrap();
         let max_data_pin = *config.mcu.pins.data.iter().max().unwrap();
 
-        if min_data_pin % 8 != 0 {
+        if !min_data_pin.is_multiple_of(8) {
             panic!(
                 "{}: data pins must start on 8-byte boundary, got min pin {}",
                 name, min_data_pin
@@ -305,7 +305,7 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         // For CPU mode, address pins must start on 8-byte boundary, as when
         // ubfx is used, the shift is hard-coded to 8.  In PIO mode (only)
         // there is no such restriction.
-        if config.mcu.serve_mode == ServeMode::Cpu && min_addr_pin % 8 != 0 {
+        if config.mcu.serve_mode == ServeMode::Cpu && !min_addr_pin.is_multiple_of(8) {
             panic!(
                 "{}: address pins must start on 8-byte boundary, got min pin {}",
                 name, min_addr_pin
@@ -479,6 +479,7 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         .push(("status", pin));
 
     // Add USB pins
+    #[allow(clippy::collapsible_if)]
     if let Some(usb) = &config.mcu.usb {
         if usb.present {
             if let Some(usb_pins) = &usb.pins {

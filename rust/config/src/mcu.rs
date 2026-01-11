@@ -23,9 +23,9 @@ impl Family {
 
     pub fn try_from_str(s: &str) -> Option<Self> {
         if s.eq_ignore_ascii_case("stm32f4") {
-            return Some(Family::Stm32f4);
+            Some(Family::Stm32f4)
         } else if s.eq_ignore_ascii_case("rp2350") {
-            return Some(Family::Rp2350);
+            Some(Family::Rp2350)
         } else {
             None
         }
@@ -171,23 +171,23 @@ impl core::fmt::Display for Variant {
 impl Variant {
     pub fn try_from_str(s: &str) -> Option<Self> {
         if s.eq_ignore_ascii_case("f446rc") {
-            return Some(Variant::F446RC);
+            Some(Variant::F446RC)
         } else if s.eq_ignore_ascii_case("f446re") {
-            return Some(Variant::F446RE);
+            Some(Variant::F446RE)
         } else if s.eq_ignore_ascii_case("f411rc") {
-            return Some(Variant::F411RC);
+            Some(Variant::F411RC)
         } else if s.eq_ignore_ascii_case("f411re") {
-            return Some(Variant::F411RE);
+            Some(Variant::F411RE)
         } else if s.eq_ignore_ascii_case("f405rg") {
-            return Some(Variant::F405RG);
+            Some(Variant::F405RG)
         } else if s.eq_ignore_ascii_case("f401re") {
-            return Some(Variant::F401RE);
+            Some(Variant::F401RE)
         } else if s.eq_ignore_ascii_case("f401rb") {
-            return Some(Variant::F401RB);
+            Some(Variant::F401RB)
         } else if s.eq_ignore_ascii_case("f401rc") {
-            return Some(Variant::F401RC);
+            Some(Variant::F401RC)
         } else if s.eq_ignore_ascii_case("rp2350") {
-            return Some(Variant::RP2350);
+            Some(Variant::RP2350)
         } else {
             None
         }

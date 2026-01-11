@@ -488,6 +488,11 @@ impl Rom {
             RomType::Rom27256 => 12,
             RomType::Rom27512 => 13,
             RomType::Rom231024 => 14,
+            RomType::Rom27C010 => 15,
+            RomType::Rom27C020 => 16,
+            RomType::Rom27C040 => 17,
+            RomType::Rom27C080 => 18,
+            RomType::Rom27C400 => 19,
         }
     }
 }

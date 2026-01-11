@@ -58,6 +58,11 @@ There are also some other inconsistencies between types:
 | 27128 | 16KB | 14 (A0-A13) | /CE (pin 20), /OE (pin 22) | VPP: pin 1 (VCC during read); /PGM: pin 27 (High during read) |
 | 27256 | 32KB | 15 (A0-A14) | /CE (pin 20), /OE (pin 22) | VPP: pin 1 (VCC during read) |
 | 27512 | 64KB | 16 (A0-A15) | /CE (pin 20), /OE (pin 22) | VPP: pin 22 (VCC during read) |
+| 27C010 | 128KB | 17 (A0-A16) | /CE (pin 22), /OE (pin 24) | VPP: pin 1 (x); /PGM: pin 31 (x) |
+| 27C020 | 256KB | 18 (A0-A17) | /CE (pin 22), /OE (pin 24) | VPP: pin 1 (x); /PGM: pin 31 (x) |
+| 27C040 | 512KB | 19 (A0-A18) | /CE (pin 22), /OE (pin 24) | VPP: pin 1 (x); /PGM: pin 22 (Acts as /OE) |
+| 27C400 | 512KB | 19 (A0-A18) | /CE (pin 10), /OE (pin 12) | VPP: pin 31 (word_size); /PGM: pin 10 (Acts as /OE) |
+| 27C080 | 1024KB | 20 (A0-A19) | /CE (pin 22), /OE (pin 24) | VPP: pin 24 (Acts as /OE); /PGM: pin 22 (Acts as /OE) |
 
 ## Pin Function Comparison
 
@@ -370,4 +375,90 @@ There are also some other inconsistencies between types:
 | PE | 20 | Low during read during read |
 | VCC | 28 | +5V |
 | GND | 14 | 0V |
+
+### 27C010 - 128KB EPROM with fixed active-low CE/OE
+
+**Package:** 32-pin DIP  
+**Capacity:** 131072 bytes  
+**Control:** /CE, /OE  
+
+| Function | Pins | Notes |
+|----------|------|-------|
+| Address (A0-A16) | 12,11,10,9,8,7,6,5,27,26,23,25,4,28,29,3,2 | 17 address lines |
+| Data (D0-D7) | 13,14,15,17,18,19,20,21 | 8 data lines |
+| CE | 22 | Active low |
+| OE | 24 | Active low |
+| VPP | 1 | x during read |
+| /PGM | 31 | x during read |
+| VCC | 32 | +5V |
+| GND | 16 | 0V |
+
+### 27C020 - 256KB EPROM with fixed active-low CE/OE
+
+**Package:** 32-pin DIP  
+**Capacity:** 262144 bytes  
+**Control:** /CE, /OE  
+
+| Function | Pins | Notes |
+|----------|------|-------|
+| Address (A0-A17) | 12,11,10,9,8,7,6,5,27,26,23,25,4,28,29,3,2,30 | 18 address lines |
+| Data (D0-D7) | 13,14,15,17,18,19,20,21 | 8 data lines |
+| CE | 22 | Active low |
+| OE | 24 | Active low |
+| VPP | 1 | x during read |
+| /PGM | 31 | x during read |
+| VCC | 32 | +5V |
+| GND | 16 | 0V |
+
+### 27C040 - 512KB EPROM with fixed active-low CE/OE
+
+**Package:** 32-pin DIP  
+**Capacity:** 524288 bytes  
+**Control:** /CE, /OE  
+
+| Function | Pins | Notes |
+|----------|------|-------|
+| Address (A0-A18) | 12,11,10,9,8,7,6,5,27,26,23,25,4,28,29,3,2,30,31 | 19 address lines |
+| Data (D0-D7) | 13,14,15,17,18,19,20,21 | 8 data lines |
+| CE | 22 | Active low |
+| OE | 24 | Active low |
+| VPP | 1 | x during read |
+| /PGM | 22 | Acts as /OE during read |
+| VCC | 32 | +5V |
+| GND | 16 | 0V |
+
+### 27C400 - 0.5MB EPROM with fixed active-low CE/OE
+
+**Package:** 40-pin DIP  
+**Capacity:** 524288 bytes  
+**Control:** /CE, /OE  
+
+| Function | Pins | Notes |
+|----------|------|-------|
+| Address (A0-A18) | 29,9,8,7,6,5,4,3,2,40,39,38,37,36,35,34,33,32,1 | 19 address lines |
+| Data (D0-D7) | 13,15,17,19,22,24,26,28,14,16,18,20,23,25,27,29 | 8 data lines |
+| CE | 10 | Active low |
+| OE | 12 | Active low |
+| VPP | 31 | word_size during read |
+| /PGM | 10 | Acts as /OE during read |
+| VCC | 21 | +5V |
+| GND | 11 | 0V |
+| GND | 30 | 0V |
+
+### 27C080 - 1MB EPROM with fixed active-low CE/OE
+
+**Package:** 32-pin DIP  
+**Capacity:** 1048576 bytes  
+**Control:** /CE, /OE  
+
+| Function | Pins | Notes |
+|----------|------|-------|
+| Address (A0-A19) | 12,11,10,9,8,7,6,5,27,26,23,25,4,28,29,3,2,30,31,1 | 20 address lines |
+| Data (D0-D7) | 13,14,15,17,18,19,20,21 | 8 data lines |
+| CE | 22 | Active low |
+| OE | 24 | Active low |
+| VPP | 24 | Acts as /OE during read |
+| /PGM | 22 | Acts as /OE during read |
+| VCC | 32 | +5V |
+| GND | 16 | 0V |
 

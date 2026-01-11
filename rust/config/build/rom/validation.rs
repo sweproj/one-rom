@@ -6,12 +6,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 
-const MAX_ADDRESS_LINES: usize = 17;
-const DATA_LINE_COUNT: usize = 8;
+const MAX_ADDRESS_LINES: usize = 20;
+const VALID_DATA_LINE_COUNTS: &[usize] = &[8, 16];
 const MIN_PIN_NUMBER: u8 = 1;
-const VALID_PIN_COUNTS: &[u8] = &[24, 28];
-const VALID_READ_STATES: &[&str] = &["vcc", "high", "low", "chip_select"];
-const VALID_CONTROL_LINES: &[&str] = &["cs1", "cs2", "cs3", "ce", "oe"];
+const VALID_PIN_COUNTS: &[u8] = &[24, 28, 32, 40];
+const VALID_READ_STATES: &[&str] = &["vcc", "high", "low", "chip_select", "x", "word_size"];
+const VALID_CONTROL_LINES: &[&str] = &["cs1", "cs2", "cs3", "ce", "oe", "byte"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -143,11 +143,12 @@ impl fmt::Display for ValidationError {
                     rom_type, address_lines, expected_size, actual_size
                 )
             }
+
             ValidationError::InvalidDataLineCount { rom_type, count } => {
                 write!(
                     f,
-                    "ROM type '{}': must have {} data lines, found {}",
-                    rom_type, DATA_LINE_COUNT, count
+                    "ROM type '{}': must have one of the valid data line counts {:?}, found {}",
+                    rom_type, VALID_DATA_LINE_COUNTS, count
                 )
             }
             ValidationError::DuplicatePin { rom_type, pin } => {
@@ -253,7 +254,7 @@ impl RomType {
             });
         }
 
-        if self.data.len() != DATA_LINE_COUNT {
+        if !VALID_DATA_LINE_COUNTS.contains(&self.data.len()) {
             return Err(ValidationError::InvalidDataLineCount {
                 rom_type: type_name.to_string(),
                 count: self.data.len(),
@@ -269,10 +270,20 @@ impl RomType {
 
         for &pin in &self.data {
             self.validate_pin_number(type_name, pin)?;
-            self.check_duplicate_pin(type_name, pin, &mut used_pins)?;
+            match self.check_duplicate_pin(type_name, pin, &mut used_pins) {
+                Ok(_) => {}
+                Err(e) => {
+                    if self.pins == 40 {
+                        // In 40-pin packages, data pins can overlap with address pins.
+                        continue;
+                    } else {
+                        return Err(e);
+                    }
+                },
+            }
         }
 
-        for (_line_name, control) in &self.control {
+        for control in self.control.values() {
             self.validate_pin_number(type_name, control.pin)?;
             self.check_duplicate_pin(type_name, control.pin, &mut used_pins)?;
         }
@@ -313,6 +324,7 @@ impl RomType {
             }
 
             // And unexpected line types
+            #[allow(clippy::collapsible_if)]
             if line_name == "ce" || line_name == "oe" {
                 if self.control[line_name].line_type != ControlLineType::FixedActiveLow {
                     return Err(ValidationError::IncompatibleControlLines {
