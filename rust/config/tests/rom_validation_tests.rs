@@ -140,7 +140,7 @@ mod tests {
     #[test]
     fn test_invalid_package_pin_count() {
         let mut rom_type = create_test_rom_type_2316();
-        rom_type.pins = 32;
+        rom_type.pins = 41;
         let result = rom_type.validate("test");
         assert!(matches!(
             result,
@@ -155,7 +155,7 @@ mod tests {
         let config = RomTypesConfig::from_json(&String::from_utf8_lossy(json))
             .expect("Failed to parse JSON config");
 
-        assert_eq!(config.rom_types.len(), 15);
+        assert_eq!(config.rom_types.len(), 20);
 
         let rom_2364 = config.rom_types.get("2364").unwrap();
         assert_eq!(rom_2364.pins, 24);
