@@ -4629,6 +4629,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "onerom-config"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e212c53f99aa92b327404a8e9371f327a8cc0daed361d7e537db919bb8ad5463"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "onerom-database"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4662,10 +4673,32 @@ dependencies = [
  "env_logger",
  "hex",
  "log",
- "onerom-config",
- "onerom-gen",
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest",
- "sdrr-fw-parser",
+ "sdrr-fw-parser 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+ "smol",
+ "zip 6.0.0",
+]
+
+[[package]]
+name = "onerom-fw"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d183f22fc93df20ccab702de48e0be7ca49da7d874f9d37b053a635a02a2cb8a"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "clap",
+ "env_logger",
+ "hex",
+ "log",
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest",
+ "sdrr-fw-parser 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "smol",
@@ -4676,7 +4709,19 @@ dependencies = [
 name = "onerom-gen"
 version = "0.3.0"
 dependencies = [
- "onerom-config",
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "onerom-gen"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f49d684b458dbc440c347fb845a91129408b11d51be3d1ea608ff50bc3e355"
+dependencies = [
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -4749,9 +4794,9 @@ dependencies = [
  "hex",
  "iced",
  "log",
- "onerom-config",
- "onerom-fw",
- "onerom-gen",
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-fw 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "open",
  "picoboot",
  "probe-rs",
@@ -4759,7 +4804,7 @@ dependencies = [
  "resvg",
  "rfd",
  "schemars",
- "sdrr-fw-parser",
+ "sdrr-fw-parser 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 1.0.27",
  "serde",
  "serde_json",
@@ -6001,7 +6046,7 @@ dependencies = [
 name = "schema-gen"
 version = "0.1.2"
 dependencies = [
- "onerom-gen",
+ "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -6111,8 +6156,23 @@ dependencies = [
  "deku 0.19.1",
  "esp-println",
  "log",
- "onerom-config",
- "onerom-gen",
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "static_assertions",
+]
+
+[[package]]
+name = "sdrr-fw-parser"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7f4d5bec8046dcccee9327163f6f1aa2bf783f364034e6a250649bb8303cb1e"
+dependencies = [
+ "airfrog-rpc",
+ "deku 0.19.1",
+ "log",
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "static_assertions",
 ]
@@ -6124,8 +6184,8 @@ dependencies = [
  "anyhow",
  "bytes",
  "clap",
- "onerom-config",
- "onerom-gen",
+ "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest",
  "strum",
  "thiserror 2.0.17",
@@ -6141,7 +6201,7 @@ dependencies = [
  "chrono",
  "clap",
  "goblin",
- "sdrr-fw-parser",
+ "sdrr-fw-parser 0.6.0",
  "smol",
 ]
 
