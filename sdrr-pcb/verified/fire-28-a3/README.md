@@ -1,6 +1,6 @@
 # One ROM Fire 28 pin 
 
-**Unverified** - This is an unverified design which only differs from A2 in correcting the SWD CLK/DIO silkscreen labels.
+**Verified - This design only differs from A2 in correcting the SWD CLK/DIO silkscreen labels.
 
 A3 revision of the 28 pin Fire ROM board.  Combined USB/Pro version with USB-C and SWD header pins.
 
