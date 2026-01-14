@@ -4,7 +4,7 @@
 
 //! Generates JSON schemas
 
-use onerom_gen::{Config as RomConfig};
+use onerom_gen::Config as RomConfig;
 use schemars::schema_for;
 use serde::ser::Serialize;
 use serde_json::ser::{PrettyFormatter, Serializer};
@@ -19,14 +19,16 @@ fn main() {
 }
 
 fn workspace_root_path() -> PathBuf {
-    let mut root_path  = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     root_path.pop(); // Up to workspace
     root_path.pop(); // Up to repo root
     root_path
 }
 
 fn rom_config_filename() -> PathBuf {
-    workspace_root_path().join(ROM_CONFIG_DIRNAME).join(ROM_CONFIG_FILENAME)
+    workspace_root_path()
+        .join(ROM_CONFIG_DIRNAME)
+        .join(ROM_CONFIG_FILENAME)
 }
 
 fn generate_rom_config_schema() {
@@ -37,7 +39,9 @@ fn generate_rom_config_schema() {
 
     // Generate the schema for RomConfig
     let schema = schema_for!(RomConfig);
-    schema.serialize(&mut ser).expect("Failed to serialize schema");
+    schema
+        .serialize(&mut ser)
+        .expect("Failed to serialize schema");
     let json = String::from_utf8(buf).expect("Generated schema is not valid UTF-8");
 
     // Save it to file
@@ -49,7 +53,7 @@ fn generate_rom_config_schema() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn rom_schema_is_current() {
         // Create a pretty-printed JSON serializer with 4-space indentation
@@ -58,13 +62,17 @@ mod tests {
         let mut ser = Serializer::with_formatter(&mut buf, formatter);
 
         let schema = schema_for!(RomConfig);
-        schema.serialize(&mut ser).expect("Failed to serialize schema");
+        schema
+            .serialize(&mut ser)
+            .expect("Failed to serialize schema");
         let generated = String::from_utf8(buf).expect("Generated schema is not valid UTF-8");
 
-        let checked_in = std::fs::read_to_string(rom_config_filename())
-            .expect("config-schema.json missing");
-        
-        assert_eq!(checked_in, generated, 
-            "Schema out of date - run: cargo run -p schema-gen");
+        let checked_in =
+            std::fs::read_to_string(rom_config_filename()).expect("config-schema.json missing");
+
+        assert_eq!(
+            checked_in, generated,
+            "Schema out of date - run: cargo run -p schema-gen"
+        );
     }
 }

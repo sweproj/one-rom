@@ -250,4 +250,64 @@
 // Flash size - in KB
 #define FLASH_SIZE      (*(volatile uint16_t *)(0x1FFF7A22))
 
+typedef struct {
+    uint16_t freq_mhz;
+    uint16_t max_freq_mhz;
+    uint16_t vco_max_mhz;
+    uint16_t vco_min_mhz;
+    uint16_t vco_max_overclock_mhz;
+
+} ice_mcu_clock_config_t;
+
+#define STM32F4_MAX_CONFIGURABLE_MHZ 450
+#define NUM_ICE_MCU_CLOCK_CONFIGS 5
+
+#if defined(STM32F4_INCLUDES)
+ice_mcu_clock_config_t ice_mcu_clock_config[NUM_ICE_MCU_CLOCK_CONFIGS] = {
+    {
+        .freq_mhz = 84,
+        .max_freq_mhz = 84,  // F401DE
+        .vco_max_mhz = 432,
+        .vco_min_mhz = 192,
+        .vco_max_overclock_mhz = 1000,
+    },
+    {
+        .freq_mhz = 168,
+        .max_freq_mhz = 168, // F405
+        .vco_max_mhz = 432,
+        .vco_min_mhz = 100,
+        .vco_max_overclock_mhz = 1000,
+    },
+    {
+        .freq_mhz = 100,
+        .max_freq_mhz = 100, // F411
+        .vco_max_mhz = 432,
+        .vco_min_mhz = 100,
+        .vco_max_overclock_mhz = 1000,
+    },
+    {
+        .freq_mhz = 180,
+        .max_freq_mhz = 180, // F446
+        .vco_max_mhz = 432,
+        .vco_min_mhz = 100,
+        .vco_max_overclock_mhz = 1000,
+    },
+    {
+        .freq_mhz = 84,
+        .max_freq_mhz = 84,  // F401BC
+        .vco_max_mhz = 432,
+        .vco_min_mhz = 192,
+        .vco_max_overclock_mhz = 1000,
+    }
+};
+_Static_assert(sizeof(ice_mcu_clock_config) / sizeof(ice_mcu_clock_config[0]) == NUM_ICE_MCU_CLOCK_CONFIGS, "Mismatch in clock config array size");
+#endif // STM32F4_INCLUDES
+
+typedef struct {
+    uint8_t pllm;
+    uint16_t plln;
+    uint8_t pllp;
+    uint8_t pllq;
+} pll_config_t;
+
 #endif // REG_STM32F4_H

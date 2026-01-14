@@ -10,7 +10,7 @@
 const char mcu_variant[] = MCU_VARIANT;
 const char license[] = "MIT License";
 const char project_url[] = "https://piers.rocks/u/one";
-const char copyright[] = "Copyright (c) 2025";
+const char copyright[] = "Copyright (c) 2026";
 const char author[] = "Piers Finlayson <piers@piers.rocks>";
 const char product[] = "One ROM";
 const char log_divider[] = "-----";

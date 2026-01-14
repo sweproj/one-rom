@@ -332,6 +332,22 @@ fn generate_roms_implementation_file(
             .map_err(|e| anyhow::anyhow!("In ROM set {}: {e:?}", rom_set.id))?;
         let set_cs_state = multi_cs_logic.c_value();
         writeln!(file, "        .multi_rom_cs1_state = {},", set_cs_state)?;
+
+        // sdrr-gen does NOT support extra ROM set (override) info
+        writeln!(file, "        .extra_info = 0,")?;
+
+        // Post 0.6.0 firmware additions
+        writeln!(file, "        .serve_config = (void *)0,")?;
+        writeln!(file, "        .firmware_overrides = (void *)0,")?;
+        writeln!(file, "        .pad2 = {{")?;
+        for _ in 0..5 {
+            writeln!(
+                file,
+                "            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,"
+            )?;
+        }
+        writeln!(file, "        }}")?;
+
         writeln!(file, "    }},")?;
     }
 
@@ -512,7 +528,7 @@ fn generate_sdrr_config_header(filename: &Path, config: &Config) -> Result<()> {
     // Oscillator config
     writeln!(file)?;
     writeln!(file, "// Oscillator configuration")?;
-    if config.hse {
+    if config.hse || config.board.has_usb() {
         writeln!(file, "// #define HSI 0")?;
         writeln!(file, "#define HSE 1     // External oscillator selected")?;
     } else {
@@ -524,7 +540,9 @@ fn generate_sdrr_config_header(filename: &Path, config: &Config) -> Result<()> {
     writeln!(file)?;
     writeln!(file, "// PLL configuration")?;
     let pll = PllConfig::new(config.mcu_variant.processor());
-    if let Some(pll_defines) = pll.generate_pll_defines(config.freq, config.overclock) {
+    if let Some(pll_defines) =
+        pll.generate_pll_defines(config.freq, config.overclock, config.board.has_usb())
+    {
         writeln!(file, "{}", pll_defines)?;
         if config.overclock {
             writeln!(file, "#define OVERCLOCK 1  // Overclocking enabled")?;
@@ -726,7 +744,9 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
     writeln!(file, "    .ce = {ce},")?;
     writeln!(file, "    .oe = {oe},")?;
     writeln!(file, "    .x_jumper_pull = {},", board.x_jumper_pull())?;
-    writeln!(file, "    .reserved3 = {{0, 0, 0, 0, 0}},")?;
+    writeln!(file, "    .reserved3 = {{0, 0, 0}},")?;
+    writeln!(file, "    .swclk_sel = {},", board.swclk_sel_pin())?;
+    writeln!(file, "    .swdio_sel = {},", board.swdio_sel_pin())?;
     writeln!(
         file,
         "    .sel = {{ {}, {}, {}, {}, {}, {}, {} }},",
@@ -738,7 +758,18 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
         board.pin_sel(5),
         board.pin_sel(6),
     )?;
-    writeln!(file, "    .sel_jumper_pull = {},", board.sel_jumper_pull())?;
+    // Turn the sel_jumper_pull &[u8] into a bit field, with LSB = sel 0
+    let sel_jumper_pull_bits: u8 = board
+        .sel_jumper_pulls()
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| if v > 0 { 1 << i } else { 0 })
+        .sum();
+    writeln!(
+        file,
+        "    .sel_jumper_pull = 0b{:08b},",
+        sel_jumper_pull_bits
+    )?;
     writeln!(file, "    .status = {},", board.pin_status())?;
     writeln!(file, "    .reserved5 = {{0, 0, 0}},")?;
 
@@ -747,20 +778,33 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
 
     // Extra info structure, introduced in v0.4.0
     writeln!(file, "// Extra info")?;
-    writeln!(file, "extern struct sdrr_runtime_info_t _sdrr_runtime_info_start;")?;
+    writeln!(
+        file,
+        "extern struct sdrr_runtime_info_t _sdrr_runtime_info_ram;"
+    )?;
     writeln!(file, "static const sdrr_extra_info_t sdrr_extra_info = {{")?;
     writeln!(file, "    .rtt = &_SEGGER_RTT,")?;
     if board.has_usb() {
         writeln!(file, "    .usb_dfu = 1,")?;
         writeln!(file, "    .usb_port = {},", board.port_usb())?;
-        writeln!(file, "    .vbus_pin = {},", board.usb_vbus_pin().expect("USB VBUS pin not defined"))?;
+        writeln!(
+            file,
+            "    .vbus_pin = {},",
+            board.usb_vbus_pin().expect("USB VBUS pin not defined")
+        )?;
     } else {
         writeln!(file, "    .usb_dfu = 0,")?;
         writeln!(file, "    .usb_port = PORT_NONE,")?;
         writeln!(file, "    .vbus_pin = 255,")?;
     }
-    writeln!(file, "    .reserved1 = {{0}},")?;
-    writeln!(file, "    .runtime_info = &_sdrr_runtime_info_start,")?;
+
+    writeln!(
+        file,
+        "    .fire_pio_default = {},",
+        if board.mcu_pio() { 1 } else { 0 }
+    )?;
+
+    writeln!(file, "    .runtime_info = &_sdrr_runtime_info_ram,")?;
     writeln!(file, "    ._post = {{")?;
     for _ in 0..30 {
         writeln!(
@@ -768,10 +812,7 @@ fn generate_sdrr_config_implementation(filename: &Path, config: &Config) -> Resu
             "        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,"
         )?;
     }
-    writeln!(
-        file,
-        "        0xff, 0xff, 0xff, 0xff,"
-    )?;
+    writeln!(file, "        0xff, 0xff, 0xff, 0xff,")?;
     writeln!(file, "    }},")?;
     writeln!(file, "}};")?;
 
@@ -953,10 +994,7 @@ fn generate_linker_script(filename: &Path, config: &Config) -> Result<()> {
             writeln!(file, "_Ram_Rom_Image_Start = ORIGIN(RAM);")?;
         }
         McuFamily::Stm32f4 => {
-            writeln!(
-                file,
-                "_Ram_Rom_Image_Start = ORIGIN(RAM);"
-            )?;
+            writeln!(file, "_Ram_Rom_Image_Start = ORIGIN(RAM);")?;
         }
     }
     if config.mcu_variant.ram_kb() > 72 {

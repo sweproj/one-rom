@@ -80,11 +80,7 @@ async fn main(_spawner: Spawner) {
     // Init USB/logging
     #[cfg(feature = "usb")]
     {
-        let usb_device = usb::Usb::new(
-            p.USB_OTG_FS,
-            p.PA12,
-            p.PA11,
-        );
+        let usb_device = usb::Usb::new(p.USB_OTG_FS, p.PA12, p.PA11);
         usb::run(_spawner, usb_device);
         usb::init_logger();
     }
@@ -162,16 +158,14 @@ async fn main(_spawner: Spawner) {
         info!("Press `d` to enter DFU mode");
         loop {
             #[cfg(not(feature = "usb"))]
-
             match rom.read_rom().await {
                 Some(_) => info!("ROM read successfully"),
                 None => info!("Failed to read ROM"),
             }
             #[cfg(feature = "usb")]
-            match embassy_time::with_timeout(
-                embassy_time::Duration::from_secs(5),
-                usb::recv_key(),
-            ).await {
+            match embassy_time::with_timeout(embassy_time::Duration::from_secs(5), usb::recv_key())
+                .await
+            {
                 Ok(key) => {
                     if key == b'd' {
                         info!("Entering DFU mode...");

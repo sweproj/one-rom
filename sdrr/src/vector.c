@@ -106,9 +106,9 @@ extern uint32_t _ram_func_start;    // Start of .ram_func section in RAM
 extern uint32_t _ram_func_end;      // End of .ram_func section in RAM
 #endif
 
-extern uint32_t _sdrr_runtime_info_start; // Start of .sdrr_runtime_info section on flash
-extern uint32_t _sdrr_runtime_info_ram;   // Start of .sdrr_runtime_info section in RAM
-extern uint32_t _sdrr_runtime_info_end;   // End of .sdrr_runtime_info section in flash
+extern uint32_t _sdrr_runtime_info_ram[]; // Start of .sdrr_runtime_info section in RAM
+extern uint32_t _sdrr_runtime_info_flash[];   // Start of .sdrr_runtime_info section in flash
+extern uint32_t _sdrr_runtime_info_end[];   // End of .sdrr_runtime_info section in flash
 
 // Reset handler
 void Reset_Handler(void) {
@@ -134,9 +134,12 @@ void Reset_Handler(void) {
     // we could come up with.
 
     // Copy sdrr_runtime_info_t from flash to RAM
-    memcpy(&_sdrr_runtime_info_ram,
-           &_sdrr_runtime_info_start,
-           (unsigned int)((char*)&_sdrr_runtime_info_end - (char*)&_sdrr_runtime_info_start));
+    memcpy(_sdrr_runtime_info_ram,
+        _sdrr_runtime_info_flash,
+           (unsigned int)((char*)_sdrr_runtime_info_end - (char*)_sdrr_runtime_info_ram));
+    sdrr_runtime_info_t *runtime_info = (sdrr_runtime_info_t *)_sdrr_runtime_info_ram;
+    runtime_info->status_led_enabled = sdrr_info.status_led_enabled;
+    runtime_info->swd_enabled = sdrr_info.swd_enabled;
 
     // Copy data section from flash to RAM
     memcpy(&_sdata, &_sidata, (unsigned int)((char*)&_edata - (char*)&_sdata));
@@ -164,6 +167,8 @@ void Reset_Handler(void) {
 
 // Default handler for unhandled interrupts - fast continuous blink
 void Default_Handler(void) {
+    // Use sdrr_info status_led_enabled in case runtime_info is
+    // corrupted/not initialized.  Note this overrides any LED override
     if (sdrr_info.status_led_enabled) {
         setup_status_led();
         while (1) {

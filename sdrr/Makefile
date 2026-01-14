@@ -74,7 +74,7 @@ ifeq ($(filter clean clean-% distclean,$(MAKECMDGOALS)),)
 LDSCRIPT=$(OUTPUT_DIR)/linker.ld
 
 # Flags
-COMMON_FLAGS := -mthumb -mfloat-abi=hard -ffast-math
+COMMON_FLAGS := -mthumb -mfloat-abi=hard -ffast-math -fshort-enums
 ifeq ($(findstring stm32f4,$(VARIANT)),stm32f4)
 COMMON_FLAGS += -mcpu=cortex-m4 -mfpu=fpv4-sp-d16
 PLATFORM_OBJS := stm32f4.o

@@ -1,0 +1,59 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "compilerPath": "${env:TOOLCHAIN}/arm-none-eabi-gcc",
+            "compilerArgs": [
+                "-mthumb",
+                "-mfloat-abi=hard",
+                "-ffast-math",
+                "-fshort-enums",
+                "-mcpu=cortex-m4",
+                "-mfpu=fpv4-sp-d16"
+            ],
+            "includePath": [
+                "${workspaceFolder}/sdrr/include",
+                "${workspaceFolder}/output",
+                "${workspaceFolder}/sdrr/segger-rtt/RTT",
+                "${workspaceFolder}/sdrr/segger-rtt/Config"
+            ],
+            "defines": [
+                "__attribute__(x)=",
+                "BUFFER_SIZE_UP=4096"
+            ],
+            "intelliSenseMode": "linux-gcc-arm",
+            "cStandard": "c17",
+            "cppStandard": "c++14"
+        },
+        {
+            "name": "Mac",
+            "compilerPath": "${env:TOOLCHAIN}/arm-none-eabi-gcc",
+            "compilerArgs": [
+                "-mthumb",
+                "-mfloat-abi=hard",
+                "-ffast-math",
+                "-fshort-enums",
+                "-mcpu=cortex-m4",
+                "-mfpu=fpv4-sp-d16"
+            ],
+            "includePath": [
+                "${workspaceFolder}/sdrr/include",
+                "${workspaceFolder}/output",
+                "${workspaceFolder}/sdrr/segger-rtt/RTT",
+                "${workspaceFolder}/sdrr/segger-rtt/Config"
+            ],
+            "defines": [
+                "__attribute__(x)=",
+                "BUFFER_SIZE_UP=4096"
+            ],
+            "macFrameworkPath": [
+                "/System/Library/Frameworks",
+                "/Library/Frameworks"
+            ],
+            "intelliSenseMode": "linux-gcc-arm",
+            "cStandard": "c17",
+            "cppStandard": "c++14"
+        }
+    ],
+    "version": 4
+}

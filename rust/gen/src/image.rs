@@ -16,16 +16,20 @@
 //! the metadata.
 
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
-use onerom_config::fw::ServeAlg;
+use onerom_config::fw::{FirmwareVersion, ServeAlg};
 use onerom_config::hw::Board;
 use onerom_config::mcu::Family as McuFamily;
 use onerom_config::rom::RomType;
 
-use crate::{Error, Result};
+use crate::MIN_FIRMWARE_OVERRIDES_VERSION;
+use crate::meta::{
+    ROM_SET_FIRMWARE_OVERRIDES_METADATA_LEN, ROM_SET_METADATA_LEN, ROM_SET_METADATA_LEN_EXTRA_INFO,
+};
+use crate::{Error, Result, builder::FirmwareConfig};
 
 /// Value to use when told to pad a ROM image
 pub const PAD_BLANK_BYTE: u8 = 0xAA;
@@ -35,8 +39,6 @@ pub const PAD_NO_ROM_BYTE: u8 = 0xAA;
 
 const ROM_METADATA_LEN_NO_FILENAME: usize = 4;
 const ROM_METADATA_LEN_WITH_FILENAME: usize = 8;
-
-const ROM_SET_METADATA_LEN: usize = 16; // sdrr_rom_set_t
 
 /// How to handle ROM images that are too small for the ROM type
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -137,7 +139,7 @@ pub enum CsConfig {
 impl CsConfig {
     pub fn new(cs1: Option<CsLogic>, cs2: Option<CsLogic>, cs3: Option<CsLogic>) -> Self {
         if cs1.is_none() && cs2.is_none() && cs3.is_none() {
-            return Self::CeOe;
+            Self::CeOe
         } else {
             let cs1 = cs1.expect("CS1 must be specified if any CS lines are used");
             Self::ChipSelect { cs1, cs2, cs3 }
@@ -201,7 +203,7 @@ impl Rom {
             index,
             filename,
             label,
-            rom_type: rom_type.clone(),
+            rom_type: *rom_type,
             cs_config,
             data,
             location,
@@ -229,6 +231,7 @@ impl Rom {
     /// Takes a raw ROM image (binary data, loaded from file) and processes it
     /// according to the specified size handling (none, duplicate, pad) to
     /// ensure it matches the expected size for the given ROM type.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_raw_rom_image(
         index: usize,
         filename: String,
@@ -243,13 +246,17 @@ impl Rom {
         // Slice source if location specified
         let source = if let Some(loc) = location {
             // Bounds check
-            let end = loc.start
+            let end = loc
+                .start
                 .checked_add(loc.length)
                 .ok_or(Error::BadLocation {
                     id: index,
-                    reason: format!("Location overflow: start={:#X} length={:#X}", loc.start, loc.length),
+                    reason: format!(
+                        "Location overflow: start={:#X} length={:#X}",
+                        loc.start, loc.length
+                    ),
                 })?;
-            
+
             if end > source.len() {
                 return Err(Error::RomTooSmall {
                     index,
@@ -257,12 +264,12 @@ impl Rom {
                     actual: source.len(),
                 });
             }
-            
+
             &source[loc.start..end]
         } else {
             source
         };
-        
+
         let expected_size = rom_type.size_bytes();
         if dest.len() < expected_size {
             return Err(Error::BufferTooSmall {
@@ -299,7 +306,7 @@ impl Rom {
                         });
                     }
                     SizeHandling::Duplicate => {
-                        if expected_size % source.len() != 0 {
+                        if !expected_size.is_multiple_of(source.len()) {
                             return Err(Error::DuplicationNotExactDivisor {
                                 rom_size: source.len(),
                                 expected_size,
@@ -346,23 +353,23 @@ impl Rom {
         }
 
         Ok(Self::new(
-            index,
-            filename,
-            label,
-            rom_type,
-            cs_config,
-            dest,
-            location,
+            index, filename, label, rom_type, cs_config, dest, location,
         ))
     }
 
     // Transforms from a physical address (based on the hardware pins) to
     // a logical ROM address, so we store the physical ROM mapping, rather
     // than the logical one.
-    fn address_to_logical(phys_pin_to_addr_map: &[Option<usize>], address: usize, _board: &Board, num_addr_lines: usize) -> usize {
+    fn address_to_logical(
+        phys_pin_to_addr_map: &[Option<usize>],
+        address: usize,
+        _board: &Board,
+        num_addr_lines: usize,
+    ) -> usize {
         let mut result = 0;
 
         for (pin, item) in phys_pin_to_addr_map.iter().enumerate() {
+            #[allow(clippy::collapsible_if)]
             if let Some(addr_bit) = item {
                 // Only use this mapping if it's within the ROM's address lines
                 if *addr_bit < num_addr_lines {
@@ -436,12 +443,18 @@ impl Rom {
     // This ensures that when the hardware reads from a certain address
     // through its GPIO pins, it gets the correct byte value with bits
     // arranged according to its data pin connections.
-    fn get_byte(&self, phys_pin_to_addr_map: &[Option<usize>], address: usize, board: &Board) -> u8 {
+    fn get_byte(
+        &self,
+        phys_pin_to_addr_map: &[Option<usize>],
+        address: usize,
+        board: &Board,
+    ) -> u8 {
         // We have been passed a physical address based on the hardware pins,
         // so we need to transform it to a logical address based on the ROM
         // image.
         let num_addr_lines = self.rom_type.num_addr_lines();
-        let transformed_address = Self::address_to_logical(phys_pin_to_addr_map, address, board, num_addr_lines);
+        let transformed_address =
+            Self::address_to_logical(phys_pin_to_addr_map, address, board, num_addr_lines);
 
         // Sanity check that we did get a logical address, which must by
         // definition fit within the actual ROM size.
@@ -530,6 +543,9 @@ pub struct RomSet {
 
     /// ROMs in the set
     pub roms: Vec<Rom>,
+
+    /// Optional firmware configuration overrides for this ROM set
+    pub firmware_overrides: Option<FirmwareConfig>,
 }
 
 impl RomSet {
@@ -543,6 +559,7 @@ impl RomSet {
         set_type: RomSetType,
         serve_alg: ServeAlg,
         roms: Vec<Rom>,
+        firmware_overrides: Option<crate::builder::FirmwareConfig>,
     ) -> Result<Self> {
         // Check some ROMs were supplied
         if roms.is_empty() {
@@ -581,11 +598,36 @@ impl RomSet {
             RomSetType::Multi => ServeAlg::AddrOnAnyCs,
         };
 
+        // Validate firmware overrides if present
+        #[allow(clippy::collapsible_if)]
+        if let Some(ref overrides) = firmware_overrides {
+            if overrides.ice.is_none()
+                && overrides.fire.is_none()
+                && overrides.led.is_none()
+                && overrides.swd.is_none()
+                && overrides.serve_alg_params.is_none()
+            {
+                return Err(Error::InvalidConfig {
+                    error: "firmware_overrides specified but all fields are None".to_string(),
+                });
+            }
+
+            // Validate serve_alg_params if present within firmware_overrides
+            if let Some(ref params) = overrides.serve_alg_params {
+                if params.params.is_empty() {
+                    return Err(Error::InvalidConfig {
+                        error: "serve_alg_params specified but params vec is empty".to_string(),
+                    });
+                }
+            }
+        }
+
         Ok(Self {
             id,
             set_type,
             serve_alg,
             roms,
+            firmware_overrides,
         })
     }
 
@@ -608,6 +650,7 @@ impl RomSet {
 
             // For multi-ROM sets we also need to check CS2 and CS3 are ignored
             // for all ROMS
+            #[allow(clippy::collapsible_if)]
             if self.set_type == RomSetType::Multi {
                 for rom in &self.roms {
                     if let Some(cs2) = rom.cs_config.cs2_logic() {
@@ -643,11 +686,7 @@ impl RomSet {
                 RomSetType::Single => {
                     // STM32F4 uses 16KB images for single 24 pin ROMs, and
                     // 64KB images for 28 pin ROMs.
-                    if rom_pins == 24 {
-                        16384
-                    } else {
-                        65536
-                    }
+                    if rom_pins == 24 { 16384 } else { 65536 }
                 }
                 RomSetType::Banked | RomSetType::Multi => 65536,
             }
@@ -660,6 +699,7 @@ impl RomSet {
     ) {
         // Clear any address lines beyond the number of address lines the ROM supports
         for item in phys_pin_to_addr_map.iter_mut() {
+            #[allow(clippy::collapsible_if)]
             if let Some(addr_bit) = item {
                 if *addr_bit >= num_addr_lines {
                     *item = None;
@@ -721,12 +761,11 @@ impl RomSet {
 
             let num_addr_lines = self.roms[rom_index].rom_type.num_addr_lines();
             let phys_pin_to_addr_map = board.phys_pin_to_addr_map();
-            let mut phys_pin_to_addr_map = phys_pin_to_addr_map.clone();
+            let mut phys_pin_to_addr_map = *phys_pin_to_addr_map;
             Self::truncate_phys_pin_to_addr_map(&mut phys_pin_to_addr_map, num_addr_lines);
 
             return self.roms[rom_index].get_byte(&phys_pin_to_addr_map, masked_address, board);
-        } 
-
+        }
 
         // Multiple ROMs: check CS line states to select responding ROM.  This
         // code can handle any X1/X2 positions - but the above can't.
@@ -738,7 +777,7 @@ impl RomSet {
             // a different type (size).
             let num_addr_lines = rom_in_set.rom_type.num_addr_lines();
             let phys_pin_to_addr_map = board.phys_pin_to_addr_map();
-            let mut phys_pin_to_addr_map = phys_pin_to_addr_map.clone();
+            let mut phys_pin_to_addr_map = *phys_pin_to_addr_map;
             Self::truncate_phys_pin_to_addr_map(&mut phys_pin_to_addr_map, num_addr_lines);
 
             // All of CS1/X1/X2 have to have the same active low/high status
@@ -750,7 +789,12 @@ impl RomSet {
             let cs_pin = board.cs_bit_for_rom_in_set(rom_in_set.rom_type, index);
             assert!(cs_pin <= 15, "Internal error: CS pin is > 15");
 
-            fn is_pin_active(active_high: bool, invert_cs1_x: bool, address: usize, pin: u8) -> bool {
+            fn is_pin_active(
+                active_high: bool,
+                invert_cs1_x: bool,
+                address: usize,
+                pin: u8,
+            ) -> bool {
                 if !invert_cs1_x {
                     if active_high {
                         (address & (1 << pin)) != 0
@@ -907,6 +951,7 @@ impl RomSet {
             ROM_METADATA_LEN_NO_FILENAME
         } * num_roms;
 
+        #[allow(clippy::let_and_return)]
         rom_metadata_len
     }
 
@@ -1016,6 +1061,7 @@ impl RomSet {
     /// Writes the actual set metadata for this set.  This function must be
     /// called for each set one after the other, in order of set ID, as it
     /// must write an array of sets.
+    #[allow(clippy::too_many_arguments)]
     pub fn write_set_metadata(
         &self,
         buf: &mut [u8],
@@ -1023,9 +1069,12 @@ impl RomSet {
         rom_array_ptr: u32,
         family: &McuFamily,
         rom_pins: u8,
+        version: &FirmwareVersion,
+        serve_config_ptr: Option<u32>,
+        firmware_overrides_ptr: Option<u32>,
     ) -> Result<usize> {
         // Check enough buffer space
-        let expected_len = Self::rom_set_metadata_len();
+        let expected_len = Self::rom_set_metadata_len(version);
         if buf.len() < expected_len {
             return Err(Error::BufferTooSmall {
                 location: "write_set_metadata",
@@ -1064,9 +1113,36 @@ impl RomSet {
         buf[offset] = multi_cs_state;
         offset += 1;
 
-        // Write a pad byte
-        buf[offset] = 0;
+        if version >= &MIN_FIRMWARE_OVERRIDES_VERSION {
+            buf[offset] = 1; // extra_info = 1 for 0.6.0+
+        } else {
+            buf[offset] = PAD_BLANK_BYTE; // pad byte for pre-0.6.0
+        }
         offset += 1;
+
+        assert_eq!(offset, 16, "First 16 bytes should be written");
+
+        // Write extended fields for 0.6.0+
+        if version >= &MIN_FIRMWARE_OVERRIDES_VERSION {
+            // Write serve_config pointer
+            let serve_ptr = serve_config_ptr.unwrap_or(0xFFFFFFFF);
+            buf[offset..offset + 4].copy_from_slice(&serve_ptr.to_le_bytes());
+            offset += 4;
+
+            // Write firmware_overrides pointer
+            let fw_ptr = firmware_overrides_ptr.unwrap_or(0xFFFFFFFF);
+            buf[offset..offset + 4].copy_from_slice(&fw_ptr.to_le_bytes());
+            offset += 4;
+
+            // Write padding to reach 64 bytes
+            buf[offset..offset + 40].copy_from_slice(&[0u8; 40]);
+            offset += 40;
+
+            assert_eq!(
+                offset, ROM_SET_FIRMWARE_OVERRIDES_METADATA_LEN,
+                "Total should be 64 bytes for 0.6.0+"
+            );
+        }
 
         assert_eq!(
             offset, expected_len,
@@ -1076,8 +1152,12 @@ impl RomSet {
         Ok(offset)
     }
 
-    pub const fn rom_set_metadata_len() -> usize {
-        ROM_SET_METADATA_LEN
+    pub fn rom_set_metadata_len(version: &FirmwareVersion) -> usize {
+        if *version >= MIN_FIRMWARE_OVERRIDES_VERSION {
+            ROM_SET_METADATA_LEN_EXTRA_INFO
+        } else {
+            ROM_SET_METADATA_LEN
+        }
     }
 
     pub fn serve_alg(&self) -> ServeAlg {

@@ -71,7 +71,7 @@
                 26,
                 27
             ],
-            "sel_jumper_pull": 0,
+            "sel_jumper_pull": [0, 0],
             "status": 29
         },
         "usb": {

@@ -117,10 +117,7 @@ fn group_by_family(config: &RomTypesConfig) -> BTreeMap<&'static str, Vec<(&Stri
             continue;
         };
 
-        families
-            .entry(key)
-            .or_default()
-            .push((type_name, rom_type));
+        families.entry(key).or_default().push((type_name, rom_type));
     }
 
     // Sort each family by size

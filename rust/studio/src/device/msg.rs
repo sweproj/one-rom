@@ -87,13 +87,7 @@ impl std::fmt::Display for Message {
             Message::UsbDevicesDetected(devices) => {
                 let devices_str = devices
                     .iter()
-                    .map(|d| {
-                        format!(
-                            "VID={:04X}, PID={:04X}",
-                            d.vid(),
-                            d.pid()
-                        )
-                    })
+                    .map(|d| format!("VID={:04X}, PID={:04X}", d.vid(), d.pid()))
                     .collect::<Vec<_>>()
                     .join(", ");
                 write!(f, "UsbDevicesDetected({})", devices_str)
@@ -223,9 +217,7 @@ pub fn handle_message(
             address,
             words,
         } => {
-            debug!(
-                "{client} Reading device memory at {address}, {words} words",
-            );
+            debug!("{client} Reading device memory at {address}, {words} words",);
             if client != Client::Analyse {
                 internal_error!("Device read requested by unsupported client: {}", client);
                 return Task::none();

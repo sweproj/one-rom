@@ -4,16 +4,23 @@
 //
 // MIT License
 
+#define STM32F4_INCLUDES
 #include "include.h"
 #include "roms.h"
 
 // Internal function prototypes
-static void setup_pll_mul(uint8_t m, uint16_t n, uint8_t p, uint8_t q);
+uint8_t calculate_pll_settings(
+    ice_mcu_clock_config_t *clock_config, 
+    uint8_t overclock,
+    uint8_t xtal_freq_mhz,
+    pll_config_t *config
+);
+static void setup_pll_mul(pll_config_t *config);
 static void setup_pll_src(uint8_t src);
 static void enable_pll(void);
-#if defined(DEBUG_LOGGING)
+#if defined(DEBUG_LOGGING) && defined(HSI) && (HSI == 1)
 static uint8_t get_hsi_cal(void);
-#endif // DEBUG_LOGGING
+#endif // DEBUG_LOGGING && HSI
 static void set_clock(uint8_t clock);
 #if defined(HSI_TRIM)
 static void trim_hsi(uint8_t trim);
@@ -35,7 +42,7 @@ void platform_specific_init(void) {
             setup_vbus_interrupt();
         }
 
-        if (sdrr_info.status_led_enabled) {
+        if (sdrr_runtime_info.status_led_enabled) {
             setup_status_led();
         }
         limp_mode(LIMP_MODE_INVALID_CONFIG);
@@ -98,11 +105,46 @@ void vbus_connect_handler(void) {
     enter_bootloader();
 }
 
+//To do - set_flash_ws
+//setup_clock
+
 void setup_clock(void) {
+    ice_mcu_clock_config_t clock_config;
+
+    // Get the max rated and other clock speed settings for this MCU
+    if (sdrr_info.mcu_line < NUM_ICE_MCU_CLOCK_CONFIGS) {
+        memcpy(&clock_config, &ice_mcu_clock_config[sdrr_info.mcu_line], sizeof(ice_mcu_clock_config_t));
+    } else {
+        LOG("!!! Unknown MCU line - default to F401DE");
+        memcpy(&clock_config, &ice_mcu_clock_config[F401DE], sizeof(ice_mcu_clock_config_t));
+    }
+
+    // Get the requested clock speed from compile time and any ROM set overrides
+    if (sdrr_runtime_info.ice_freq == ICE_FREQ_NONE) {
+        clock_config.freq_mhz = sdrr_info.freq;
+    } else if ((sdrr_runtime_info.ice_freq != ICE_FREQ_STOCK) 
+        && (sdrr_runtime_info.ice_freq <= STM32F4_MAX_CONFIGURABLE_MHZ)) {
+        clock_config.freq_mhz = (uint16_t)sdrr_runtime_info.ice_freq;
+    } else if (sdrr_runtime_info.ice_freq == ICE_FREQ_STOCK) {
+        // No-op - stock settings already loaded
+    } else {
+        LOG("!!! Invalid ICE frequency requested - using compile time");
+        clock_config.freq_mhz = sdrr_info.freq;
+    }
+
+    // Only allow overclocking if enabled
+    if ((clock_config.freq_mhz > clock_config.max_freq_mhz) && (!sdrr_runtime_info.overclock_enabled)) {
+        LOG("!!! Requested clock %dMHz exceeds max for MCU line %d (%dMHz) - capping",
+            clock_config.freq_mhz,
+            sdrr_info.mcu_line,
+            clock_config.max_freq_mhz);
+        clock_config.freq_mhz = clock_config.max_freq_mhz;
+    }
+
     if ((sdrr_info.mcu_line == F405) ||
         (sdrr_info.mcu_line == F411) || 
         (sdrr_info.mcu_line == F446)) {
-        if (sdrr_info.freq > 84) {
+        if (clock_config.freq_mhz > 84) {
             // Set power scale 1 mode, as clock speed is 100MHz (> 84MHz, <= 100MHz)
             // Scale defaults to 1 on STM32F405, and not required on STM32F401
             // Must be done before enabling PLL
@@ -136,24 +178,55 @@ void setup_clock(void) {
 
     // Always use PLL - note when using HSI, HSI/2 is fed to PLL.  When using
     // HSE, HSE itself is fed to PLL.
-#if defined(DEBUG_LOGGING)
+#if defined(DEBUG_LOGGING) && defined(HSI) && (HSI == 1)
     uint8_t hsi_cal = get_hsi_cal();
     DEBUG("HSI cal value: 0x%x", hsi_cal);
-#endif // DEBUG_LOGGING
+#endif // DEBUG_LOGGING && HSI
 #if defined(HSI_TRIM)
     trim_hsi(HSI_TRIM);
 #else
     DEBUG("Not trimming HSI");
 #endif // HSI_TRIM
+#if defined(HSE) && (HSE == 1)
+    DEBUG("Using HSE as PLL source");
+    // Enable HSE
+    RCC_CR |= RCC_CR_HSEON;
+    while (!(RCC_CR & RCC_CR_HSERDY));
+    LOG("HSE ready");
+    uint8_t pll_src = RCC_PLLCFGR_PLLSRC_HSE;
+#else // ! HSE
+    DEBUG("Using HSI as PLL source");
     uint8_t pll_src = RCC_PLLCFGR_PLLSRC_HSI;
+#endif // HSE
 
-   setup_pll_mul(PLL_M, PLL_N, PLL_P, PLL_Q);
-
+    pll_config_t pll_config;
+    uint8_t xtal_freq_mhz;
+    if (sdrr_info.extra->usb_dfu) {
+        xtal_freq_mhz = 12;
+    } else {
+        xtal_freq_mhz = 16;
+    }
+    if (!calculate_pll_settings(
+        &clock_config,
+        sdrr_runtime_info.overclock_enabled,
+        xtal_freq_mhz,
+        &pll_config
+    )) {
+        pll_config.pllm = PLL_M;
+        pll_config.plln = PLL_N;
+        pll_config.pllp = PLL_P;
+        pll_config.pllq = PLL_Q;
+        sdrr_runtime_info.sysclk_mhz = TARGET_FREQ_MHZ;
+        LOG("!!! Could not calculate PLL settings - using compile time settings %dMHz", TARGET_FREQ_MHZ);
+    }
+    setup_pll_mul(&pll_config);
     setup_pll_src(pll_src);
     enable_pll();
     DEBUG("PLL started");
 
-    if ((sdrr_info.mcu_line == F446) && (sdrr_info.freq > 168)) {
+    sdrr_runtime_info.sysclk_mhz = clock_config.freq_mhz;
+
+    if ((sdrr_info.mcu_line == F446) && (clock_config.freq_mhz > 168)) {
         // Need to set overdrive mode - wait for it to be ready
         for (int ii = 0; ii < 1000; ii++) {
             if (PWR_CR & PWR_CSR_ODRDY_MASK) {
@@ -185,24 +258,20 @@ void setup_clock(void) {
 }
 
 // Set up the image select pins to be inputs with the appropriate pulls.
-uint32_t setup_sel_pins(uint32_t *sel_mask) {
+//
+// As of 0.6.0 sel_jumper_pulls is a bit field indicating whether each
+// individual sel pin's jumper pulls up (1) or down (0).
+uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
     uint32_t num;
     uint8_t pull;
+
+    // Initialize outputs
+    *sel_mask = 0;
+    *flip_bits = 0;
 
     if (sdrr_info.pins->sel_port != PORT_B) {
         // sel_mask of 0 means invalid response
         LOG("!!! Sel port not B - not using");
-        return 0;
-    }
-
-    if (sdrr_info.pins->sel_jumper_pull == 0) {
-        // Jumper will pull down, so we pull up
-        pull = 0b01;
-    } else if (sdrr_info.pins->sel_jumper_pull == 1) {
-        // Jumper will pull up, so we pull down
-        pull = 0b10;
-    } else {
-        LOG("!!! Invalid sel pull %d", sdrr_info.pins->sel_jumper_pull);
         return 0;
     }
 
@@ -216,8 +285,30 @@ uint32_t setup_sel_pins(uint32_t *sel_mask) {
     uint32_t pulls = 0;          // Pull value
     for (int ii = 0; ii < MAX_IMG_SEL_PINS; ii++) {
         uint8_t pin = sdrr_info.pins->sel[ii];
-        // Pin is present, so set the mask
-        if (pin < MAX_PORT_PINS) {
+
+        if (pin >= MAX_USED_GPIOS) {
+            // Ignore invalid pins
+            continue;
+        }
+        
+        if ((sdrr_info.swd_enabled) &&
+            ((pin == sdrr_info.pins->swclk_sel) ||
+             (pin == sdrr_info.pins->swdio_sel))) {
+            LOG("!!! Sel pin %d used for SWD - not using", pin);
+        } else if (pin < MAX_PORT_PINS) {
+            // Set up the pull
+            if (sdrr_info.pins->sel_jumper_pull & (1 << ii)) {
+                // This pin pulls up, so we pull down
+                pull = 0b10;
+            } else {
+                // This pin pulls down, so we pull up
+                pull = 0b01;
+
+                // Flip this bit when reading the SEL pins, as closing will
+                // pull the pin low, but that should read a 1
+                *flip_bits |= (1 << pin);
+            }
+
             sel_1bit_mask |= 1 << pin;
             sel_2bit_mask |= (0b11 << (pin * 2));
             pulls |= (pull << (pin * 2));
@@ -233,41 +324,32 @@ uint32_t setup_sel_pins(uint32_t *sel_mask) {
     GPIOB_PUPDR &= ~sel_2bit_mask;  // Clear pulls for appropriate lines
     GPIOB_PUPDR |= pulls;
 
-    // Short delay to allow the pull-downs to settle.
+    // Short delay to allow the puls to settle.
     for(volatile int ii = 0; ii < 10; ii++);
     
     return num;
 }
 
-// Get the value of the sel pins.  If, on this board, the MCU pulls are low
-// (i.e. closing the jumpers pulls them up) we return the value as is, as
-// closed should indicate 1.  In the other case, where MCU pulls are high
-// (closing jumpers) pulls the pins low, we invert - so closed still indicates
-// 1.
+// Get the value of the sel pins.
+// 
+// As of 0.6.0, we support sel_jumper_pulls as a bit field indicating whether
+// each individual sel pin's jumper pulls up (1) or down (0).
 //
-// We will probably make this behaviour configurable soon.
-//
-// On all STM32F4 boards to date, the SEL pins are pulled high by jumpers to
-// indicate a 1.
-uint32_t get_sel_value(uint32_t sel_mask) {
-    uint8_t invert;
+// If a pull is low (i.e. closing the jumpers pulls them up) we return the
+// value as is, as closed should indicate 1.  In the other case, where MCU
+// pulls are high (closing jumpers) pulls the pins low, we invert - so closed
+// still indicates 1.
+uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits) {
     uint32_t gpio_value;
 
-    if (sdrr_info.pins->sel_jumper_pull == 0) {
-        // Closing the jumper produces a 0, so invert
-        invert = 1;
-    } else {
-        // Closing the jumper produces a 1, so don't invert
-        invert = 0;
-    }
-
+    // Read GPIO input register
     gpio_value = GPIOB_IDR;
-    gpio_value = gpio_value & sel_mask;
 
-    if (invert) {
-        // If we are inverting, we need to flip the bits
-        gpio_value = ~gpio_value & sel_mask;
-    }
+    // Flip any flip bits as required
+    gpio_value ^= flip_bits;
+
+    // Mask to just the sel pins
+    gpio_value = gpio_value & sel_mask;
 
     return gpio_value;
 }
@@ -358,7 +440,7 @@ void setup_status_led(void) {
         LOG("!!! Status pin %d > 15 - not using", sdrr_info.pins->status);
         return;
     }
-    if (sdrr_info.status_led_enabled) {
+    if (sdrr_runtime_info.status_led_enabled) {
         RCC_AHB1ENR |= RCC_AHB1ENR_GPIOBEN; // Enable GPIOB clock
         
         uint8_t pin = sdrr_info.pins->status;
@@ -374,6 +456,8 @@ void setup_status_led(void) {
 
 // Blink pattern: on_time, off_time, repeat_count
 void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats) {
+    // Use sdrr_info status_led_enabled in case runtime_info is
+    // corrupted/not initialized.  Note this overrides any LED override
     if (sdrr_info.status_led_enabled && sdrr_info.pins->status_port == PORT_B && sdrr_info.pins->status <= 15) {
         uint8_t pin = sdrr_info.pins->status;
         for(uint8_t i = 0; i < repeats; i++) {
@@ -415,8 +499,11 @@ void dfu(void) {
 // Checks configuration before entering the main loop.
 void check_config(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime,
     const sdrr_rom_set_t *set
 ) {
+    (void)runtime; // Unused for now
+
     // Check ports (banks on RP235X) are as expected
     if (info->pins->data_port != PORT_A) {
         LOG("!!! Data pins not using port A");
@@ -478,11 +565,18 @@ void check_config(
         LOG("!!! Not yet checking CS pins for 28 pin ROMs");
     }
 
-    // Check sel jumper pull value
-    if (info->pins->sel_jumper_pull > 1) {
-        LOG("!!! Sel jumper pull value invalid");
+    // As of 0.6.0 sel_jumper_pulls is a bit field.  Check it isn't larger
+    // than it should be given the number of valid sel pins.
+    uint8_t sel_pins_used = 0;
+    for (int ii = 0; ii < MAX_IMG_SEL_PINS; ii++)
+    {
+        if (info->pins->sel[ii] < MAX_USED_GPIOS) {
+            sel_pins_used += 1;
+        }
     }
-
+    if (info->pins->sel_jumper_pull >= (1 << sel_pins_used)) {
+        LOG("!!! Sel jumper pull value invalid for number of sel pins used");
+    }
 
     // Warn if serve mode is incorrectly set for multiple ROM images
     if ((set->rom_count == 1) && (set->serve == SERVE_ADDR_ON_ANY_CS)) {
@@ -687,8 +781,93 @@ void setup_mco(void) {
     }
 }
 
+void get_pll_vals(uint8_t *m, uint16_t *n, uint8_t *p, uint8_t *q) {
+    uint32_t pllcfgr = RCC_PLLCFGR;
+    *m = pllcfgr & 0x3F;
+    *n = (pllcfgr >> 6) & 0x1FF;  
+    *p = (pllcfgr >> 16) & 0x3;
+    *q = (pllcfgr >> 24) & 0xF;
+}
+
+/**
+ * Calculate PLL values for target frequency using HSI (16 MHz)
+ * Returns true if frequency achievable, false otherwise
+ * Results written to *config
+ */
+uint8_t calculate_pll_settings(
+    ice_mcu_clock_config_t *clock_config, 
+    uint8_t overclock,
+    uint8_t xtal_freq_mhz,
+    pll_config_t *config
+) {
+    // Validate target frequency is within limits
+    if (clock_config->freq_mhz > clock_config->max_freq_mhz && !overclock) {
+        LOG("!!! Requested clock %dMHz exceeds max %dMHz - cannot calculate PLL",
+            clock_config->freq_mhz,
+            clock_config->max_freq_mhz);
+        return 0;
+    }
+
+    uint16_t vco_max_mhz;
+    uint16_t vco_min_mhz;
+    if (overclock) {
+        vco_max_mhz = clock_config->vco_max_overclock_mhz;
+    } else {
+        vco_max_mhz = clock_config->vco_max_mhz;
+    }
+    vco_min_mhz = clock_config->vco_min_mhz;
+
+    // HSI = 16 MHz, HSE=12MHz
+    // Target VCO input = 2 MHz for best jitter
+    uint8_t PLLM;
+    if (xtal_freq_mhz == 16) {
+        PLLM = 8;  // 16/8 = 2 MHz VCO input
+    } else if (xtal_freq_mhz == 12) {
+        PLLM = 6;  // 12/6 = 2 MHz VCO input
+    } else {
+        LOG("!!! Unsupported XTAL frequency %dMHz for PLL calculation", xtal_freq_mhz);
+        return 0;
+    }
+    
+    const uint32_t VCO_IN_MHZ = xtal_freq_mhz / PLLM;
+
+    // Try PLLP values: 2, 4, 6, 8
+    const uint8_t pllp_values[] = {2, 4, 6, 8};
+    
+    for (int i = 0; i < 4; i++) {
+        uint8_t pllp = pllp_values[i];
+        uint32_t vco_mhz = clock_config->freq_mhz * pllp;
+
+        // Check VCO frequency is in valid range
+        if (vco_mhz >= vco_min_mhz && vco_mhz <= vco_max_mhz) {
+            uint32_t plln = vco_mhz / VCO_IN_MHZ;
+
+            // Check PLLN is in valid range (50-432)
+            if (plln >= 50 && plln <= 432) {
+                // Calculate PLLQ for USB (48 MHz target)
+                uint8_t pllq = (uint8_t)((vco_mhz + 24) / 48);  // Round to nearest
+                if (pllq < 2) pllq = 2;
+                if (pllq > 15) pllq = 15;
+
+                config->pllm = PLLM;
+                config->plln = (uint16_t)plln;
+                config->pllp = i; // PLLP encoded value
+                config->pllq = pllq;
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 // Sets up the PLL dividers/multiplier to the values provided
-void setup_pll_mul(uint8_t m, uint16_t n, uint8_t p, uint8_t q) {
+void setup_pll_mul(pll_config_t *config) {
+    uint8_t m = config->pllm;
+    uint16_t n = config->plln;
+    uint8_t p = config->pllp;
+    uint8_t q = config->pllq;
+
     // Set PLL multiplier in RCC_PLLCFGR
     uint32_t rcc_pllcfgr = RCC_PLLCFGR;
     rcc_pllcfgr &= RCC_PLLCFGR_RSVD_RO_MASK;  // Clear PLLM bits
@@ -729,11 +908,13 @@ void enable_pll(void) {
     while (!(RCC_CR & RCC_CR_PLLRDY));
 }
 
+#if defined(DEBUG_LOGGING) && defined(HSI) && (HSI == 1)
 // Get HSI calibration value
 uint8_t get_hsi_cal(void) {
     uint32_t rcc_cr = RCC_CR;
     return (rcc_cr & (0xff << 8)) >> 8;  // Return HSI trim value
 }
+#endif // DEBUG_LOGGING && HSI
 
 // Sets the system clock to the value provided.  By default the system clock
 // uses HSI.  This function cab be used to set it to HSE directly or to the
@@ -782,35 +963,36 @@ void set_flash_ws(void) {
 
     // Set data and instruction caches
     FLASH_ACR = FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN;
-    if (sdrr_info.freq > 30) {
+    uint16_t freq = sdrr_runtime_info.sysclk_mhz;
+    if (freq > 30) {
         if (sdrr_info.freq <= 60) {
             wait_states = 1;
-        } else if (sdrr_info.freq <= 90) {
+        } else if (freq <= 90) {
             wait_states = 2;
-        } else if (sdrr_info.freq <= 120) {
+        } else if (freq <= 120) {
             wait_states = 3;
-        } else if (sdrr_info.freq <= 150) {
+        } else if (freq <= 150) {
             wait_states = 4;
-        } else if (sdrr_info.freq <= 180) {
+        } else if (freq <= 180) {
             wait_states = 5;
-        } else if (sdrr_info.freq <= 210) {
+        } else if (freq <= 210) {
             wait_states = 6;
-        } else if ((sdrr_info.freq <= 240) || (sdrr_info.mcu_line == F405)) {
+        } else if ((freq <= 240) || (sdrr_info.mcu_line == F405)) {
             // F405 only has 3 bits for flash wait states so stop here
             wait_states = 7;
-        } else if (sdrr_info.freq <= 270) {
+        } else if (freq <= 270) {
             wait_states = 8;
-        } else if (sdrr_info.freq <= 300) {
+        } else if (freq <= 300) {
             wait_states = 9;
-        } else if (sdrr_info.freq <= 330) {
+        } else if (freq <= 330) {
             wait_states = 10;
-        } else if (sdrr_info.freq <= 360) {
+        } else if (freq <= 360) {
             wait_states = 11;
-        } else if (sdrr_info.freq <= 390) {
+        } else if (freq <= 390) {
             wait_states = 12;
-        } else if (sdrr_info.freq <= 420) {
+        } else if (freq <= 420) {
             wait_states = 13;
-        } else if (sdrr_info.freq <= 450) {
+        } else if (freq <= 450) {
             wait_states = 14;
         } else {
             wait_states = 15;

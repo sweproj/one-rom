@@ -119,11 +119,16 @@ async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("  {}", error);
         }
         eprintln!();
-    } else if args.output_binary.unwrap_or(false) == false {
+        if args.strict {
+            eprintln!("Exiting due to --strict flag");
+            std::process::exit(1);
+        }
+    } else if !args.output_binary.unwrap_or(false) {
         println!("Firmware parsed successfully");
     }
 
     // Only output a header if output-binary argument not set
+    #[allow(clippy::collapsible_if)]
     if let Some(binary) = args.output_binary {
         if !binary {
             print_header();
@@ -257,9 +262,7 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
         "false"
     };
     let usb_dfu = info.extra_info.as_ref().map(|e| e.usb_dfu).unwrap_or(false);
-    println!(
-        "USB DFU:          {usb_dfu}",
-    );
+    println!("USB DFU:          {usb_dfu}",);
     if usb_dfu {
         let port = info.extra_info.as_ref().map(|e| e.usb_port).unwrap();
         let vbus_pin = info.extra_info.as_ref().map(|e| e.vbus_pin).unwrap();
@@ -366,7 +369,13 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
             if pins.sel6 != 0xFF {
                 println!("  SEL6: P{}:{}", pins.sel_port, pins.sel6);
             }
-            println!("  Pin jumper pull: {}", pins.sel_jumper_pull);
+            println!("  Pin jumper pull: 0b{:08b}", pins.sel_jumper_pull);
+            if pins.swclk_sel != 0xFF {
+                println!("  SWCLK Pin: P{}:{}", pins.sel_port, pins.swclk_sel);
+            }
+            if pins.swdio_sel != 0xFF {
+                println!("  SWDIO Pin: P{}:{}", pins.sel_port, pins.swdio_sel);
+            }
             println!();
             println!("Status LED pin:");
             if pins.status_port == SdrrMcuPort::None {
@@ -410,6 +419,55 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
             println!("  ROM Count:     {}", rom_set.rom_count);
             println!("  Algorithm:     {}", rom_set.serve);
             println!("  Multi-ROM CS1: {}", rom_set.multi_rom_cs1_state);
+
+            if let Some(ref fw_config) = rom_set.firmware_overrides {
+                println!("  FW Overrides:");
+                if let Some(ref ice) = fw_config.ice {
+                    println!("    Ice:");
+                    if let Some(ref freq) = ice.cpu_freq {
+                        println!("      Freq: {freq:?} MHz");
+                    }
+                    if let Some(overclock) = ice.overclock {
+                        println!("      Overclock: {overclock:?}");
+                    }
+                }
+                if let Some(ref fire) = fw_config.fire {
+                    println!("    Fire:");
+                    if let Some(ref freq) = fire.cpu_freq {
+                        println!("      Freq: {freq:?} MHz");
+                    }
+                    if let Some(overclock) = fire.overclock {
+                        println!("      Overclock: {overclock:?}");
+                    }
+                    if let Some(ref vreg) = fire.vreg {
+                        println!("      VREG: {vreg:?}");
+                    }
+                    if let Some(ref serve_mode) = fire.serve_mode {
+                        println!("      Serve mode: {serve_mode:?}");
+                    }
+                }
+                if let Some(ref led) = fw_config.led {
+                    println!("    LED:  enabled={}", led.enabled);
+                }
+                if let Some(ref swd) = fw_config.swd {
+                    println!("    SWD:  enabled={}", swd.swd_enabled);
+                }
+                if let Some(ref params) = fw_config.serve_alg_params {
+                    println!("    Serve Params: {} bytes", params.params.len());
+                    if let Some(ref serve_params) = fw_config.serve_alg_params {
+                        println!("  Serve Config:  {} bytes", serve_params.params.len());
+                        if serve_params.params.len() <= 64 {
+                            print!("    Data: ");
+                            for byte in &serve_params.params {
+                                print!("{:02X} ", byte);
+                            }
+                            println!();
+                        }
+                    }
+                }
+            } else {
+                println!("  FW Overrides:  None");
+            }
 
             for (jj, rom) in rom_set.roms.iter().enumerate() {
                 println!("  ROM: {}", jj);
@@ -583,7 +641,7 @@ async fn lookup_raw_range(fw_data: &mut FirmwareData, args: &Args) {
             let byte_pos = (addr - start_addr) as usize;
 
             // Print address at start of each line
-            if byte_pos % 16 == 0 {
+            if byte_pos.is_multiple_of(16) {
                 print!("{:04X}: ", addr);
             }
 
@@ -591,10 +649,10 @@ async fn lookup_raw_range(fw_data: &mut FirmwareData, args: &Args) {
             print!("{:02X}", output_byte);
 
             // Add spacing
-            if (byte_pos + 1) % 16 == 0 {
+            if (byte_pos + 1).is_multiple_of(16) {
                 // Newline every 16 bytes
                 println!();
-            } else if (byte_pos + 1) % 4 == 0 {
+            } else if (byte_pos + 1).is_multiple_of(4) {
                 // Bigger space every 4 bytes
                 print!("  ");
             } else {
@@ -605,7 +663,7 @@ async fn lookup_raw_range(fw_data: &mut FirmwareData, args: &Args) {
 
         // Ensure we end with a newline if we didn't just print one
         let total_bytes = (end_addr - start_addr + 1) as usize;
-        if total_bytes % 16 != 0 {
+        if !total_bytes.is_multiple_of(16) {
             println!();
         }
     }
@@ -698,7 +756,7 @@ async fn lookup_range(
             let byte_pos = (addr - start_addr) as usize;
 
             // Print address at start of each line
-            if byte_pos % 16 == 0 {
+            if byte_pos.is_multiple_of(16) {
                 print!("{:04X}: ", addr);
             }
 
@@ -706,10 +764,10 @@ async fn lookup_range(
             print!("{:02X}", output_byte);
 
             // Add spacing
-            if (byte_pos + 1) % 16 == 0 {
+            if (byte_pos + 1).is_multiple_of(16) {
                 // Newline every 16 bytes
                 println!();
-            } else if (byte_pos + 1) % 4 == 0 {
+            } else if (byte_pos + 1).is_multiple_of(4) {
                 // Bigger space every 4 bytes
                 print!("  ");
             } else {
@@ -720,7 +778,7 @@ async fn lookup_range(
 
         // Ensure we end with a newline if we didn't just print one
         let total_bytes = (end_addr - start_addr + 1) as usize;
-        if total_bytes % 16 != 0 {
+        if !total_bytes.is_multiple_of(16) {
             println!();
         }
     }

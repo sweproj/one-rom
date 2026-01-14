@@ -112,7 +112,7 @@ fn generate_lib_rs(config: &RomTypesConfig) -> String {
     let mut eprom_28pin = Vec::new();
     let mut eprom_32pin = Vec::new();
     let mut eprom_40pin = Vec::new();
-    
+
     for (type_name, _rom_type) in get_sorted_rom_types(config) {
         if let Some(rom_type) = config.rom_types.get(type_name) {
             let entry = format!(
@@ -140,7 +140,10 @@ fn generate_lib_rs(config: &RomTypesConfig) -> String {
                 } else if rom_type.pins == 40 {
                     mask_40pin.push(entry);
                 } else {
-                    panic!("Unexpected pin count {} for mask ROM {}", rom_type.pins, type_name);
+                    panic!(
+                        "Unexpected pin count {} for mask ROM {}",
+                        rom_type.pins, type_name
+                    );
                 }
             } else if type_name.starts_with("27") {
                 if rom_type.pins == 24 {
@@ -152,7 +155,10 @@ fn generate_lib_rs(config: &RomTypesConfig) -> String {
                 } else if rom_type.pins == 40 {
                     eprom_40pin.push(entry);
                 } else {
-                    panic!("Unexpected pin count {} for EPROM {}", rom_type.pins, type_name);
+                    panic!(
+                        "Unexpected pin count {} for EPROM {}",
+                        rom_type.pins, type_name
+                    );
                 }
             }
         }
@@ -442,7 +448,9 @@ fn generate_rom_type_enum(config: &RomTypesConfig) -> String {
                 "    /// {} - {} bytes, {}-pin package\n",
                 rom_type.description, rom_type.size, rom_type.pins
             ));
-            code.push_str(&format!("    #[cfg_attr(feature = \"schemars\", schemars(rename = \"{type_name}\"))]\n"));
+            code.push_str(&format!(
+                "    #[cfg_attr(feature = \"schemars\", schemars(rename = \"{type_name}\"))]\n"
+            ));
             code.push_str(&format!("    Rom{},\n", type_name));
         }
     }
@@ -555,7 +563,7 @@ fn generate_rom_type_impl(config: &RomTypesConfig) -> String {
     code.push('\n');
     code.push_str("impl core::fmt::Display for RomType {\n");
     code.push_str("    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {\n");
-    code.push_str("        write!(f, \"{}\", self.name())\n");  
+    code.push_str("        write!(f, \"{}\", self.name())\n");
     code.push_str("    }\n");
     code.push_str("}\n");
 
@@ -979,11 +987,8 @@ fn generate_power_pins_method(config: &RomTypesConfig) -> String {
 
     for (type_name, _rom_type) in get_sorted_rom_types(config) {
         if let Some(rom_type) = config.rom_types.get(type_name) {
-            code.push_str(&format!(
-                "            RomType::Rom{} => &[\n",
-                type_name
-            ));
-            
+            code.push_str(&format!("            RomType::Rom{} => &[\n", type_name));
+
             if let Some(ref power_pins) = rom_type.power {
                 for power_pin in power_pins {
                     let name = power_pin.name.to_lowercase();
@@ -995,7 +1000,7 @@ fn generate_power_pins_method(config: &RomTypesConfig) -> String {
                     }
                 }
             }
-            
+
             code.push_str("            ],\n");
         }
     }

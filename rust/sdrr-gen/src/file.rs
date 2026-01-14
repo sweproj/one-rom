@@ -208,7 +208,7 @@ pub fn load_rom_files(config: &Config) -> Result<Vec<Rom>> {
             &rom_config.rom_type,
             rom_config.cs_config.clone(),
             &rom_config.size_handling,
-            None
+            None,
         )
         .map_err(|e| anyhow!("Error processing ROM file {}: {e:?}", file.display()))?;
 

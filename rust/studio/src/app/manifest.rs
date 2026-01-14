@@ -411,8 +411,8 @@ pub struct PathUrls {
 impl Default for PathUrls {
     fn default() -> Self {
         Self {
-            firmware_releases: "https://images.onerom.org/".to_string(),  // Not in releases/, also currently unused!
-            rom_configs: "https://images.onerom.org/".to_string(),  // Manifest contains configs/
+            firmware_releases: "https://images.onerom.org/".to_string(), // Not in releases/, also currently unused!
+            rom_configs: "https://images.onerom.org/".to_string(), // Manifest contains configs/
         }
     }
 }

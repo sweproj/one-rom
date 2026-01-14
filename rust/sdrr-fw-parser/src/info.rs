@@ -11,6 +11,7 @@ use deku::prelude::*;
 use onerom_config::fw::FirmwareVersion;
 use onerom_config::hw::{Board, Model};
 use onerom_config::mcu::Variant as McuVariant;
+use onerom_gen::firmware::FirmwareConfig;
 
 use crate::{
     McuLine, McuStorage, SdrrAddress, SdrrCsState, SdrrLogicalAddress, SdrrMcuPort, SdrrRomType,
@@ -121,6 +122,7 @@ impl SdrrInfo {
     /// ROM data stored in the firmware, and then use `demangle_byte()` to
     /// turn into a logical byte.
     #[allow(unused_variables)]
+    #[allow(clippy::collapsible_if)]
     pub fn mangle_address(&self, addr: &SdrrLogicalAddress) -> Result<u32, String> {
         let cs1 = addr.cs_set().cs1();
         let cs2 = addr.cs_set().cs2();
@@ -133,7 +135,7 @@ impl SdrrInfo {
             .pins
             .as_ref()
             .ok_or("Pin configuration not available")?;
-        
+
         // Remap the pins to start from 0, so they can be used as bit indeces
         let mut pins = pins.clone();
         pins.base_zero();
@@ -270,7 +272,7 @@ impl SdrrInfo {
                     }
                 }
                 _ => unreachable!(),
-            }            
+            }
         }
 
         // For multi-ROM setups, X1 and X2 are part of address space
@@ -390,6 +392,9 @@ pub struct SdrrExtraInfo {
     /// Pin number for VBUS detection
     pub vbus_pin: u8,
 
+    /// Whether PIO is the default mode on Fire
+    pub fire_pio_default: Option<bool>,
+
     /// Location of runtime info in RAM
     pub runtime_info_ptr: u32,
 }
@@ -426,6 +431,9 @@ pub struct SdrrRomSet {
     /// The state of the CS1 line for all ROMs in this set (active low/high/
     /// unused).  Only used for multi-ROM and bank switched sets.
     pub multi_rom_cs1_state: SdrrCsState,
+
+    /// Firmware configuration overrides for this ROM set, if any.
+    pub firmware_overrides: Option<FirmwareConfig>,
 }
 
 /// Information about a single ROM in an SDRR firmware
@@ -482,7 +490,9 @@ pub struct SdrrPins {
     pub ce: u8,
     pub oe: u8,
     pub x_jumper_pull: u8,
-    #[deku(pad_bytes_before = "5")]
+    #[deku(pad_bytes_before = "3")]
+    pub swclk_sel: u8,
+    pub swdio_sel: u8,
     pub sel0: u8,
     pub sel1: u8,
     pub sel2: u8,

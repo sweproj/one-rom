@@ -180,7 +180,6 @@ pub fn flash_firmware(analyse: &mut Analyse) -> Task<AppMessage> {
             HardwareInfo::default()
         };
 
-
         // Update state
         analyse.state = AnalyseState::Flashing;
         analyse.analysis_content = format!("Flashing {filename:?} to device...");

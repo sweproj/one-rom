@@ -1,6 +1,6 @@
 [package]
 name = "onerom-fw"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2024"
 authors = ["Piers Finlayson <piers@piers.rocks>"]
 license = "MIT"
@@ -20,8 +20,9 @@ name = "onerom-fw"
 path = "src/main.rs"
 
 [dependencies]
-onerom-config = { version = "0.2.7" }
-onerom-gen = { version = "0.2.6" }
+onerom-config = { path="../config", version = "0.3.0" }
+onerom-gen = { path="../gen", version = "0.3.0" }
+sdrr-fw-parser = { path="../sdrr-fw-parser", version = "0.6.0" }
 
 base64 = { version = "0.22" }
 bytes = "1.10"
@@ -32,4 +33,5 @@ log = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["json", "charset", "blocking", "rustls-tls"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = "1.0"
+smol = { version = "2.0" }
 zip = "6.0"

@@ -4,9 +4,7 @@
 
 //! Contains device's USB device handling
 
-use dfu_rs::{
-    DEFAULT_USB_TIMEOUT, Device as DfuDevice, DfuType, search_for_dfu,
-};
+use dfu_rs::{DEFAULT_USB_TIMEOUT, Device as DfuDevice, DfuType, search_for_dfu};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use onerom_config::Model;
@@ -53,12 +51,13 @@ async fn get_ice_list_async() -> Option<Vec<UsbDeviceType>> {
 
 // Use picoboot::list_devices to get Fire devices
 async fn get_fire_list_async() -> Option<Vec<UsbDeviceType>> {
-    let fire_targets = [Target::Rp2350, ];
+    let fire_targets = [Target::Rp2350];
     match Picoboot::list_devices(Some(&fire_targets)).await {
         Ok(devices) => {
             let mut usb_devices = Vec::new();
             for d in devices {
-                let p = Picoboot::new(d).await
+                let p = Picoboot::new(d)
+                    .await
                     .inspect_err(|e| {
                         warn!("Failed to create Picoboot device: {e}");
                     })
@@ -147,33 +146,28 @@ pub async fn read_async(
     let address = address.abs_from_usb_device(&usb_device);
 
     match usb_device {
-        UsbDeviceType::Ice(d) => {
-            match d.upload(address, words * 4).await {
-                Ok(data) => Message::DeviceData(client, data).into(),
-                Err(e) => {
-                    let log = format!(
-                        "Failed to read {words} words of memory at {address:#010X} from Ice USB ({}): {e}",
-                        d.info(),
-                    );
-                    warn!("{log}");
-                    return Message::ReadFailed(client, log).into();
-                }
+        UsbDeviceType::Ice(d) => match d.upload(address, words * 4).await {
+            Ok(data) => Message::DeviceData(client, data).into(),
+            Err(e) => {
+                let log = format!(
+                    "Failed to read {words} words of memory at {address:#010X} from Ice USB ({}): {e}",
+                    d.info(),
+                );
+                warn!("{log}");
+                return Message::ReadFailed(client, log).into();
             }
-
-        }
-        UsbDeviceType::Fire(mut p) => {
-            match p.flash_read(address, (words * 4) as u32).await {
-                Ok(data) => Message::DeviceData(client, data).into(),
-                Err(e) => {
-                    let log = format!(
-                        "Failed to read {words} words of memory at {address:#010X} from Fire USB ({}): {e}",
-                        p.info(),
-                    );
-                    warn!("{log}");
-                    return Message::ReadFailed(client, log).into();
-                }
+        },
+        UsbDeviceType::Fire(mut p) => match p.flash_read(address, (words * 4) as u32).await {
+            Ok(data) => Message::DeviceData(client, data).into(),
+            Err(e) => {
+                let log = format!(
+                    "Failed to read {words} words of memory at {address:#010X} from Fire USB ({}): {e}",
+                    p.info(),
+                );
+                warn!("{log}");
+                return Message::ReadFailed(client, log).into();
             }
-        }
+        },
     }
 }
 
@@ -188,14 +182,9 @@ pub async fn flash_async(
         UsbDeviceType::Ice(d) => flash_ice_async(d, client, data).await,
         UsbDeviceType::Fire(p) => flash_fire_async(p, client, data).await,
     }
-
 }
 
-async fn flash_ice_async(
-    dfu_device: DfuDevice,
-    client: Client,
-    data: Vec<u8>,
-) -> AppMessage {
+async fn flash_ice_async(dfu_device: DfuDevice, client: Client, data: Vec<u8>) -> AppMessage {
     debug!("Erase One ROM USB");
     match dfu_device.mass_erase().await {
         Ok(()) => (),
@@ -208,35 +197,41 @@ async fn flash_ice_async(
     debug!("Flash firmware to One ROM USB");
     match dfu_device.download(0x08000000, &data).await {
         Ok(()) => {
-            debug!("Successfully flashed firmware onto Ice USB ({})", dfu_device.info());
+            debug!(
+                "Successfully flashed firmware onto Ice USB ({})",
+                dfu_device.info()
+            );
             Message::FlashFirmwareResult(client, Ok(())).into()
         }
         Err(e) => {
-            let log =
-                format!("Failed to flash firmware to Ice USB ({}): {e}", dfu_device.info());
+            let log = format!(
+                "Failed to flash firmware to Ice USB ({}): {e}",
+                dfu_device.info()
+            );
             warn!("{log}");
             return Message::FlashFirmwareResult(client, Err(log)).into();
         }
     }
 }
 
-async fn flash_fire_async(
-    mut picoboot: Picoboot,
-    client: Client,
-    data: Vec<u8>,
-) -> AppMessage {
+async fn flash_fire_async(mut picoboot: Picoboot, client: Client, data: Vec<u8>) -> AppMessage {
     debug!("Flash firmware to Fire USB");
-    match picoboot.flash_erase_and_write(
-        picoboot.target().flash_start(),
-        &data
-    ).await {
+    match picoboot
+        .flash_erase_and_write(picoboot.target().flash_start(), &data)
+        .await
+    {
         Ok(()) => {
-            debug!("Successfully flashed firmware onto Fire USB ({})", picoboot.info());
+            debug!(
+                "Successfully flashed firmware onto Fire USB ({})",
+                picoboot.info()
+            );
             Message::FlashFirmwareResult(client, Ok(())).into()
         }
         Err(e) => {
-            let log =
-                format!("Failed to flash firmware to Fire USB ({}): {e}", picoboot.info());
+            let log = format!(
+                "Failed to flash firmware to Fire USB ({}): {e}",
+                picoboot.info()
+            );
             warn!("{log}");
             return Message::FlashFirmwareResult(client, Err(log)).into();
         }

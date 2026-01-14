@@ -89,7 +89,7 @@ impl Config {
         // Validate and set frequency
         #[allow(clippy::match_single_binding)]
         let pll = PllConfig::new(self.mcu_variant.processor());
-        if !pll.is_frequency_valid(self.freq, self.overclock) {
+        if !pll.is_frequency_valid(self.freq, self.overclock, self.board.has_usb()) {
             return Err(format!(
                 "Frequency {}MHz is not valid for variant {}. Valid range: 16-{}MHz.",
                 self.freq,
@@ -289,7 +289,7 @@ impl Config {
             let rom_sets: Vec<RomSet> = roms
                 .into_iter()
                 .enumerate()
-                .map(|(ii, rom)| RomSet::new(ii, RomSetType::Single, serve_alg, vec![rom]))
+                .map(|(ii, rom)| RomSet::new(ii, RomSetType::Single, serve_alg, vec![rom], None))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| format!("Error creating ROM sets: {:?}", e))?;
             return Ok(rom_sets);
@@ -334,6 +334,7 @@ impl Config {
                 },
                 serve_alg,
                 rom_vec,
+                None,
             )
             .map_err(|e| format!("Error creating ROM sets: {:?}", e))?;
 

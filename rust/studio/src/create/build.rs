@@ -13,8 +13,8 @@ use onerom_config::rom::RomType;
 use crate::app::AppMessage;
 use crate::config::Config;
 use crate::create::{Create, State};
-use crate::{internal_error, task_from_msg};
 use crate::studio::{Message as StudioMessage, RuntimeInfo};
+use crate::{internal_error, task_from_msg};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum Active {
@@ -104,14 +104,19 @@ pub fn select_rom_type(create: &mut Create, rom_type: RomType) -> Task<AppMessag
     if !create.is_building() && !create.is_flashing() && !create.is_saving() {
         create.state = State::UserBuilding {
             valid_rom_types: match &create.state {
-                State::UserBuilding { valid_rom_types, .. } => valid_rom_types.clone(),
+                State::UserBuilding {
+                    valid_rom_types, ..
+                } => valid_rom_types.clone(),
                 _ => vec![],
             },
             rom_type: Some(rom_type),
             cs: vec![],
             data: None,
         };
-        create.set_display_content(format!("Building custom configuration: ROM type {}", rom_type.name()));
+        create.set_display_content(format!(
+            "Building custom configuration: ROM type {}",
+            rom_type.name()
+        ));
     } else {
         warn!("Ignoring BuildingSelectRomType while busy");
     }
@@ -120,7 +125,13 @@ pub fn select_rom_type(create: &mut Create, rom_type: RomType) -> Task<AppMessag
 
 pub fn select_cs_active(create: &mut Create, index: usize, active: Active) -> Task<AppMessage> {
     debug!("User selected CS{} active state: {}", index, active);
-    if let State::UserBuilding { valid_rom_types, rom_type, cs, data } = &create.state {
+    if let State::UserBuilding {
+        valid_rom_types,
+        rom_type,
+        cs,
+        data,
+    } = &create.state
+    {
         let mut cs = cs.clone();
         // Ensure cs vector is large enough
         while cs.len() <= index {
@@ -144,7 +155,9 @@ pub fn select_data_vec(create: &mut Create, data: Vec<u8>) -> Task<AppMessage> {
     if let State::UserBuilding { rom_type, cs, .. } = &create.state {
         create.state = State::UserBuilding {
             valid_rom_types: match &create.state {
-                State::UserBuilding { valid_rom_types, .. } => valid_rom_types.clone(),
+                State::UserBuilding {
+                    valid_rom_types, ..
+                } => valid_rom_types.clone(),
                 _ => vec![],
             },
             rom_type: rom_type.clone(),
@@ -158,7 +171,10 @@ pub fn select_data_vec(create: &mut Create, data: Vec<u8>) -> Task<AppMessage> {
 }
 
 pub fn build_json_config_from_state(create: &mut Create) -> Task<AppMessage> {
-    if let State::UserBuilding { rom_type, cs, data, .. } = &create.state {
+    if let State::UserBuilding {
+        rom_type, cs, data, ..
+    } = &create.state
+    {
         if rom_type.is_none() {
             create.set_display_content("Error: ROM type not selected.");
             return Task::none();
@@ -167,18 +183,17 @@ pub fn build_json_config_from_state(create: &mut Create) -> Task<AppMessage> {
 
         // Set CS actives as a local Vec<u8>
         let mut cs_states = Vec::new();
-        cs.iter()
-            .for_each(|active_opt| {
-                if let Some(active) = active_opt {
-                    match active {
-                        Active::Low => cs_states.push(0),
-                        Active::High => cs_states.push(1),
-                    }
-                } else {
-                    cs_states.push(0); // Default to Low if not selected
+        cs.iter().for_each(|active_opt| {
+            if let Some(active) = active_opt {
+                match active {
+                    Active::Low => cs_states.push(0),
+                    Active::High => cs_states.push(1),
                 }
-            });
-        
+            } else {
+                cs_states.push(0); // Default to Low if not selected
+            }
+        });
+
         // Set data
         let data_vec = if let Some(data_hex) = data {
             match hex::decode(data_hex) {

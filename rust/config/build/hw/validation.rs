@@ -170,7 +170,13 @@ pub struct McuPins {
     pub oe: HashMap<String, u8>,
     pub x_jumper_pull: u8,
     pub sel: Vec<u8>,
-    pub sel_jumper_pull: u8,
+    pub sel_jumper_pull: Vec<u8>,
+    /// If a sel pin is connected to SWCLK, specify it here
+    #[serde(default = "invalid_pin")]
+    pub swclk_sel: u8,
+    /// If a sel pin is connected to SWDIO, specify it here
+    #[serde(default = "invalid_pin")]
+    pub swdio_sel: u8,
     pub status: u8,
 }
 
@@ -230,6 +236,10 @@ where
     D: serde::Deserializer<'de>,
 {
     HashMap::deserialize(deserializer)
+}
+
+fn invalid_pin() -> u8 {
+    255
 }
 
 pub fn validate_config(name: &str, config: &HwConfigJson) {
@@ -391,11 +401,43 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
     }
 
     // Validate sel_jumper_pull
-    if config.mcu.pins.sel_jumper_pull > 1 {
+    if config.mcu.pins.sel_jumper_pull.len() != config.mcu.pins.sel.len() {
         panic!(
-            "{}: sel_jumper_pull must be 0 (pull down) or 1 (pull up), found {}",
-            name, config.mcu.pins.sel_jumper_pull
+            "{}: sel_jumper_pull length {} does not match sel length {}",
+            name,
+            config.mcu.pins.sel_jumper_pull.len(),
+            config.mcu.pins.sel.len()
         );
+    }
+    for &pull in &config.mcu.pins.sel_jumper_pull {
+        if pull > 1 {
+            panic!(
+                "{}: sel_jumper_pull values must be 0 (pull down) or 1 (pull up), found {}",
+                name, pull
+            );
+        }
+    }
+
+    // Validate SWCLK_SEL/SWDIO_SEL sel pins if provided
+    // - Must be a valid pin number
+    // - Must match a sel pin
+    if config.mcu.pins.swclk_sel != 255 {
+        validate_pin_number(&config.mcu, config.mcu.pins.swclk_sel, "swclk_sel", name);
+        if !config.mcu.pins.sel.contains(&config.mcu.pins.swclk_sel) {
+            panic!(
+                "{}: swclk_sel pin {} not found in sel pins {:?}",
+                name, config.mcu.pins.swclk_sel, config.mcu.pins.sel
+            );
+        }
+    }
+    if config.mcu.pins.swdio_sel != 255 {
+        validate_pin_number(&config.mcu, config.mcu.pins.swdio_sel, "swdio_sel", name);
+        if !config.mcu.pins.sel.contains(&config.mcu.pins.swdio_sel) {
+            panic!(
+                "{}: swdio_sel pin {} not found in sel pins {:?}",
+                name, config.mcu.pins.swdio_sel, config.mcu.pins.sel
+            );
+        }
     }
 
     // Group pins by port for conflict checking

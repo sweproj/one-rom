@@ -10,38 +10,8 @@
 
 #include <stdint.h>
 
-typedef enum {
-    F401DE = 0x0000,  // 96 KB RAM
-    F405 = 0x0001,
-    F411 = 0x0002,
-    F446 = 0x0003,
-    F401BC = 0x0004,  // Only 64KB RAM
-    RP2350_LINE = 0x0005,
-    MCU_LINE_FORCE_UINT16 = 0xFFFF,
-} mcu_line_t;
-
-typedef enum {
-    STORAGE_8 = 0x00,
-    STORAGE_B = 0x01,
-    STORAGE_C = 0x02,
-    STORAGE_D = 0x03,
-    STORAGE_E = 0x04,
-    STORAGE_F = 0x05,
-    STORAGE_G = 0x06,
-    STORAGE_2MB = 0x07,
-    MCU_STORAGE_FORFCE_UINT16 = 0xFFFF,
-} mcu_storage_t;
-
-// Only ports A-D are exposed on the 64-pin STM32F4s.
-// RP2350 has port (bank) 0.
-typedef enum {
-    PORT_NONE = 0x00,
-    PORT_A    = 0x01,
-    PORT_B    = 0x02,
-    PORT_C    = 0x03,
-    PORT_D    = 0x04,
-    PORT_0    = 0x05,  // RP2350
-} sdrr_mcu_port_t;
+// Pull in enums
+#include "enums.h"
 
 // Pin allocations
 //
@@ -93,7 +63,11 @@ typedef struct {
     uint8_t ce;
     uint8_t oe;
     uint8_t x_jumper_pull;
-    uint8_t reserved3[5];
+    uint8_t reserved3[3];
+
+    // As of 0.6.0
+    uint8_t swclk_sel;  // SWCLK connected to which sel pin (255 = none)
+    uint8_t swdio_sel;  // SWDIO connected to which sel pin (255 = none)
 
     // Image select lines
     //
@@ -101,6 +75,9 @@ typedef struct {
     // the jumper on this board type.  If 1, closing the jumper pulls it up.
     // This is used by One ROM to decide what type of its own pulls to apply
     // (the opposite).  Closing is always interpreted as a 1 by One ROM.
+    //
+    // As of 0.6.0, sel_jumper_pin is a bit field, with one byte per pin, to
+    // allow for different pull directions per pin.  LSB = pin 0.
     //
     // Unused image select pins are set to 255.
     //
@@ -138,7 +115,9 @@ typedef struct {
     sdrr_mcu_port_t usb_port;
     // Pin number for VBUS detection
     uint8_t vbus_pin;
-    uint8_t reserved1[1];
+    // Whether PIO mode is set by default on Fire
+    // Modified from reserved in 0.6.0
+    uint8_t fire_pio_default;
 
     // Added in 0.5.10
     const struct sdrr_runtime_info_t* runtime_info;
@@ -323,6 +302,7 @@ typedef enum {
     SERVE_ADDR_ON_ANY_CS,
 } sdrr_serve_t;
 #define SERVE_DEFAULT_1_ROM  SERVE_ADDR_ON_CS
+_Static_assert(sizeof(sdrr_serve_t) == 1, "sdrr_serve_t must be 1 byte");
 
 // ROM information structure
 typedef struct {
@@ -333,6 +313,74 @@ typedef struct {
     const char* filename;               // Source filename (May be NULL)
 } sdrr_rom_info_t;
 
+// Firmware Overrides
+//
+// This is linked to via the ROM set structure, and allows per-ROM-set
+// overrides of firmware configuration options.
+//
+// Where each ROM set requires the same overrides, only once instance of this
+// structure need be created, and all ROM sets can point to it.
+typedef struct {
+    // Bitfield indicating which overrides are present.
+    //
+    // Table below shows byte | bit, where bit 0 = LSB.
+    // A set bit indicates that the corresponding override is configured.
+    //
+    // 0 | 0 = Ice MCU frequency
+    // 0 | 1 = Ice overclock overridden
+    // 0 | 2 = Fire MCU frequency
+    // 0 | 3 = Fire overclock overridden
+    // 0 | 4 = Fire VREQ overridden
+    // 0 | 5 = Status LED overridden
+    // 0 | 6 = SWD overridden
+    // 0 | 7 = Fire serve mode overridden
+    // 
+    // Unused (reserved) values MUST be set to 0.
+    const uint8_t override_present[8];
+
+    // 8 bytes to here
+
+    // STM32F4 (Ice) MCU clock frequency override in MHz.  0 = max rated clock
+    // speed for the MCU.
+    const ice_freq_t ice_freq;
+
+    // RP2350 (Fire) MCU clock frequency override in MHz.  Uses values from
+    // fire_freq_t enum.
+    const fire_freq_t fire_freq;
+
+    // RP2350 (Fire) VREQ voltage override.  Uses values for VREQ_CTRL
+    // register.
+    const fire_vreg_t fire_vreg;
+
+    const uint8_t pad1[3];
+
+    // 16 bytes to here
+
+    // Bitfields indicating boolean values for specific overrides
+    //
+    // Byte | Bit : Description, bit 0 = LSB
+    // 0 | 0 : Ice overclocking enabled/disabled 1/0
+    // 0 | 1 : Fire overclocking enabled/disabled 1/0
+    // 0 | 2 : Status LED enabled/disabled 1/0
+    // 0 | 3 : SWD enabled/disabled 1/0
+    // 0 | 4 : Fire serve mode: 1 = PIO, 0 = CPU
+    const uint8_t override_value[8];
+
+    // 24 bytes to here
+
+    // Padding to 64 bytes
+    const uint8_t pad3[40];
+} onerom_firmware_overrides_t;
+
+// Serving algorithm configuration structure
+//
+// Reserves 64 bytes for configuration data for the serving algorithm.
+//
+// Padded with 0xff for unused bytes.
+typedef struct {
+    uint8_t reserved[64];
+} onerom_serve_config_t;
+
 // ROM set information structure
 //
 // SDRR can serve sets of ROM images, which are addressed using the entirety
@@ -340,7 +388,7 @@ typedef struct {
 // simultaneously, with  the additional ROM select lines attached to SDRR via
 // X1 and X2.
 //
-// If the multiple ROM image support is not used, there is be a 1:1 mapping
+// If the multiple ROM image support is not used, there is a 1:1 mapping
 // between set and image - i.e. `rom_count` is be 1.
 typedef struct sdrr_rom_set_t {
     // Pointer to the data for the ROM image(s) in this set.  Copied to RAM at
@@ -368,6 +416,21 @@ typedef struct sdrr_rom_set_t {
 
     // CS1 state (active high/low) when using multiple ROM images in this set
     const sdrr_cs_state_t multi_rom_cs1_state;  // CS1 state
+
+    // Whether 0.6.0 onwards firmware extra info (the subsequent fields) are
+    // present in this structure. If so, this is set to 1.
+    const uint8_t extra_info;
+
+    // Beyond here 0.6.0 firmware onwards
+
+    // Pointer to configuration data for the serving algorithm.
+    const onerom_serve_config_t *serve_config;
+
+    // Pointer to firmware configuration overrides when serving this ROM set.
+    const onerom_firmware_overrides_t *firmware_overrides;
+
+    // Padding to 64 bytes
+    const uint8_t pad2[40];
 } sdrr_rom_set_t;
 
 // SDRR Runtime Information Structure
@@ -426,10 +489,49 @@ typedef struct sdrr_runtime_info_t {
     uint32_t rom_table_size;
 
     // Whether to enter DFU mode - STM32 only.
+    // Offset: 20
     //
     // 0x21554644 ("DFU!" little endian) enters bootloader
 #define ENTER_BOOTLOADER_MAGIC 0x21554644
     uint32_t bootloader_entry;
+
+    // Following added in 0.6.0
+
+    // Whether overlocking is enabled
+    // Offset: 24
+    uint8_t overclock_enabled;
+
+    // Whether status LED is enabled
+    // Offset: 25
+    uint8_t status_led_enabled;
+
+    // Whether SWD is enabled
+    // Offset: 26
+    uint8_t swd_enabled;
+
+    // Fire VREG output setting
+    // Offset: 27
+    fire_vreg_t fire_vreg;
+
+    // Ice frequency setting
+    // Offset: 28
+    ice_freq_t ice_freq;
+
+    // Fire frequency setting
+    // Offset: 30
+    fire_freq_t fire_freq;
+
+    // SYSCLK frequency in MHz
+    // Offset: 32
+    uint16_t sysclk_mhz;
+
+    // Use PIO serving mode on Fire
+    // Offset: 34
+    uint8_t fire_pio_mode;
+
+    uint8_t pad[1];
+
+    // Length = 36 bytes
 } sdrr_runtime_info_t;
 
 // One ROM Metadata Header
@@ -459,7 +561,7 @@ typedef struct onerom_metadata_header_t {
     // Offset: 24
     const sdrr_rom_set_t *rom_sets;
 
-    // Reserved for future expansion.
+    // Reserved for future expansion, preferably set to 0xff.
     //
     // Offset: 28
     const uint8_t reserved[228];

@@ -38,7 +38,16 @@ void log_init(void) {
     DEBUG("sdrr_extra_info located at: 0x%08X", (uint32_t)sdrr_info.extra);
     DEBUG("RAM ROM table located at: 0x%08X", (uint32_t)&_ram_rom_image_start);
     DEBUG("sdrr_runtime_info located at: 0x%08X", (uint32_t)sdrr_info.extra->runtime_info);
+    DEBUG("sdrr_runtime_info cross check: 0x%08X", (uint32_t)&sdrr_runtime_info);
     DEBUG("RTT control block located at: 0x%08X", (uint32_t)sdrr_info.extra->rtt);
+
+    DEBUG("-----");
+    DEBUG("Runtime Ice Freq: 0x%04X", sdrr_runtime_info.ice_freq);
+    DEBUG("Runtime Fire Freq: 0x%04X", sdrr_runtime_info.fire_freq);
+    DEBUG("Runtime Overclock Enabled: 0x%02X", sdrr_runtime_info.overclock_enabled);
+    DEBUG("Runtime Status LED Enabled: 0x%02X", sdrr_runtime_info.status_led_enabled);
+    DEBUG("Runtime SWD Enabled: 0x%02X", sdrr_runtime_info.swd_enabled);
+    DEBUG("Runtime PIO mode: 0x%02X", sdrr_runtime_info.fire_pio_mode);
 
     platform_logging();
 

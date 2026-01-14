@@ -33,7 +33,7 @@ pub enum Error {
         error: ReqwestError,
     },
     Http {
-        status: u16
+        status: u16,
     },
     Json {
         error: SerdeJsonError,

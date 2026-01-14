@@ -279,7 +279,7 @@ impl RomType {
                     } else {
                         return Err(e);
                     }
-                },
+                }
             }
         }
 

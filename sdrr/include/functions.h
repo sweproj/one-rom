@@ -9,9 +9,13 @@
 
 // main.c
 extern uint32_t check_sel_pins(uint32_t *sel_mask);
-extern void check_enter_bootloader(void);
+extern void check_enter_bootloader(uint32_t sel_pins, uint32_t sel_mask);
 extern uint8_t metadata_present(const sdrr_info_t *info);
 extern void limp_mode(limp_mode_pattern_t pattern);
+extern void process_firmware_overrides(
+    sdrr_runtime_info_t *runtime_info,
+    const sdrr_rom_set_t *set
+);
 extern int main(void);
 
 // utils.c
@@ -41,14 +45,15 @@ void vbus_connect_handler(void);
 extern void setup_clock(void);
 extern void setup_gpio(void);
 extern void setup_mco(void);
-extern uint32_t setup_sel_pins(uint32_t *sel_mask);
-extern uint32_t get_sel_value(uint32_t sel_mask);
+extern uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits);
+extern uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits);
 extern void disable_sel_pins(void);
 extern void setup_status_led(void);
 extern void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats);
 extern void enter_bootloader(void);
 extern void check_config(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime,
     const sdrr_rom_set_t *set
 );
 extern void platform_logging(void);
@@ -67,9 +72,10 @@ extern void piorom(
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)
 extern void main_loop(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime,
     const sdrr_rom_set_t *set
 );
-extern uint8_t get_rom_set_index(void);
+extern uint8_t get_rom_set_index(uint32_t sel_pins, uint32_t sel_mask);
 extern void* preload_rom_image(const sdrr_rom_set_t *set);
 #endif // !TIMER_TEST && !TOGGLE_PA4
 

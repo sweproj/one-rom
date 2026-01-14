@@ -18,7 +18,7 @@ use crate::studio::RuntimeInfo;
 use crate::style::Style;
 use crate::{AppLink, AppMessage};
 
-use super::build::{Active, ACTIVE_STATES};
+use super::build::{ACTIVE_STATES, Active};
 
 /// Create tab view
 pub fn view<'a>(
@@ -57,34 +57,29 @@ pub fn view<'a>(
     } else {
         // User building custom config - build custom view
         let (rom_types, rom_type, cs, data) = match &create.state {
-            crate::create::State::UserBuilding { valid_rom_types, rom_type, cs, data } => (valid_rom_types, rom_type, cs, data),
+            crate::create::State::UserBuilding {
+                valid_rom_types,
+                rom_type,
+                cs,
+                data,
+            } => (valid_rom_types, rom_type, cs, data),
             _ => unreachable!(),
         };
 
         // Add a ROM type picklist row
-        let pick_list = Style::pick_list_small(
-            rom_types.as_slice(),
-            rom_type.clone(),
-            |rt| Message::BuildingSelectRomType(rt).into(),
-        );
+        let pick_list = Style::pick_list_small(rom_types.as_slice(), rom_type.clone(), |rt| {
+            Message::BuildingSelectRomType(rt).into()
+        });
 
         // Build the CS picker(s)
         let cs_pickers = if let Some(rom_type) = rom_type {
             let control_lines = rom_type.control_lines();
-            let cs_lines = control_lines
-                .iter()
-                .filter(|cl| cl.name.starts_with("cs"));
+            let cs_lines = control_lines.iter().filter(|cl| cl.name.starts_with("cs"));
             let mut pickers = Vec::new();
             for (i, _cs_line) in cs_lines.enumerate() {
-                let msg = move |active: Active| {
-                    Message::BuildingSelectCsActive(i, active).into()
-                };
+                let msg = move |active: Active| Message::BuildingSelectCsActive(i, active).into();
                 let current = cs.get(i).cloned().flatten();
-                let picker = Style::pick_list_small(
-                    ACTIVE_STATES,
-                    current,
-                    msg,
-                );
+                let picker = Style::pick_list_small(ACTIVE_STATES, current, msg);
                 pickers.push(picker);
             }
             pickers
@@ -93,22 +88,17 @@ pub fn view<'a>(
         };
 
         // Build the data vector input area
-        let data_input = Style::box_scrollable_text(
-            data.as_deref().unwrap_or(""),
-            100.0,
-            false,
-        );
+        let data_input = Style::box_scrollable_text(data.as_deref().unwrap_or(""), 100.0, false);
 
         // Now construct the view
         let mut column = column![
-            row![
-                Style::text_h3("ROM Type:"),
-                pick_list,
-            ].spacing(20)
-            .align_y(iced::alignment::Vertical::Center),
+            row![Style::text_h3("ROM Type:"), pick_list,]
+                .spacing(20)
+                .align_y(iced::alignment::Vertical::Center),
         ];
         if !cs_pickers.is_empty() {
-            let mut cs_row = row![Style::text_h3("Chip Selects:")].spacing(20)
+            let mut cs_row = row![Style::text_h3("Chip Selects:")]
+                .spacing(20)
                 .align_y(iced::alignment::Vertical::Center);
             for picker in cs_pickers {
                 cs_row = cs_row.push(picker);
@@ -116,39 +106,25 @@ pub fn view<'a>(
             column = column.push(cs_row);
         }
         column = column.push(
-            row![
-                Style::text_h3("Data Vector:"),
-                data_input,
-            ]
-            .spacing(20)
-            .align_y(iced::alignment::Vertical::Center),
+            row![Style::text_h3("Data Vector:"), data_input,]
+                .spacing(20)
+                .align_y(iced::alignment::Vertical::Center),
         );
 
         // Add done and cancel buttons
-        let done_button = Style::text_button_small(
-            "Done",
-            Some(Message::BuildingComplete.into())
-            ,
-            true,
-        );
-        let cancel_button = Style::text_button_small(
-            "Cancel",
-            Some(Message::BuildingCancelled.into()),
-            true,
-        );
+        let done_button =
+            Style::text_button_small("Done", Some(Message::BuildingComplete.into()), true);
+        let cancel_button =
+            Style::text_button_small("Cancel", Some(Message::BuildingCancelled.into()), true);
 
         column = column.push(
-            row![
-                done_button,
-                cancel_button,
-            ]
-            .spacing(20)
-            .align_y(iced::alignment::Vertical::Center),
+            row![done_button, cancel_button,]
+                .spacing(20)
+                .align_y(iced::alignment::Vertical::Center),
         );
 
         column.spacing(20).into()
     }
-
 }
 
 // Add the ROM config selection row
@@ -216,14 +192,17 @@ fn firmware_row<'a>(
         };
 
         // We don't display releases unless model and board selected
-        let board = create.selected_hw_info.board.expect("Board should be selected");
-        let variant = create.selected_hw_info.mcu_variant.expect("MCU variant should be selected");
+        let board = create
+            .selected_hw_info
+            .board
+            .expect("Board should be selected");
+        let variant = create
+            .selected_hw_info
+            .mcu_variant
+            .expect("MCU variant should be selected");
 
         // Choose releases to show based on hardware
-        let pick_releases = releases.hw_releases(
-            &board,
-            &variant,
-        );
+        let pick_releases = releases.hw_releases(&board, &variant);
         let no_releases = pick_releases.is_empty();
 
         let mut row = row![Style::text_h3("Firmware Release")];
@@ -243,19 +222,17 @@ fn firmware_row<'a>(
                         } else {
                             None
                         }
-                    },
+                    }
                     None => None,
                 }
             };
 
             // Create release pick list
-            let release_pick_list =
-                Style::pick_list_small(pick_releases, selected_release, msg);
+            let release_pick_list = Style::pick_list_small(pick_releases, selected_release, msg);
 
             row = row.push(release_pick_list);
         } else {
-            let no_releases = Style::text_body("No releases found")
-                .color(Style::COLOUR_DARK_GOLD);
+            let no_releases = Style::text_body("No releases found").color(Style::COLOUR_DARK_GOLD);
             row = row.push(no_releases);
         }
 

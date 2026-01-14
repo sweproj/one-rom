@@ -23,7 +23,9 @@ pub fn fetch_license(url: &str) -> Result<String, Error> {
     let response = reqwest::blocking::get(url).map_err(Error::network)?;
 
     if !response.status().is_success() {
-        return Err(Error::Http { status: response.status().as_u16() });
+        return Err(Error::Http {
+            status: response.status().as_u16(),
+        });
     }
 
     let body = response.text().map_err(Error::network)?;
@@ -35,7 +37,9 @@ pub async fn fetch_license_async(url: &str) -> Result<String, Error> {
     debug!("Fetching license from {}", url);
     let response = reqwest::get(url).await.map_err(Error::network)?;
     if !response.status().is_success() {
-        return Err(Error::Http { status: response.status().as_u16() });
+        return Err(Error::Http {
+            status: response.status().as_u16(),
+        });
     }
 
     let body = response.text().await.map_err(Error::network)?;
@@ -45,18 +49,25 @@ pub async fn fetch_license_async(url: &str) -> Result<String, Error> {
 /// Retrieves a ROM file from a URL, extracting it from a zip file if needed
 /// Function will skip using the filename if `file` data if provided (used for caching zip files)
 /// If cache_return is true, the function will return the full file data as well as any extracted data
-/// 
+///
 /// Returns:
 /// - `Ok(Vec<u8>, Vec<u8>)` - The extracted file data and full file if cache_return
-pub fn fetch_rom_file(file_to_retrieve: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
+pub fn fetch_rom_file(
+    file_to_retrieve: &str,
+    file: &[u8],
+    extract: Option<String>,
+    cache_return: bool,
+) -> Result<(Vec<u8>, Vec<u8>), Error> {
     let bytes = if file.is_empty() {
-        // Get the file itself  
+        // Get the file itself
         debug!("Fetching ROM file from {}", file_to_retrieve);
 
         if file_to_retrieve.starts_with("base64:") {
             // Base64 encoded file
             let b64_data = file_to_retrieve.trim_start_matches("base64:");
-            let data = base64_engine.decode(b64_data).map_err(|_| Error::parse(GenError::Base64))?;
+            let data = base64_engine
+                .decode(b64_data)
+                .map_err(|_| Error::parse(GenError::Base64))?;
             bytes::Bytes::from(data)
         } else if file_to_retrieve.starts_with("base16:") || file_to_retrieve.starts_with("hex:") {
             let hex_data = if file_to_retrieve.starts_with("base16:") {
@@ -64,13 +75,20 @@ pub fn fetch_rom_file(file_to_retrieve: &str, file: &[u8], extract: Option<Strin
             } else {
                 file_to_retrieve.trim_start_matches("hex:")
             };
-            let hex_data = &hex_data.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+            let hex_data = &hex_data
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>();
             let data = hex::decode(hex_data).map_err(|_| Error::parse(GenError::Base16))?;
             bytes::Bytes::from(data)
-        } else if file_to_retrieve.starts_with("http://") || file_to_retrieve.starts_with("https://") {
+        } else if file_to_retrieve.starts_with("http://")
+            || file_to_retrieve.starts_with("https://")
+        {
             let response = reqwest::blocking::get(file_to_retrieve).map_err(Error::network)?;
             if !response.status().is_success() {
-                return Err(Error::Http { status: response.status().as_u16() });
+                return Err(Error::Http {
+                    status: response.status().as_u16(),
+                });
             }
             response.bytes().map_err(Error::network)?
         } else {
@@ -102,10 +120,15 @@ pub fn fetch_rom_file(file_to_retrieve: &str, file: &[u8], extract: Option<Strin
 /// Retrieves a ROM file from a URL, or locally, extracting it from a zip file if needed
 /// Function will skip using the filename if `file` data if provided (used for caching zip files)
 /// If cache_return is true, the function will return the full file data as well as any extracted data
-/// 
+///
 /// Returns:
 /// - `Ok(Vec<u8>, Vec<u8>)` - The extracted file data and full file data if cache_return
-pub async fn fetch_rom_file_async(file_to_retrieve: &str, file: &[u8], extract: Option<String>, cache_return: bool) -> Result<(Vec<u8>, Vec<u8>), Error> {
+pub async fn fetch_rom_file_async(
+    file_to_retrieve: &str,
+    file: &[u8],
+    extract: Option<String>,
+    cache_return: bool,
+) -> Result<(Vec<u8>, Vec<u8>), Error> {
     let bytes = if file.is_empty() {
         // Get the file itself
         debug!("Fetching ROM file from {}", file_to_retrieve);
@@ -113,7 +136,9 @@ pub async fn fetch_rom_file_async(file_to_retrieve: &str, file: &[u8], extract: 
         if file_to_retrieve.starts_with("base64:") {
             // Base64 encoded file
             let b64_data = file_to_retrieve.trim_start_matches("base64:");
-            let data = base64_engine.decode(b64_data).map_err(|_| Error::parse(GenError::Base64))?;
+            let data = base64_engine
+                .decode(b64_data)
+                .map_err(|_| Error::parse(GenError::Base64))?;
             bytes::Bytes::from(data)
         } else if file_to_retrieve.starts_with("base16:") || file_to_retrieve.starts_with("hex:") {
             let hex_data = if file_to_retrieve.starts_with("base16:") {
@@ -122,13 +147,22 @@ pub async fn fetch_rom_file_async(file_to_retrieve: &str, file: &[u8], extract: 
                 file_to_retrieve.trim_start_matches("hex:")
             };
             // Strip whitespace from hex data
-            let hex_data = &hex_data.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+            let hex_data = &hex_data
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>();
             let data = hex::decode(hex_data).map_err(|_| Error::parse(GenError::Base16))?;
             bytes::Bytes::from(data)
-        } else if file_to_retrieve.starts_with("http://") || file_to_retrieve.starts_with("https://") {
-            let response = reqwest::get(file_to_retrieve).await.map_err(Error::network)?;
+        } else if file_to_retrieve.starts_with("http://")
+            || file_to_retrieve.starts_with("https://")
+        {
+            let response = reqwest::get(file_to_retrieve)
+                .await
+                .map_err(Error::network)?;
             if !response.status().is_success() {
-                return Err(Error::Http { status: response.status().as_u16() });
+                return Err(Error::Http {
+                    status: response.status().as_u16(),
+                });
             }
             response.bytes().await.map_err(Error::network)?
         } else {
@@ -187,7 +221,9 @@ impl Releases {
         debug!("Fetching releases manifest from {}", url);
         let response = reqwest::blocking::get(&url).map_err(Error::network)?;
         if !response.status().is_success() {
-            return Err(Error::Http { status: response.status().as_u16() });
+            return Err(Error::Http {
+                status: response.status().as_u16(),
+            });
         }
 
         let body = response.text().map_err(Error::network)?;
@@ -204,7 +240,9 @@ impl Releases {
         debug!("Fetching releases manifest from {}", url);
         let response = reqwest::get(url).await.map_err(Error::network)?;
         if !response.status().is_success() {
-            return Err(Error::Http { status: response.status().as_u16() });
+            return Err(Error::Http {
+                status: response.status().as_u16(),
+            });
         }
 
         let body = response.text().await.map_err(Error::network)?;
@@ -294,7 +332,9 @@ impl Releases {
         debug!("Downloading firmware from {}", url);
         let response = reqwest::blocking::get(&url).map_err(Error::network)?;
         if !response.status().is_success() {
-            return Err(Error::Http { status: response.status().as_u16() });
+            return Err(Error::Http {
+                status: response.status().as_u16(),
+            });
         }
         let bytes = response.bytes().map_err(Error::network)?;
         Ok(bytes.to_vec())
@@ -312,7 +352,9 @@ impl Releases {
         debug!("Downloading firmware from {}", url);
         let response = reqwest::get(&url).await.map_err(Error::network)?;
         if !response.status().is_success() {
-            return Err(Error::Http { status: response.status().as_u16() });
+            return Err(Error::Http {
+                status: response.status().as_u16(),
+            });
         }
         let bytes = response.bytes().await.map_err(Error::network)?;
         Ok(bytes.to_vec())

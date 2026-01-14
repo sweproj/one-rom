@@ -4,21 +4,20 @@
 
 //! onerom-fw - Firmware generator for One ROM
 
-use clap::Parser;
+use clap::Parser as _;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::io::Write;
 
 use onerom_config::fw::{FirmwareProperties, ServeAlg};
-use onerom_gen::{Builder, License};
-
 use onerom_fw::Error;
 use onerom_fw::args::Args;
 use onerom_fw::net::{Releases, fetch_license};
 use onerom_fw::{create_firmware, get_rom_files, read_rom_config, validate_sizes};
+use onerom_gen::{Builder, License};
 
 fn main() {
-    if let Err(e) = sub_main() {
+    if let Err(e) = smol::block_on(sub_main()) {
         eprintln!();
         eprintln!("Firmware generation failed - details error information follows");
         eprintln!("---");
@@ -27,7 +26,7 @@ fn main() {
     }
 }
 
-fn sub_main() -> Result<(), Error> {
+async fn sub_main() -> Result<(), Error> {
     // Get args
     let mut args = Args::parse();
 
@@ -35,7 +34,7 @@ fn sub_main() -> Result<(), Error> {
     init_logging(args.verbose);
 
     // Validate args
-    if args.validate()? {
+    if args.validate().await? {
         return Ok(());
     }
 
@@ -53,13 +52,18 @@ fn sub_main() -> Result<(), Error> {
     let rom_config_filename = args.rom.as_ref();
 
     // Get firmware releases
-    let releases = Releases::from_network()?;
-    if releases.release(&version).is_none() {
-        return Err(Error::release_not_found());
-    }
+    let firmware_data = if args.fw_image.is_none() {
+        let releases = Releases::from_network()?;
+        if releases.release(&version).is_none() {
+            return Err(Error::release_not_found());
+        }
 
-    // Get the blank firmware image
-    let firmware_data = releases.download_firmware(&version, &board, &mcu)?;
+        // Get the blank firmware image
+        releases.download_firmware(&version, &board, &mcu)?
+    } else {
+        // Use the provided image
+        std::fs::read(args.fw_image.as_ref().unwrap()).map_err(Error::read)?
+    };
 
     // Build firmware properties
     let fw_props = FirmwareProperties::new(version, board, mcu, ServeAlg::default(), true).unwrap();
@@ -72,13 +76,15 @@ fn sub_main() -> Result<(), Error> {
         let config = read_rom_config(&rom_config_filename)?;
 
         // Create builder
-        let mut builder = Builder::from_json(&config).map_err(Error::parse)?;
+        let mut builder =
+            Builder::from_json(version, mcu.family(), &config).map_err(Error::parse)?;
 
         // Accept any licenses
         let licenses = builder.licenses();
         for license in licenses {
             propose_license(&license)?;
             builder.accept_license(&license).map_err(Error::license)?;
+            debug!("Accepted license: {}, {}", license.id, license.url);
         }
 
         // Get ROM files and feed into the builder

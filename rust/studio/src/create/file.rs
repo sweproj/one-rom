@@ -157,10 +157,12 @@ pub fn config_selected(create: &mut Create, config: Config) -> Task<AppMessage> 
         }
         Config::BuildConfig => {
             // Get the selected rom pins from the selected hardware
-            let rom_pins: u8 = create.selected_hw_info.board
+            let rom_pins: u8 = create
+                .selected_hw_info
+                .board
                 .map_or(24, |board| board.rom_pins());
 
-                // build a vec of rom_types that match the selected rom pins
+            // build a vec of rom_types that match the selected rom pins
             let rom_types = ROM_TYPES
                 .iter()
                 .filter(|rt| rt.rom_pins() == rom_pins)

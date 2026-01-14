@@ -142,7 +142,6 @@ impl ConfigManifest {
     }
 
     fn add_special(&mut self) {
-
         // Add the SelectLocalFile and BuildConfig entries at the start
         self.internal_configs.insert(0, Config::SelectLocalFile);
         //self.internal_configs.insert(0, Config::BuildConfig);
@@ -214,7 +213,7 @@ pub enum Config {
     File { filename: PathBuf },
 
     /// User has built their own config in the app
-    Built { 
+    Built {
         rom_type: RomType,
         chip_select: Vec<u8>,
         data: Vec<u8>,
@@ -382,7 +381,11 @@ pub fn load_config_file(config: Config) -> AppMessage {
 pub fn generate_built_config(config: Config) -> AppMessage {
     assert!(config.is_built());
     let (rom_type, chip_select, data) = match &config {
-        Config::Built { rom_type, chip_select, data } => (rom_type, chip_select, data),
+        Config::Built {
+            rom_type,
+            chip_select,
+            data,
+        } => (rom_type, chip_select, data),
         _ => unreachable!(),
     };
 
@@ -394,16 +397,14 @@ pub fn generate_built_config(config: Config) -> AppMessage {
         let mut cs_str = String::new();
         for (index, cs) in chip_select.iter().enumerate() {
             if index == 0 {
-                cs_str.push_str(
-                    &format!(
-                        "\n                    \"cs{index}\" = \"{}\"",
-                        if index == 0 {
-                            "active_low"
-                        } else {
-                            "active_high"
-                        }
-                    )
-                );
+                cs_str.push_str(&format!(
+                    "\n                    \"cs{index}\" = \"{}\"",
+                    if index == 0 {
+                        "active_low"
+                    } else {
+                        "active_high"
+                    }
+                ));
             } else {
                 cs_str.push_str(&format!(",\n                    \"{}\"", cs));
             }
@@ -411,7 +412,8 @@ pub fn generate_built_config(config: Config) -> AppMessage {
         cs_str
     };
 
-    let json = format!(r#"{{
+    let json = format!(
+        r#"{{
     "$schema": "https://images.onerom.org/configs/schema.json",
     "version": 1,
     "name": "Studio Generated",
@@ -430,8 +432,8 @@ pub fn generate_built_config(config: Config) -> AppMessage {
             ]
         }}
     ]
-}}"#);
+}}"#
+    );
 
     StudioMessage::ConfigLoaded(Ok(config.with_data(json.as_bytes().to_vec()))).into()
-
 }

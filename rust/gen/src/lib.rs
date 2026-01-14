@@ -9,6 +9,7 @@
 extern crate alloc;
 
 pub mod builder;
+pub mod firmware;
 pub mod image;
 pub mod meta;
 
@@ -18,7 +19,8 @@ pub use image::{PAD_BLANK_BYTE, PAD_NO_ROM_BYTE};
 pub use meta::{MAX_METADATA_LEN, Metadata, PAD_METADATA_BYTE};
 
 use alloc::string::String;
-use onerom_config::fw::ServeAlg;
+use onerom_config::fw::{FirmwareVersion, ServeAlg};
+use onerom_config::mcu::Family;
 use onerom_config::rom::RomType;
 
 /// Version of metadata produced by this version of the crate
@@ -27,6 +29,8 @@ const METADATA_VERSION_STR: &str = "1";
 
 /// Firmware size reserved at the start of flash, before metadata
 pub const FIRMWARE_SIZE: usize = 48 * 1024; // 48KB
+
+pub const MIN_FIRMWARE_OVERRIDES_VERSION: FirmwareVersion = FirmwareVersion::new(0, 6, 0, 0);
 
 /// Error type
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -102,6 +106,17 @@ pub enum Error {
     BadLocation {
         id: usize,
         reason: String,
+    },
+    UnsupportedFrequency {
+        frequency_mhz: u32,
+    },
+    FirmwareTooOld {
+        version: FirmwareVersion,
+        minimum: FirmwareVersion,
+    },
+    WrongMcuFamily {
+        actual: Family,
+        required: Family,
     },
     Base64,
     Base16,

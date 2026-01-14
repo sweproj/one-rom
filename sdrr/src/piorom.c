@@ -7,7 +7,7 @@
 #include "include.h"
 #include "piorom.h"
 
-#if defined(RP_PIO)
+#if defined(RP235X)
 
 // # Introduction
 
@@ -262,8 +262,7 @@
 // Fallback default configuration
 #if !defined(PIO_CONFIG_ADDR_READ_IRQ) && !defined(PIO_CONFIG_ADDR_READ_DELAY) && !defined(PIO_CONFIG_CS_TO_DATA_OUTPUT_DELAY) && !defined(PIO_CONFIG_CS_INACTIVE_DATA_HOLD_DELAY)
 #if !defined(PIO_CONFIG_DEFAULT) && !defined(PIO_CONFIG_SLOW_CLOCK_KERNAL) && !defined(PIO_CONFIG_SLOW_CLOCK_CHAR) && !defined(PIO_CONFIG_NO_DMA)
-#pragma message("No PIO config specified - using PIO_CONFIG_DEFAULT")
-#define PIO_CONFIG_DEFAULT
+#define PIO_CONFIG_SLOW_CLOCK_CHAR  1
 #endif // !PIO_CONFIG_DEFAULT && !PIO_CONFIG_SLOW_CLOCK && !PIO_CONFIG_SLOW_CLOCK_CHAR
 #endif // Fallback default
 
@@ -1363,6 +1362,8 @@ static void piorom_finish_config(
     DEBUG("  - Address Read IRQ:   %d", config->addr_read_irq);
     DEBUG("  - Address Read Delay: %d", config->addr_read_delay);
     DEBUG("  - CS Active Delay:    %d", config->cs_active_delay);
+    DEBUG("  - CS Inactive Delay:  %d", config->cs_inactive_delay);
+    DEBUG("  - No DMA:             %d", config->no_dma);
     DEBUG("  ROM Table Address:  0x%08X", config->rom_table_addr);
 }
 
@@ -1406,11 +1407,54 @@ void piorom(
     const sdrr_rom_set_t *set,
     uint32_t rom_table_addr
 ) {
+    piorom_config_t config;
+
     DEBUG("%s", log_divider);
 
-    piorom_config_t *config = &piorom_config;
+    memcpy(&config, &piorom_config, sizeof(piorom_config_t));
 
-    piorom_finish_config(config, info, set, rom_table_addr);
+    // Apply any ROM set overrides
+    if ((set->extra_info) &&
+        (set->serve_config != NULL) &&
+        (set->serve_config != (void*)0xFFFFFFFF)) {
+            const uint8_t *serve_config = (const uint8_t*)set->serve_config;
+
+            // Current supported PIO serve override format:
+            // Byte 0: 0xFE (signature)
+            // Byte 1: addr_read_irq
+            // Byte 2: addr_base_pin
+            // Byte 3: cs_active_delay
+            // Byte 4: cs_inactive_delay
+            // Byte 5: no_dma
+            // Byte 6: 0xFE (end signature)
+            // Byte 7: 0xFF (padding)
+            if ((serve_config[0] == 0xFE) &&
+                (serve_config[1] != 0xFF) && 
+                (serve_config[2] != 0xFF) && 
+                (serve_config[3] != 0xFF) && 
+                (serve_config[4] != 0xFF) && 
+                (serve_config[5] != 0xFF) &&
+                (serve_config[6] == 0xFE) &&
+                (serve_config[7] == 0xFF)) {
+                config.addr_read_irq = serve_config[1];
+                config.addr_read_delay = serve_config[2];
+                config.cs_active_delay = serve_config[3];
+                config.cs_inactive_delay = serve_config[4];
+                config.no_dma = serve_config[5];
+                LOG("PIO found valid overriding serve config: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X",
+                    config.addr_read_irq,
+                    config.addr_read_delay,
+                    config.cs_active_delay,
+                    config.cs_inactive_delay,
+                    config.no_dma
+                );
+            } else {
+                LOG("!!! PIO ROM serving invalid serve_config signature");
+                limp_mode(LIMP_MODE_INVALID_CONFIG);
+            }
+    }
+
+    piorom_finish_config(&config, info, set, rom_table_addr);
 
     // Bring PIO0 and DMA out of reset
     RESET_RESET &= ~(RESET_PIO0 | RESET_DMA);
@@ -1420,8 +1464,8 @@ void piorom(
     // - PIO block 0
     // - SM1 is the address read SM
     // - SM2 is the data byte output SM
-    if (!config->no_dma) {
-        piorom_setup_dma(config, 0, 1, 2);
+    if (!config.no_dma) {
+        piorom_setup_dma(&config, 0, 1, 2);
     }
 
     // Configure GPIOs for PIO function
@@ -1430,16 +1474,16 @@ void piorom(
     // - CS active high/low config
     // - Data pins start at GPIO 0
     // - Address pins start at GPIO 8
-    piorom_set_gpio_func(config);
+    piorom_set_gpio_func(&config);
 
     // Load and configure the PIO programs
     // - 2 CS pins
     // - CS pins start at GPIO 10
     // - Data pins start at GPIO 0
     // - Address pins start at GPIO 8
-    piorom_load_programs(config);
+    piorom_load_programs(&config);
 
-    if (!config->no_dma) {
+    if (!config.no_dma) {
         // Start the PIOs.  This kicks off the autonomous ROM serving.
         piorom_start_pios();
 
@@ -1881,4 +1925,4 @@ void piorom_log_pio_sm(
 }
 #endif // DEBUG_LOGGING
 
-#endif // RP_PIO
+#endif // RP235X

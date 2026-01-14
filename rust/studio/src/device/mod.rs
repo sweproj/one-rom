@@ -109,7 +109,9 @@ impl Address {
                 let addr = match usb_device {
                     UsbDeviceType::Fire(_) => {
                         if *addr == Model::Ice.mcu_family().get_flash_base() {
-                            trace!("Attempt to read from Ice flash base address via Fire USB, remapping");
+                            trace!(
+                                "Attempt to read from Ice flash base address via Fire USB, remapping"
+                            );
                             Model::Fire.mcu_family().get_flash_base()
                         } else {
                             *addr
@@ -117,15 +119,17 @@ impl Address {
                     }
                     UsbDeviceType::Ice(_) => {
                         if *addr == Model::Fire.mcu_family().get_flash_base() {
-                            trace!("Attempt to read from Fire flash base address via Ice USB, remapping");
+                            trace!(
+                                "Attempt to read from Fire flash base address via Ice USB, remapping"
+                            );
                             Model::Ice.mcu_family().get_flash_base()
                         } else {
                             *addr
                         }
                     }
                 };
-                return addr
-            },
+                return addr;
+            }
             Address::FlashStart => 0,
             Address::FlashOffset(offset) => *offset,
         };

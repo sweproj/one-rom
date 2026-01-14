@@ -16,10 +16,12 @@ impl PllConfig {
         Self { proc }
     }
 
-    /// Calculate PLL values for target frequency using HSI (16 MHz)
+    /// Calculate PLL values for target frequency using HSI (16 MHz) or
+    /// HSE (12 MHz) as input
     /// Returns (PLLM, PLLN, PLLP, PLLQ) or None if frequency not achievable
-    fn calculate_stm32_pll_hsi(
+    fn calculate_stm32_pll(
         &self,
+        xtal_mhz: u32,
         target_freq_mhz: u32,
         overclock: bool,
     ) -> Option<(u8, u16, u8, u8)> {
@@ -28,10 +30,17 @@ impl PllConfig {
             return None;
         }
 
-        // HSI = 16 MHz, target VCO input = 2 MHz for best jitter
-        const HSI_MHZ: u32 = 16;
-        const PLLM: u8 = 8; // 16/8 = 2 MHz VCO input
-        const VCO_IN_MHZ: u32 = HSI_MHZ / PLLM as u32;
+        // HSI = 16 MHz, HSE = 12MHz
+        // Target VCO input = 2 MHz for best jitter
+        let pllm: u8 = if xtal_mhz == 12 {
+            6
+        } else if xtal_mhz == 16 {
+            8
+        } else {
+            // Unsupported XTAL frequency
+            return None;
+        };
+        let vco_in_mhz: u32 = xtal_mhz / pllm as u32;
 
         // Try PLLP values: 2, 4, 6, 8
         for pllp in [2u8, 4, 6, 8] {
@@ -39,7 +48,7 @@ impl PllConfig {
 
             // Check VCO frequency is in valid range
             if vco_mhz >= self.proc.vco_min_mhz() && vco_mhz <= self.proc.vco_max_mhz(overclock) {
-                let plln = vco_mhz / VCO_IN_MHZ;
+                let plln = vco_mhz / vco_in_mhz;
 
                 // Check PLLN is in valid range (50-432)
                 if (50..=432).contains(&plln) {
@@ -47,7 +56,7 @@ impl PllConfig {
                     let pllq_raw = (vco_mhz as f32 / 48.0).round() as u8;
                     let pllq = pllq_raw.clamp(2, 15);
 
-                    return Some((PLLM, plln as u16, pllp, pllq));
+                    return Some((pllm, plln as u16, pllp, pllq));
                 }
             }
         }
@@ -88,11 +97,16 @@ impl PllConfig {
     }
 
     /// Generate PLL #defines for target frequency
-    fn generate_stm32_pll_defines(&self, target_freq_mhz: u32, overclock: bool) -> Option<String> {
-        if let Some((m, n, p, q)) = self.calculate_stm32_pll_hsi(target_freq_mhz, overclock) {
+    fn generate_stm32_pll_defines(
+        &self,
+        target_freq_mhz: u32,
+        overclock: bool,
+        has_usb: bool,
+    ) -> Option<String> {
+        let xtal_mhz = if has_usb { 12 } else { 16 };
+        if let Some((m, n, p, q)) = self.calculate_stm32_pll(xtal_mhz, target_freq_mhz, overclock) {
             // Calculate intermediate values for comments
-            let hsi_mhz = 16;
-            let vco_input_mhz = hsi_mhz / m as u32;
+            let vco_input_mhz = xtal_mhz / m as u32;
             let fvco_mhz = vco_input_mhz * n as u32;
             let sysclk_mhz = fvco_mhz / p as u32;
             let usb_mhz = fvco_mhz / q as u32;
@@ -107,8 +121,8 @@ impl PllConfig {
             };
 
             Some(format!(
-                "//   HSI={}MHz\n//   VCO_input={}MHz\n//   fVCO={}MHz\n//   SYSCLK={}MHz\n//   USB={}MHz\n#define PLL_M    {}\n#define PLL_N    {}\n#define PLL_P    {}  // div {}\n#define PLL_Q    {}",
-                hsi_mhz, vco_input_mhz, fvco_mhz, sysclk_mhz, usb_mhz, m, n, pll_p_reg, p, q
+                "//   XTAL={}MHz\n//   VCO_input={}MHz\n//   fVCO={}MHz\n//   SYSCLK={}MHz\n//   USB={}MHz\n#define PLL_M    {}\n#define PLL_N    {}\n#define PLL_P    {}  // div {}\n#define PLL_Q    {}",
+                xtal_mhz, vco_input_mhz, fvco_mhz, sysclk_mhz, usb_mhz, m, n, pll_p_reg, p, q
             ))
         } else {
             None
@@ -135,30 +149,40 @@ impl PllConfig {
         }
     }
 
-    pub fn generate_pll_defines(&self, target_freq_mhz: u32, overclock: bool) -> Option<String> {
-        match self.proc {
-            Processor::RP2350 => self.generate_rp2350_pll_defines(target_freq_mhz, overclock),
-            _ => self.generate_stm32_pll_defines(target_freq_mhz, overclock), // Rename existing function
-        }
-    }
-
-    fn calculate_pll_hsi(
+    pub fn generate_pll_defines(
         &self,
         target_freq_mhz: u32,
         overclock: bool,
-    ) -> Option<(u8, u16, u8, u8)> {
+        has_usb: bool,
+    ) -> Option<String> {
         match self.proc {
-            Processor::RP2350 => self.calculate_rp2350_pll_12mhz(target_freq_mhz, overclock),
-            _ => self.calculate_stm32_pll_hsi(target_freq_mhz, overclock),
+            Processor::RP2350 => self.generate_rp2350_pll_defines(target_freq_mhz, overclock),
+            _ => self.generate_stm32_pll_defines(target_freq_mhz, overclock, has_usb),
         }
     }
 
-    pub fn is_frequency_valid(&self, target_freq_mhz: u32, overclock: bool) -> bool {
+    fn calculate_pll(
+        &self,
+        target_freq_mhz: u32,
+        overclock: bool,
+        has_usb: bool,
+    ) -> Option<(u8, u16, u8, u8)> {
+        match self.proc {
+            Processor::RP2350 => self.calculate_rp2350_pll_12mhz(target_freq_mhz, overclock),
+            _ => {
+                let xtal_mhz = if has_usb { 12 } else { 16 };
+                self.calculate_stm32_pll(xtal_mhz, target_freq_mhz, overclock)
+            }
+        }
+    }
+
+    pub fn is_frequency_valid(&self, target_freq_mhz: u32, overclock: bool, has_usb: bool) -> bool {
         #[allow(clippy::match_single_binding)]
         match self {
             _ => {
                 // F4 family uses HSI PLL, check if target frequency is achievable
-                self.calculate_pll_hsi(target_freq_mhz, overclock).is_some()
+                self.calculate_pll(target_freq_mhz, overclock, has_usb)
+                    .is_some()
             }
         }
     }

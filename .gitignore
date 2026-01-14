@@ -18,6 +18,7 @@ config/docker/*
 !config/docker/README.md
 images/users/*
 !images/user/README.md
+rom-config/user
 
 dist/
 output/

@@ -271,6 +271,7 @@ static inline void __attribute__((always_inline)) configure_x_pulls(
 
 void __attribute__((section(".main_loop"), used)) main_loop(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime,
     const sdrr_rom_set_t *set
 ) {
 #if defined(DEBUG_LOGGING) || defined(MAIN_LOOP_LOGGING)
@@ -352,7 +353,9 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     uint32_t access_count = 0;  // Used to initialise the count register itself
 #endif // defined(COUNT_ROM_ACCESS) && !defined(C_MAIN_LOOP)
 
-#if !defined(RP_PIO)
+#if defined(RP235X)
+    if (!runtime->fire_pio_mode) {
+#endif // RP235X
     // Now log current state, and items we're going to load to registers.
     ROM_IMPL_DEBUG("%s", log_divider);
     ROM_IMPL_DEBUG("Register locations and values:");
@@ -378,7 +381,9 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     ROM_IMPL_DEBUG("Access count addr: 0x%08X", access_count_addr);
     ROM_IMPL_DEBUG("Access count: 0x%08X", access_count);
 #endif // COUNT_ROM_ACCESS
-#endif // RP_PIO
+#if defined(RP235X)
+    }
+#endif // RP235X
     ROM_IMPL_DEBUG("%s", log_divider);
 
 #if defined(MAIN_LOOP_ONE_SHOT)
@@ -389,16 +394,16 @@ void __attribute__((section(".main_loop"), used)) main_loop(
 #else
     ROM_IMPL_LOG("Begin serving data");
 #endif // MAIN_LOOP_ONE_SHOT
-    if ((info->status_led_enabled) && (info->pins->status < MAX_USED_GPIOS)) {
+    if ((runtime->status_led_enabled) && (info->pins->status < MAX_USED_GPIOS)) {
         status_led_on(info->pins->status);
     }
 
-#if defined(RP235X) && defined(RP_PIO)
-    // If we are using PIO/DMA ROM serving, jump to that now
-    piorom(info, set, rom_table_val);
-#elif defined(RP_PIO)
-#pragma error "RP_PIO defined without RP235X - unsupported"
-#endif // RP235X && RP_PIO
+#if defined(RP235X)
+    if (runtime->fire_pio_mode) {
+        // If we are using PIO/DMA ROM serving, jump to that now
+        piorom(info, set, rom_table_val);
+    }
+#endif // RP235X
 
 #if !defined(C_MAIN_LOOP)
     // Start the appropriate main loop.  Includes preloading registers.
@@ -651,7 +656,7 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     }
 #endif // !C_MAIN_LOOP
 
-    if ((info->status_led_enabled) && (info->pins->status < MAX_USED_GPIOS)) {
+    if ((runtime->status_led_enabled) && (info->pins->status < MAX_USED_GPIOS)) {
         status_led_off(info->pins->status);
     }
 #if defined(MAIN_LOOP_ONE_SHOT)
@@ -660,14 +665,11 @@ void __attribute__((section(".main_loop"), used)) main_loop(
 #endif // MAIN_LOOP_ONE_SHOT
 }
 
-// Get the index of the selected ROM by reading the select jumpers
+// Get the index of the selected ROM by from the image select jumper values
 //
 // Returns the index
-uint8_t get_rom_set_index(void) {
+uint8_t get_rom_set_index(uint32_t sel_pins, uint32_t sel_mask) {
     uint8_t rom_sel, rom_index;
-
-    uint32_t sel_pins, sel_mask;
-    sel_pins = check_sel_pins(&sel_mask);
 
     // Shift the sel pins to read from 0.  Do this by shifting each present
     // bit (usig sel_mask) the appropriate number of bits right

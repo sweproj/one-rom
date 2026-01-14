@@ -77,6 +77,228 @@
                 }
             ]
         },
+        "DebugConfig": {
+            "description": "Debug configuration structure",
+            "type": "object",
+            "properties": {
+                "swd_enabled": {
+                    "description": "Whether SWD debug interface is enabled",
+                    "type": "boolean",
+                    "default": true
+                }
+            }
+        },
+        "FireConfig": {
+            "description": "Fire configuration structure",
+            "type": "object",
+            "properties": {
+                "cpu_freq": {
+                    "description": "CPU frequency.  Only specific frequencies are supported",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/FireCpuFreq"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "overclock": {
+                    "description": "Whether overclocking is enabled",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "serve_mode": {
+                    "description": "Option PIO/CPU override",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/FireServeMode"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "vreg": {
+                    "description": "Optional Vreg output voltage setting for RP2350 MCUs.",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/FireVreg"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                }
+            }
+        },
+        "FireCpuFreq": {
+            "type": "integer",
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0
+        },
+        "FireServeMode": {
+            "description": "Fire serve mode",
+            "oneOf": [
+                {
+                    "description": "PIO mode",
+                    "type": "string",
+                    "const": "Pio"
+                },
+                {
+                    "description": "CPU mode",
+                    "type": "string",
+                    "const": "Cpu"
+                }
+            ]
+        },
+        "FireVreg": {
+            "description": "Voltage regulator setting for RP2350 MCUs",
+            "type": "string",
+            "enum": [
+                "0.55V",
+                "0.60V",
+                "0.65V",
+                "0.70V",
+                "0.75V",
+                "0.80V",
+                "0.85V",
+                "0.90V",
+                "0.95V",
+                "1.00V",
+                "1.05V",
+                "1.10V",
+                "1.15V",
+                "1.20V",
+                "1.25V",
+                "1.30V",
+                "1.35V",
+                "1.40V",
+                "1.50V",
+                "1.60V",
+                "1.65V",
+                "1.70V",
+                "1.80V",
+                "1.90V",
+                "2.00V",
+                "2.35V",
+                "2.50V",
+                "2.65V",
+                "2.80V",
+                "3.00V",
+                "3.15V",
+                "3.30V",
+                "Stock"
+            ]
+        },
+        "FirmwareConfig": {
+            "description": "Top level configuration structure",
+            "type": "object",
+            "properties": {
+                "fire": {
+                    "description": "Optional Fire specific configuration",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/FireConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "ice": {
+                    "description": "Optional Ice specific configuration",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/IceConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "led": {
+                    "description": "Optional LED configuration",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/LedConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "serve_alg_params": {
+                    "description": "Optional serving algorithm parameters",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ServeAlgParams"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "swd": {
+                    "description": "Optional Debug configuration",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/DebugConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
+            }
+        },
+        "IceConfig": {
+            "description": "Ice configuration structure",
+            "type": "object",
+            "properties": {
+                "cpu_freq": {
+                    "description": "CPU frequency.  Only specific frequencies are supported",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/IceCpuFreq"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "overclock": {
+                    "description": "Whether overclocking is enabled",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
+                }
+            }
+        },
+        "IceCpuFreq": {
+            "type": "integer",
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0
+        },
+        "LedConfig": {
+            "description": "LED configuration structure",
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "Whether the status LED is enabled",
+                    "type": "boolean",
+                    "default": true
+                }
+            }
+        },
         "Location": {
             "description": "Location within a larger ROM image that the specific image to use resides",
             "type": "object",
@@ -205,12 +427,34 @@
                         "null"
                     ]
                 },
+                "firmware_overrides": {
+                    "description": "Optional firmware overrides when serving this ROM set.  Takes\nprecedence over any global configuration firmware overrides.",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/FirmwareConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
                 "roms": {
                     "description": "Array of ROM configurations in this set.  Contains 1 member for single\nROM sets, and multiple members for multi-ROM and banked ROM sets.",
                     "type": "array",
                     "items": {
                         "$ref": "#/$defs/RomConfig"
                     }
+                },
+                "serve_alg": {
+                    "description": "Optional serving algorithm override for this ROM set",
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/ServeAlg"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
                 },
                 "type": {
                     "description": "Type of ROM set",
@@ -345,6 +589,49 @@
                     "type": "string",
                     "const": "27C400"
                 }
+            ]
+        },
+        "ServeAlg": {
+            "description": "ROM serving algorithm",
+            "oneOf": [
+                {
+                    "description": "default",
+                    "type": "string",
+                    "const": "default"
+                },
+                {
+                    "description": "a",
+                    "type": "string",
+                    "const": "two_cs_one_addr"
+                },
+                {
+                    "description": "b",
+                    "type": "string",
+                    "const": "addr_on_cs"
+                },
+                {
+                    "description": "Multi-ROM set only",
+                    "type": "string",
+                    "const": "addr_on_any_cs"
+                }
+            ]
+        },
+        "ServeAlgParams": {
+            "description": "Custom serving algorithm parameters\n\nThis is stored as unstructured parameters to allow for easy future\nextension without breaking compatibility.",
+            "type": "object",
+            "properties": {
+                "params": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "uint8",
+                        "maximum": 255,
+                        "minimum": 0
+                    }
+                }
+            },
+            "required": [
+                "params"
             ]
         },
         "SizeHandling": {

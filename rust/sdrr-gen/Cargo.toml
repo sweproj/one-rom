@@ -10,8 +10,8 @@ license = "MIT"
 keywords = ["embedded", "rom", "eeprom", "eprom", "flash"]
 
 [dependencies]
-onerom-config = { version = "0.2.7" }
-onerom-gen = { version = "0.2.6" }
+onerom-config = { path="../config", version = "0.3.0" }
+onerom-gen = { path="../gen", version = "0.3.0" }
 
 anyhow = ">=1.0.100"
 bytes = ">=1.10.1"

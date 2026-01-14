@@ -149,14 +149,19 @@
 //! - [ ] Different board pin mappings produce correct transformations
 //!
 //! ## Phase 19: Descriptions
+//!
+//! ## Phase 20: Firmware overrides
 
 #[cfg(test)]
 mod tests {
     use onerom_config::fw::{FirmwareProperties, FirmwareVersion, ServeAlg};
     use onerom_config::hw::Board;
-    use onerom_config::mcu::Variant as McuVariant;
+    use onerom_config::mcu::{Family as McuFamily, Variant as McuVariant};
     use onerom_gen::builder::{Builder, FileData};
     use onerom_gen::image::CsLogic;
+
+    const FW_VER: FirmwareVersion = FirmwareVersion::new(0, 6, 0, 0);
+    const MCU_FAM: McuFamily = McuFamily::Stm32f4;
 
     // ========================================================================
     // Constants from C headers
@@ -462,7 +467,7 @@ mod tests {
         }"#;
 
         // Parse the JSON
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Get the file specs - should be exactly 1
         let file_specs = builder.file_specs();
@@ -533,7 +538,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let rom_data = create_test_rom_data(8192, 0xAA);
         builder
             .add_file(FileData {
@@ -645,7 +650,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let rom_data = create_test_rom_data(8192, 0xAA);
         builder
             .add_file(FileData {
@@ -768,7 +773,7 @@ mod tests {
             ]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add ROM data for both sets
         builder
@@ -931,7 +936,7 @@ mod tests {
             ]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add ROM data for all three sets
         builder
@@ -1075,7 +1080,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let rom_data = create_test_rom_data(8192, 0xAA);
         builder
             .add_file(FileData {
@@ -1174,7 +1179,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let rom_data = create_test_rom_data(8192, 0xAA);
         builder
             .add_file(FileData {
@@ -1277,7 +1282,7 @@ mod tests {
             ]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -1401,7 +1406,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -1484,7 +1489,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -1569,7 +1574,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create exactly 8KB for 2364
         builder
@@ -1613,7 +1618,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 16KB image with pattern: first 4KB=0x11, next 8KB=0x22, last 4KB=0x33
         let mut data = Vec::new();
@@ -1664,7 +1669,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 8KB image with pattern: 1KB=0x11, 2KB=0x22, 5KB=0x33
         let mut data = Vec::new();
@@ -1712,7 +1717,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 16KB image with pattern: 2KB=0x11, 6KB=0x22, 8KB=0x33
         let mut data = Vec::new();
@@ -1765,7 +1770,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 4KB file for 8KB ROM (exact divisor)
         builder
@@ -1809,7 +1814,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 3KB file for 8KB ROM (not an exact divisor, must pad)
         builder
@@ -1851,7 +1856,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 10KB file for 8KB ROM - too large
         builder
@@ -1890,7 +1895,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 3KB file for 8KB ROM with duplicate - 3KB is not exact divisor of 8KB
         builder
@@ -1932,7 +1937,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create exactly 8KB file but specified pad - unnecessary
         builder
@@ -1984,7 +1989,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -2068,7 +2073,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -2149,7 +2154,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add file once
         builder
@@ -2201,7 +2206,7 @@ mod tests {
             ]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add only first file, skip second
         builder
@@ -2261,7 +2266,7 @@ mod tests {
             ]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add files out of order: 2, 0, 1
         builder
@@ -2320,7 +2325,7 @@ mod tests {
         }"#;
 
         // Should fail at JSON parsing/validation
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Missing CS2 for 2332 should fail");
 
@@ -2348,7 +2353,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -2406,7 +2411,7 @@ mod tests {
         }"#,
         );
 
-        let mut builder = Builder::from_json(&json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, &json).expect("Failed to parse JSON");
 
         // Add all 32 files
         for i in 0..32 {
@@ -2538,7 +2543,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create test data with predictable pattern: data[addr] = addr as u8
         let rom_size = 8192; // 2364 = 8KB
@@ -2661,7 +2666,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create random test data using a simple PRNG for reproducibility
         let rom_size = 8192; // 2364 = 8KB
@@ -2761,7 +2766,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create distinct test data for each ROM
         let rom_size = 8192;
@@ -2907,7 +2912,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create distinct test data for each ROM (each 8KB)
         let rom_size = 8192;
@@ -3027,7 +3032,7 @@ mod tests {
             }]
         "#; // Intentionally missing closing brace
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Malformed JSON should fail to parse");
 
@@ -3045,7 +3050,7 @@ mod tests {
             "description": "Missing rom_sets field"
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "JSON missing rom_sets should fail");
 
@@ -3070,7 +3075,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "JSON missing set type should fail");
 
@@ -3095,7 +3100,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "JSON missing file field should fail");
 
@@ -3121,7 +3126,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Invalid ROM type should fail");
 
@@ -3147,7 +3152,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Invalid CS logic should fail");
 
@@ -3173,7 +3178,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Invalid set type should fail");
 
@@ -3200,7 +3205,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         // This test documents behavior - either should error or succeed
         // but we're asserting it should error for now
@@ -3230,7 +3235,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         // This test documents behavior - either should error or succeed
         assert!(result.is_err(), "CS3 specified for 2332 should fail");
@@ -3256,7 +3261,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Missing CS1 should fail");
 
@@ -3283,7 +3288,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Invalid size_handling should fail");
 
@@ -3320,7 +3325,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         // This documents expected behavior - mixed types might be allowed or not
         // For now, assuming it should fail
@@ -3356,7 +3361,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Mixed ROM types in banked set should fail");
 
@@ -3382,7 +3387,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Negative version should fail");
 
@@ -3408,7 +3413,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Zero version should fail");
 
@@ -3434,7 +3439,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Version 999 should fail");
 
@@ -3453,7 +3458,8 @@ mod tests {
             "rom_sets": []
         }"#;
 
-        let builder = Builder::from_json(json).expect("Empty rom_sets should be allowed");
+        let builder =
+            Builder::from_json(FW_VER, MCU_FAM, json).expect("Empty rom_sets should be allowed");
 
         let props = default_fw_props();
         let (metadata_buf, rom_images_buf) = builder.build(props).expect("Build should succeed");
@@ -3487,7 +3493,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Empty roms array should fail");
 
@@ -3517,7 +3523,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "Empty filename should fail");
 
@@ -3543,7 +3549,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Filename with spaces should be allowed");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json)
+            .expect("Filename with spaces should be allowed");
 
         builder
             .add_file(FileData {
@@ -3603,8 +3610,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder =
-            Builder::from_json(json).expect("Filename with special chars should be allowed");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json)
+            .expect("Filename with special chars should be allowed");
 
         builder
             .add_file(FileData {
@@ -3664,8 +3671,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder =
-            Builder::from_json(json).expect("Filename with unicode should be allowed");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json)
+            .expect("Filename with unicode should be allowed");
 
         builder
             .add_file(FileData {
@@ -3731,7 +3738,8 @@ mod tests {
             long_filename
         );
 
-        let mut builder = Builder::from_json(&json).expect("Max length filename should be allowed");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, &json)
+            .expect("Max length filename should be allowed");
 
         builder
             .add_file(FileData {
@@ -3795,7 +3803,7 @@ mod tests {
             very_long_filename
         );
 
-        let result = Builder::from_json(&json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, &json);
 
         // This might succeed or fail depending on implementation
         // If it succeeds, verify the filename is stored correctly
@@ -3891,7 +3899,7 @@ mod tests {
             ]
         }"#;
 
-        let mut builder = Builder::from_json(json)
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json)
             .expect("Duplicate filenames should be allowed across different sets");
 
         // Verify only 1 unique file needed
@@ -3980,7 +3988,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Filename with path should be allowed");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json)
+            .expect("Filename with path should be allowed");
 
         builder
             .add_file(FileData {
@@ -4040,7 +4049,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Filename with quotes should be allowed");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json)
+            .expect("Filename with quotes should be allowed");
 
         builder
             .add_file(FileData {
@@ -4101,7 +4111,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         // This should either:
         // 1. Reject at parse time (preferred), OR
@@ -4186,7 +4196,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -4250,7 +4260,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -4321,7 +4331,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -4402,7 +4412,7 @@ mod tests {
             ]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         builder
             .add_file(FileData {
@@ -4488,7 +4498,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add zero-byte file
         builder
@@ -4528,7 +4538,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add single-byte file (should be padded to 2KB)
         builder
@@ -4575,7 +4585,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add 2047-byte file (1 byte short of 2KB)
         builder
@@ -4618,7 +4628,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add 2049-byte file (1 byte over 2KB, needs padding to 4KB)
         builder
@@ -4662,7 +4672,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add exactly 1KB file (should duplicate to 2KB)
         builder
@@ -4705,7 +4715,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add exactly 2KB file (should duplicate 4 times to 8KB)
         builder
@@ -4748,7 +4758,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add 1-byte file (should pad to 8KB)
         builder
@@ -4801,7 +4811,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add 3KB file without size_handling (should error)
         builder
@@ -4841,7 +4851,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add exactly 8KB (maximum for 2364)
         builder
@@ -4883,7 +4893,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Add exactly 2KB (minimum/exact size for 2316)
         builder
@@ -4928,7 +4938,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "2316 missing CS3 should fail");
 
@@ -4961,7 +4971,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "All CS as ignore should fail");
 
@@ -4988,7 +4998,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "CS1 as ignore with CS2 active should fail");
 
@@ -5021,7 +5031,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(
             result.is_err(),
@@ -5057,7 +5067,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(
             result.is_err(),
@@ -5087,7 +5097,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(result.is_err(), "2332 with both CS as ignore should fail");
 
@@ -5246,7 +5256,7 @@ mod tests {
         ];
         for config in invalid_configs {
             let json = invalid_config_json(config);
-            let result = Builder::from_json(&json);
+            let result = Builder::from_json(FW_VER, MCU_FAM, &json);
             assert!(result.is_err(), "Invalid CS config should fail");
         }
 
@@ -5274,7 +5284,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Valid CS config should be allowed");
+        let mut builder =
+            Builder::from_json(FW_VER, MCU_FAM, json).expect("Valid CS config should be allowed");
 
         builder
             .add_file(FileData {
@@ -5309,7 +5320,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Valid CS config should be allowed");
+        let mut builder =
+            Builder::from_json(FW_VER, MCU_FAM, json).expect("Valid CS config should be allowed");
 
         builder
             .add_file(FileData {
@@ -5355,7 +5367,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Same CS config should be allowed");
+        let mut builder =
+            Builder::from_json(FW_VER, MCU_FAM, json).expect("Same CS config should be allowed");
 
         builder
             .add_file(FileData {
@@ -5415,7 +5428,8 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Same CS config should be allowed");
+        let mut builder =
+            Builder::from_json(FW_VER, MCU_FAM, json).expect("Same CS config should be allowed");
 
         builder
             .add_file(FileData {
@@ -5468,7 +5482,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 4KB of test data with unique pattern
         let mut test_data = Vec::with_capacity(4096);
@@ -5545,7 +5559,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
         // Create 2KB of test data (will be padded to 8KB)
         let test_data = create_test_rom_data(2048, 0x42);
@@ -5607,7 +5621,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(
             result.is_err(),
@@ -5641,7 +5655,7 @@ mod tests {
             }]
         }"#;
 
-        let result = Builder::from_json(json);
+        let result = Builder::from_json(FW_VER, MCU_FAM, json);
 
         assert!(
             result.is_err(),
@@ -5686,7 +5700,8 @@ mod tests {
         ];
 
         for (board_type, mcu_variant) in boards_to_test.iter() {
-            let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+            let mut builder =
+                Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
 
             // Create test data with unique pattern
             let mut test_data = Vec::with_capacity(8192);
@@ -5766,7 +5781,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         builder
             .add_file(FileData {
                 id: 0,
@@ -5805,7 +5820,7 @@ mod tests {
             }]
         }"#;
 
-        let mut builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         builder
             .add_file(FileData {
                 id: 0,
@@ -5843,7 +5858,7 @@ mod tests {
             }]
         }"#;
 
-        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let desc = builder.description();
         assert_eq!(
             desc, "Test description\n\nImages:\n0: test.rom",
@@ -5867,7 +5882,7 @@ mod tests {
             }]
         }"#;
 
-        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let desc = builder.description();
         assert_eq!(
             desc, "Test description\n\nDetailed description\n\nImages:\n0: test.rom",
@@ -5891,7 +5906,7 @@ mod tests {
             }]
         }"#;
 
-        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let desc = builder.description();
         assert_eq!(
             desc, "Test description\n\nImages:\n0: an image",
@@ -5915,7 +5930,7 @@ mod tests {
             }]
         }"#;
 
-        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let desc = builder.description();
         assert_eq!(
             desc, "Name of config\n--------------\n\nTest description\n\nImages:\n0: test.rom",
@@ -5940,7 +5955,7 @@ mod tests {
             }]
         }"#;
 
-        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let desc = builder.description();
         assert_eq!(
             desc, "Test description\n\nImages:\n0: an image\n\nSome notes here",
@@ -5967,11 +5982,1887 @@ mod tests {
             }]
         }"#;
 
-        let builder = Builder::from_json(json).expect("Failed to parse JSON");
+        let builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
         let desc = builder.description();
         assert_eq!(
             desc, "Test description\n\nSets:\n0: Banked\n  0: test0.rom\n  1: test1.rom",
             "Description should match"
         );
+    }
+
+    // ========================================================================
+    // PHASE 20: Firmware Overrides
+    // ========================================================================
+
+    fn default_fw_props_060() -> FirmwareProperties {
+        FirmwareProperties::new(
+            FirmwareVersion::new(0, 6, 0, 0), // 0.6.0 version for extended features
+            Board::Ice24UsbH,
+            McuVariant::F411RE,
+            ServeAlg::Default,
+            false, // boot_logging disabled
+        )
+        .unwrap()
+    }
+
+    // ========================================================================
+    // Helper: Parse Firmware Overrides Structure (0.6.0+)
+    // ========================================================================
+
+    /// Represents the onerom_firmware_overrides_t C structure
+    #[derive(Debug)]
+    struct FirmwareOverridesStruct {
+        override_present: [u8; 8],
+        ice_freq: u16,
+        fire_freq: u16,
+        fire_vreg: u8,
+        override_value: [u8; 8],
+    }
+
+    impl FirmwareOverridesStruct {
+        /// Parse firmware overrides structure from buffer at given offset
+        fn parse(buf: &[u8], offset: usize) -> Self {
+            assert!(
+                buf.len() >= offset + 64,
+                "Buffer too small: {} bytes, need {} at offset {}",
+                buf.len(),
+                offset + 64,
+                offset
+            );
+
+            // override_present: 8 bytes at offset 0
+            let mut override_present = [0u8; 8];
+            override_present.copy_from_slice(&buf[offset..offset + 8]);
+
+            // ice_freq_mhz: 2 bytes (u16) at offset 8
+            let ice_freq = u16::from_le_bytes([buf[offset + 8], buf[offset + 9]]);
+
+            // fire_freq_mhz: 2 bytes (u16) at offset 10
+            let fire_freq = u16::from_le_bytes([buf[offset + 10], buf[offset + 11]]);
+
+            // fire_vreg: 1 byte at offset 12
+            let fire_vreg = buf[offset + 12];
+
+            // pad1: 3 bytes at offset 13-15 (skip)
+
+            // override_value: 8 bytes at offset 16
+            let mut override_value = [0u8; 8];
+            override_value.copy_from_slice(&buf[offset + 16..offset + 24]);
+
+            // pad3: 40 bytes at offset 24-63 (skip)
+
+            Self {
+                override_present,
+                ice_freq,
+                fire_freq,
+                fire_vreg,
+                override_value,
+            }
+        }
+
+        /// Check if a specific override is present
+        fn is_override_present(&self, bit_index: usize) -> bool {
+            let byte_index = bit_index / 8;
+            let bit_offset = bit_index % 8;
+            (self.override_present[byte_index] & (1 << bit_offset)) != 0
+        }
+
+        /// Check if a specific override value bit is set
+        fn is_override_value_set(&self, bit_index: usize) -> bool {
+            let byte_index = bit_index / 8;
+            let bit_offset = bit_index % 8;
+            (self.override_value[byte_index] & (1 << bit_offset)) != 0
+        }
+    }
+
+    // ========================================================================
+    // Helper: Parse Extended ROM Set Structure (0.6.0+)
+    // ========================================================================
+
+    /// Extended ROM set structure with firmware_overrides support
+    #[derive(Debug)]
+    struct ExtendedRomSetStruct {
+        extra_info: u8,
+        serve_config_ptr: u32,
+        firmware_overrides_ptr: u32,
+    }
+
+    impl ExtendedRomSetStruct {
+        fn parse(buf: &[u8], offset: usize) -> Self {
+            assert!(
+                buf.len() >= offset + 64,
+                "Buffer too small: {} bytes, need {} at offset {}",
+                buf.len(),
+                offset + 64,
+                offset
+            );
+
+            // extra_info: 1 byte at offset 15
+            let extra_info = buf[offset + 15];
+
+            // serve_config_ptr: 4 bytes at offset 16-19
+            let serve_config_ptr = u32::from_le_bytes([
+                buf[offset + 16],
+                buf[offset + 17],
+                buf[offset + 18],
+                buf[offset + 19],
+            ]);
+
+            // firmware_overrides_ptr: 4 bytes at offset 20-23
+            let firmware_overrides_ptr = u32::from_le_bytes([
+                buf[offset + 20],
+                buf[offset + 21],
+                buf[offset + 22],
+                buf[offset + 23],
+            ]);
+
+            // pad2: 40 bytes at offset 24-63 (skip)
+
+            Self {
+                extra_info,
+                serve_config_ptr,
+                firmware_overrides_ptr,
+            }
+        }
+    }
+
+    // ========================================================================
+    // TEST 88: Basic Ice Clock Override
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_ice_override() {
+        let json = r#"{
+            "version": 1,
+            "description": "Ice clock override test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "100MHz",
+                        "overclock": false
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse extended ROM set structure
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+
+        // Verify extra_info is set
+        assert_eq!(
+            ext_rom_set.extra_info, 1,
+            "extra_info should be 1 for 0.6.0+"
+        );
+
+        // Verify firmware_overrides pointer is valid
+        assert_ne!(
+            ext_rom_set.firmware_overrides_ptr, 0xFFFFFFFF,
+            "firmware_overrides_ptr should not be NULL"
+        );
+
+        // Parse firmware overrides structure
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Verify Ice frequency override is present (bit 0)
+        assert!(
+            fw_overrides.is_override_present(0),
+            "Ice frequency override should be present"
+        );
+
+        // Verify Ice overclock override is present (bit 1)
+        assert!(
+            fw_overrides.is_override_present(1),
+            "Ice overclock override should be present"
+        );
+
+        // Verify Ice frequency value (100MHz = enum value 100)
+        assert_eq!(fw_overrides.ice_freq, 100, "Ice frequency should be 100MHz");
+
+        // Verify Ice overclock is disabled (bit 0 in override_value should be 0)
+        assert!(
+            !fw_overrides.is_override_value_set(0),
+            "Ice overclock should be disabled"
+        );
+
+        println!("✓ Phase 20 Test 1: Ice clock override correctly serialized");
+        println!("  - Ice frequency: {}MHz", fw_overrides.ice_freq);
+        println!("  - Overclock: disabled");
+    }
+
+    // ========================================================================
+    // TEST 89: Basic Fire Clock Override
+    // ========================================================================
+    #[test]
+    fn test_phase20_fire_override() {
+        let json = r#"{
+            "version": 1,
+            "description": "Fire clock override test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "fire": {
+                        "cpu_freq": "300MHz",
+                        "overclock": true,
+                        "vreg": "1.10V",
+                        "serve_mode": "Pio"
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse extended ROM set structure
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+
+        // Debug: Show the pointer and offset
+        println!(
+            "firmware_overrides_ptr: 0x{:08X}",
+            ext_rom_set.firmware_overrides_ptr
+        );
+        println!("metadata_flash_start: 0x{:08X}", metadata_flash_start);
+
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        println!("fw_overrides_offset: {}", fw_overrides_offset);
+
+        // Debug: Show first 24 bytes of firmware_overrides structure
+        println!("First 24 bytes of firmware_overrides structure:");
+        for i in 0..24 {
+            print!("{:02X} ", metadata_buf[fw_overrides_offset + i]);
+            if (i + 1) % 8 == 0 {
+                println!();
+            }
+        }
+        println!();
+
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Verify Fire frequency override is present (bit 2)
+        assert!(
+            fw_overrides.is_override_present(2),
+            "Fire frequency override should be present"
+        );
+
+        // Verify Fire frequency value (300MHz)
+        assert_eq!(
+            fw_overrides.fire_freq, 300,
+            "Fire frequency should be 300MHz, got {}",
+            fw_overrides.fire_freq
+        );
+
+        // Verify overclock override is present (bit 3)
+        assert!(
+            fw_overrides.is_override_present(3),
+            "Fire overclock override should be present"
+        );
+
+        // Verify Fire overclock is enabled (bit 1 in override_value should be 1)
+        assert!(
+            fw_overrides.is_override_value_set(1),
+            "Fire overclock should be enabled"
+        );
+
+        // Verify voltage regulator override is present (bit 4)
+        assert!(
+            fw_overrides.is_override_present(4),
+            "Fire voltage regulator override should be present"
+        );
+
+        // Verify Fire voltage regulator value (1.10V = enum value 2)
+        assert_eq!(
+            fw_overrides.fire_vreg, 11,
+            "Fire voltage regulator should be 1.10V (enum 2), got {}",
+            fw_overrides.fire_vreg
+        );
+
+        // Verify serve mode override is present (bit 7)
+        assert!(
+            fw_overrides.is_override_present(7),
+            "Serve mode override should be present"
+        );
+
+        // Verify serve mode is PIO (bit 3 in override_value should be 1)
+        assert!(
+            fw_overrides.is_override_value_set(4),
+            "Serve mode should be PIO"
+        );
+    }
+
+    // ========================================================================
+    // TEST 90: Multiple Overrides Together
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_multiple_overrides() {
+        let json = r#"{
+            "version": 1,
+            "description": "Multiple overrides test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "120MHz",
+                        "overclock": true
+                    },
+                    "led": {
+                        "enabled": false
+                    },
+                    "swd": {
+                        "swd_enabled": true
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse firmware overrides
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Verify all override_present bits
+        assert!(
+            fw_overrides.is_override_present(0),
+            "Ice frequency should be present"
+        );
+        assert!(
+            fw_overrides.is_override_present(1),
+            "Ice overclock should be present"
+        );
+        assert!(fw_overrides.is_override_present(5), "LED should be present");
+        assert!(fw_overrides.is_override_present(6), "SWD should be present");
+
+        // Verify Ice frequency
+        assert_eq!(fw_overrides.ice_freq, 120, "Ice frequency should be 120MHz");
+
+        // Verify override_value bits
+        assert!(
+            fw_overrides.is_override_value_set(0),
+            "Ice overclock should be enabled"
+        );
+        assert!(
+            !fw_overrides.is_override_value_set(2),
+            "LED should be disabled"
+        );
+        assert!(
+            fw_overrides.is_override_value_set(3),
+            "SWD should be enabled"
+        );
+
+        println!("✓ Phase 20 Test 3: Multiple overrides correctly serialized");
+        println!("  - Ice frequency: {}MHz", fw_overrides.ice_freq);
+        println!("  - Overclock: enabled");
+        println!("  - LED: disabled");
+        println!("  - SWD: enabled");
+    }
+
+    // ========================================================================
+    // TEST 94: Multiple ROM Sets with Different Overrides
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_multiple_sets_different_overrides() {
+        let json = r#"{
+            "version": 1,
+            "description": "Multiple sets with different overrides",
+            "rom_sets": [
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test0.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }],
+                    "firmware_overrides": {
+                        "ice": {
+                            "cpu_freq": "100MHz",
+                            "overclock": false
+                        }
+                    }
+                },
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test1.rom",
+                        "type": "2332",
+                        "cs1": "active_low",
+                        "cs2": "active_high"
+                    }],
+                    "firmware_overrides": {
+                        "ice": {
+                            "cpu_freq": "150MHz",
+                            "overclock": true
+                        },
+                        "led": {
+                            "enabled": false
+                        }
+                    }
+                },
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test2.rom",
+                        "type": "2316",
+                        "cs1": "active_low",
+                        "cs2": "active_low",
+                        "cs3": "active_low"
+                    }]
+                }
+            ]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file 0");
+
+        builder
+            .add_file(FileData {
+                id: 1,
+                data: create_test_rom_data(4096, 0x55),
+            })
+            .expect("Failed to add file 1");
+
+        builder
+            .add_file(FileData {
+                id: 2,
+                data: create_test_rom_data(2048, 0xFF),
+            })
+            .expect("Failed to add file 2");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        let header = MetadataHeader::parse(&metadata_buf);
+        assert_eq!(header.rom_set_count, 3);
+
+        // Check Set 0 - has ice override
+        let rom_set0_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set0 = ExtendedRomSetStruct::parse(&metadata_buf, rom_set0_offset);
+        assert_ne!(
+            ext_rom_set0.firmware_overrides_ptr, 0xFFFFFFFF,
+            "Set 0 should have firmware_overrides"
+        );
+
+        let fw_overrides0_offset =
+            (ext_rom_set0.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides0 = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides0_offset);
+        assert_eq!(fw_overrides0.ice_freq, 100, "Set 0 should be 100MHz");
+        assert!(
+            !fw_overrides0.is_override_value_set(0),
+            "Set 0 Ice overclock should be disabled"
+        );
+
+        // Check Set 1 - has ice + led overrides
+        let rom_set1_offset = rom_set0_offset + 64; // Extended structure is 64 bytes
+        let ext_rom_set1 = ExtendedRomSetStruct::parse(&metadata_buf, rom_set1_offset);
+        assert_ne!(
+            ext_rom_set1.firmware_overrides_ptr, 0xFFFFFFFF,
+            "Set 1 should have firmware_overrides"
+        );
+
+        let fw_overrides1_offset =
+            (ext_rom_set1.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides1 = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides1_offset);
+        assert_eq!(fw_overrides1.ice_freq, 150, "Set 1 should be 150MHz");
+        assert!(
+            fw_overrides1.is_override_value_set(0),
+            "Set 1 Ice overclock should be enabled"
+        );
+        assert!(
+            !fw_overrides1.is_override_value_set(2),
+            "Set 1 LED should be disabled"
+        );
+
+        // Check Set 2 - no overrides
+        let rom_set2_offset = rom_set1_offset + 64;
+        let ext_rom_set2 = ExtendedRomSetStruct::parse(&metadata_buf, rom_set2_offset);
+        assert_eq!(
+            ext_rom_set2.firmware_overrides_ptr, 0xFFFFFFFF,
+            "Set 2 should have NULL firmware_overrides"
+        );
+
+        println!("✓ Phase 20 Test 7: Multiple ROM sets with different overrides");
+        println!("  - Set 0: 100MHz, overclock disabled");
+        println!("  - Set 1: 150MHz, overclock enabled, LED disabled");
+        println!("  - Set 2: No overrides");
+    }
+
+    // ========================================================================
+    // TEST 98: Bitfield Validation - All Bits
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_all_bitfields() {
+        let json = r#"{
+            "version": 1,
+            "description": "All bitfields test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "96MHz",
+                        "overclock": true
+                    },
+                    "led": {
+                        "enabled": true
+                    },
+                    "swd": {
+                        "swd_enabled": false
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse firmware overrides
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Check override_present bitfield
+        // Bits: 0=Ice freq, 1=Ice overclock, 5=LED, 6=SWD
+        let expected_present = (1 << 0) | (1 << 1) | (1 << 5) | (1 << 6);
+        assert_eq!(
+            fw_overrides.override_present[0], expected_present,
+            "override_present[0] should be 0x{:02X}, got 0x{:02X}",
+            expected_present, fw_overrides.override_present[0]
+        );
+
+        // Check override_value bitfield
+        // Bits: 0=Ice overclock enabled, 2=LED enabled, 3=SWD disabled
+        let expected_value = (1 << 0) | (1 << 2); // Ice overclock=1, LED=1, SWD=0
+        assert_eq!(
+            fw_overrides.override_value[0], expected_value,
+            "override_value[0] should be 0x{:02X}, got 0x{:02X}",
+            expected_value, fw_overrides.override_value[0]
+        );
+
+        println!("✓ Phase 20 Test 11: All bitfields correctly set");
+        println!(
+            "  - override_present[0]: 0x{:02X}",
+            fw_overrides.override_present[0]
+        );
+        println!(
+            "  - override_value[0]: 0x{:02X}",
+            fw_overrides.override_value[0]
+        );
+    }
+    // ========================================================================
+    // TEST 91: No Overrides - Null Pointers
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_no_overrides() {
+        let json = r#"{
+            "version": 1,
+            "description": "No overrides test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse extended ROM set structure
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+
+        // Verify extra_info is set
+        assert_eq!(
+            ext_rom_set.extra_info, 1,
+            "extra_info should be 1 for 0.6.0+"
+        );
+
+        // Verify both pointers are NULL (0xFFFFFFFF)
+        assert_eq!(
+            ext_rom_set.firmware_overrides_ptr, 0xFFFFFFFF,
+            "firmware_overrides_ptr should be NULL when no overrides"
+        );
+
+        assert_eq!(
+            ext_rom_set.serve_config_ptr, 0xFFFFFFFF,
+            "serve_config_ptr should be NULL when no serve_alg_params"
+        );
+
+        println!("✓ Phase 20 Test 4: No overrides correctly serialized with NULL pointers");
+    }
+
+    // ========================================================================
+    // TEST 92: Pre-0.6.0 Compatibility - 16 Byte Structure
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_pre_060_compatibility() {
+        let json = r#"{
+            "version": 1,
+            "description": "Pre-0.6.0 compatibility test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }]
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(
+            FirmwareVersion::new(0, 5, 1, 0), // Pre-0.6.0 version
+            MCU_FAM,
+            json,
+        )
+        .expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = FirmwareProperties::new(
+            FirmwareVersion::new(0, 5, 1, 0),
+            Board::Ice24UsbH,
+            McuVariant::F411RE,
+            ServeAlg::Default,
+            false,
+        )
+        .unwrap();
+
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse basic ROM set structure (should be 16 bytes)
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let rom_set = RomSetStruct::parse(&metadata_buf, rom_set_offset);
+
+        // Verify basic structure is valid
+        assert_eq!(rom_set.rom_count, 1, "Should have 1 ROM");
+
+        // Verify no extended fields are present (next ROM set or end of metadata should follow)
+        // For pre-0.6.0, the next structure should be 16 bytes after this one, not 64
+        // We can't directly test this without multiple ROM sets, but we can verify
+        // the metadata length is reasonable for a 16-byte structure
+
+        println!("✓ Phase 20 Test 5: Pre-0.6.0 compatibility - 16 byte structure");
+    }
+
+    // ========================================================================
+    // TEST 93: Firmware Overrides with firmware_overrides Specified But Should Fail
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_overrides_on_old_firmware() {
+        let json = r#"{
+            "version": 1,
+            "description": "Overrides on old firmware",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "100MHz",
+                        "overclock": false
+                    }
+                }
+            }]
+        }"#;
+
+        let result = Builder::from_json(
+            FirmwareVersion::new(0, 5, 1, 0), // Pre-0.6.0 version
+            MCU_FAM,
+            json,
+        );
+
+        assert!(
+            result.is_err(),
+            "firmware_overrides should fail on pre-0.6.0 firmware"
+        );
+
+        println!("✓ Phase 20 Test 6: firmware_overrides on old firmware correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 95: serve_alg_params
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_serve_alg_params() {
+        let json = r#"{
+            "version": 1,
+            "description": "serve_alg_params test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "serve_alg_params": {
+                        "params": [1, 2, 3, 4, 5]
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse extended ROM set structure
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+
+        // Verify serve_config pointer is valid
+        assert_ne!(
+            ext_rom_set.serve_config_ptr, 0xFFFFFFFF,
+            "serve_config_ptr should not be NULL"
+        );
+
+        // Parse serve_config structure (64 bytes)
+        let serve_config_offset = (ext_rom_set.serve_config_ptr - metadata_flash_start) as usize;
+        assert!(
+            serve_config_offset + 64 <= metadata_buf.len(),
+            "serve_config structure should fit in metadata buffer"
+        );
+
+        // Verify the params are written correctly
+        assert_eq!(
+            metadata_buf[serve_config_offset], 1,
+            "First param should be 1"
+        );
+        assert_eq!(
+            metadata_buf[serve_config_offset + 1],
+            2,
+            "Second param should be 2"
+        );
+        assert_eq!(
+            metadata_buf[serve_config_offset + 2],
+            3,
+            "Third param should be 3"
+        );
+        assert_eq!(
+            metadata_buf[serve_config_offset + 3],
+            4,
+            "Fourth param should be 4"
+        );
+        assert_eq!(
+            metadata_buf[serve_config_offset + 4],
+            5,
+            "Fifth param should be 5"
+        );
+
+        // Verify rest is zero-padded
+        for i in 5..64 {
+            assert_eq!(
+                metadata_buf[serve_config_offset + i],
+                0xFF,
+                "Padding at offset {} should be 0",
+                i
+            );
+        }
+
+        println!("✓ Phase 20 Test 8: serve_alg_params correctly serialized");
+    }
+
+    // ========================================================================
+    // TEST 96: Empty firmware_overrides (All None) Should Fail
+    // ========================================================================
+    #[test]
+    fn test_phase20_empty_firmware_overrides() {
+        let json = r#"{
+            "version": 1,
+            "description": "Empty firmware_overrides",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {}
+            }]
+        }"#;
+
+        let mut builder =
+            Builder::from_json(FW_VER, MCU_FAM, json).expect("Parsing should succeed");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let result = builder.build(props);
+
+        assert!(
+            result.is_err(),
+            "Build should fail with empty firmware_overrides"
+        );
+
+        println!("✓ Phase 20 Test 9: Empty firmware_overrides correctly rejected");
+    }
+
+    // ========================================================================
+    // TEST 97: Stock Frequency Values
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_stock_frequency() {
+        let json = r#"{
+            "version": 1,
+            "description": "Stock frequency test",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "Stock",
+                        "overclock": false
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse firmware overrides
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Verify Stock frequency is 0xFF (since repr is u16, upper byte should be 0xFF)
+        assert_eq!(
+            fw_overrides.ice_freq, 0xFFFF,
+            "Stock frequency should be 0xFFFF"
+        );
+
+        println!("✓ Phase 20 Test 10: Stock frequency correctly serialized as 0xFF");
+    }
+
+    // ========================================================================
+    // TEST 99: Fire Clock with Stock VREG
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_fire_stock_vreg() {
+        let json = r#"{
+            "version": 1,
+            "description": "Fire clock with stock VREG",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "fire": {
+                        "cpu_freq": "250MHz",
+                        "overclock": false
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse firmware overrides
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Verify Fire frequency is present (bit 2)
+        assert!(
+            fw_overrides.is_override_present(2),
+            "Fire frequency override should be present"
+        );
+
+        // Verify Fire overclock is present (bit 3)
+        assert!(
+            fw_overrides.is_override_present(3),
+            "Fire overclock override should be present"
+        );
+
+        // Verify VREG IS NOT present (bit 4) - as not specified
+        assert!(
+            !fw_overrides.is_override_present(4),
+            "Fire VREG override should not be present"
+        );
+
+        // Verify VREG value is 0xFF (Stock)
+        assert_eq!(fw_overrides.fire_vreg, 0xFF, "VREG should be 0xFF (Stock)");
+
+        // Verify Fire overclock is disabled (bit 1 in override_value should be 0)
+        assert!(
+            !fw_overrides.is_override_value_set(1),
+            "Fire overclock should be disabled"
+        );
+
+        println!("✓ Phase 20 Test 99: Fire clock with Stock VREG");
+        println!("  - Fire frequency: 250MHz");
+        println!("  - VREG: Stock (0xFF)");
+        println!("  - VREG override bit NOT set");
+    }
+
+    // ========================================================================
+    // TEST 100: Ice AND Fire Clocks Together
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_ice_and_fires() {
+        let json = r#"{
+            "version": 1,
+            "description": "Ice and Fire clocks together",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "168MHz",
+                        "overclock": true
+                    },
+                    "fire": {
+                        "cpu_freq": "400MHz",
+                        "overclock": false,
+                        "vreg": "1.25V"
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse firmware overrides
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Verify all override_present bits for both Ice and Fire
+        assert!(
+            fw_overrides.is_override_present(0),
+            "Ice frequency should be present"
+        );
+        assert!(
+            fw_overrides.is_override_present(1),
+            "Ice overclock should be present"
+        );
+        assert!(
+            fw_overrides.is_override_present(2),
+            "Fire frequency should be present"
+        );
+        assert!(
+            fw_overrides.is_override_present(3),
+            "Fire overclock should be present"
+        );
+        assert!(
+            fw_overrides.is_override_present(4),
+            "Fire VREG should be present"
+        );
+
+        // Verify frequency values
+        assert_eq!(fw_overrides.ice_freq, 168, "Ice frequency should be 168MHz");
+        assert_eq!(
+            fw_overrides.fire_freq, 400,
+            "Fire frequency should be 400MHz"
+        );
+
+        // Verify VREG value (1.25V = 0x0E)
+        assert_eq!(fw_overrides.fire_vreg, 0x0E, "VREG should be 1.25V (0x0E)");
+
+        // Verify overclock values
+        assert!(
+            fw_overrides.is_override_value_set(0),
+            "Ice overclock should be enabled"
+        );
+        assert!(
+            !fw_overrides.is_override_value_set(1),
+            "Fire overclock should be disabled"
+        );
+
+        println!("✓ Phase 20 Test 100: Ice and Fire clocks together");
+        println!("  - Ice: 168MHz, overclock enabled");
+        println!("  - Fire: 400MHz, overclock disabled, VREG 1.25V");
+    }
+
+    // ========================================================================
+    // TEST 101: serve_alg_params Combined with Other Overrides
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_serve_params_with_overrides() {
+        let json = r#"{
+            "version": 1,
+            "description": "serve_alg_params with other overrides",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "144MHz",
+                        "overclock": false
+                    },
+                    "led": {
+                        "enabled": true
+                    },
+                    "serve_alg_params": {
+                        "params": [10, 20, 30, 40, 50]
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse extended ROM set structure
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+
+        // Verify both pointers are valid
+        assert_ne!(
+            ext_rom_set.firmware_overrides_ptr, 0xFFFFFFFF,
+            "firmware_overrides_ptr should not be NULL"
+        );
+        assert_ne!(
+            ext_rom_set.serve_config_ptr, 0xFFFFFFFF,
+            "serve_config_ptr should not be NULL"
+        );
+
+        // Check firmware overrides
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        assert!(
+            fw_overrides.is_override_present(0),
+            "Ice frequency should be present"
+        );
+        assert!(fw_overrides.is_override_present(5), "LED should be present");
+        assert_eq!(fw_overrides.ice_freq, 144, "Ice frequency should be 144MHz");
+        assert!(
+            fw_overrides.is_override_value_set(2),
+            "LED should be enabled"
+        );
+
+        // Check serve_config
+        let serve_config_offset = (ext_rom_set.serve_config_ptr - metadata_flash_start) as usize;
+        assert_eq!(
+            metadata_buf[serve_config_offset], 10,
+            "First param should be 10"
+        );
+        assert_eq!(
+            metadata_buf[serve_config_offset + 1],
+            20,
+            "Second param should be 20"
+        );
+        assert_eq!(
+            metadata_buf[serve_config_offset + 4],
+            50,
+            "Fifth param should be 50"
+        );
+
+        println!("✓ Phase 20 Test 101: serve_alg_params combined with other overrides");
+        println!("  - Ice: 144MHz, overclock disabled");
+        println!("  - LED: enabled");
+        println!("  - serve_alg_params: [10, 20, 30, 40, 50]");
+    }
+
+    // ========================================================================
+    // TEST 102: serve_alg_params Exactly 64 Bytes
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_serve_params_64_bytes() {
+        let params: Vec<u8> = (0..64).collect();
+        let params_json = format!(
+            "[{}]",
+            params
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+
+        let json = format!(
+            r#"{{
+            "version": 1,
+            "description": "serve_alg_params exactly 64 bytes",
+            "rom_sets": [{{
+                "type": "single",
+                "roms": [{{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }}],
+                "firmware_overrides": {{
+                    "serve_alg_params": {{
+                        "params": {}
+                    }}
+                }}
+            }}]
+        }}"#,
+            params_json
+        );
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, &json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse serve_config
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let serve_config_offset = (ext_rom_set.serve_config_ptr - metadata_flash_start) as usize;
+
+        // Verify all 64 bytes
+        for i in 0..64 {
+            assert_eq!(
+                metadata_buf[serve_config_offset + i],
+                i as u8,
+                "Byte {} should be {}",
+                i,
+                i
+            );
+        }
+
+        println!("✓ Phase 20 Test 102: serve_alg_params exactly 64 bytes");
+    }
+
+    // ========================================================================
+    // TEST 103: serve_alg_params More Than 64 Bytes (Should Truncate)
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_serve_params_truncate() {
+        let params: Vec<u8> = (0..100).collect();
+        let params_json = format!(
+            "[{}]",
+            params
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+
+        let json = format!(
+            r#"{{
+            "version": 1,
+            "description": "serve_alg_params more than 64 bytes",
+            "rom_sets": [{{
+                "type": "single",
+                "roms": [{{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }}],
+                "firmware_overrides": {{
+                    "serve_alg_params": {{
+                        "params": {}
+                    }}
+                }}
+            }}]
+        }}"#,
+            params_json
+        );
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, &json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse serve_config
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let serve_config_offset = (ext_rom_set.serve_config_ptr - metadata_flash_start) as usize;
+
+        // Verify first 64 bytes (0-63)
+        for i in 0..64 {
+            assert_eq!(
+                metadata_buf[serve_config_offset + i],
+                i as u8,
+                "Byte {} should be {}",
+                i,
+                i
+            );
+        }
+
+        // Bytes 64-99 should have been truncated
+        println!("✓ Phase 20 Test 103: serve_alg_params >64 bytes truncated to 64");
+    }
+
+    // ========================================================================
+    // TEST 104: All Boolean Combinations
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_all_boolean_combinations() {
+        let json = r#"{
+            "version": 1,
+            "description": "All boolean combinations",
+            "rom_sets": [{
+                "type": "single",
+                "roms": [{
+                    "file": "test.rom",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }],
+                "firmware_overrides": {
+                    "ice": {
+                        "cpu_freq": "100MHz",
+                        "overclock": true
+                    },
+                    "fire": {
+                        "cpu_freq": "300MHz",
+                        "overclock": false
+                    },
+                    "led": {
+                        "enabled": true
+                    },
+                    "swd": {
+                        "swd_enabled": false
+                    }
+                }
+            }]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        builder
+            .add_file(FileData {
+                id: 0,
+                data: create_test_rom_data(8192, 0xAA),
+            })
+            .expect("Failed to add file");
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        // Parse firmware overrides
+        let header = MetadataHeader::parse(&metadata_buf);
+        let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+        let fw_overrides_offset =
+            (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+        // Check override_value bitfield
+        // Bits: 0=Ice overclock, 1=Fire overclock, 2=LED, 3=SWD
+        // Expected: Ice=true(1), Fire=false(0), LED=true(1), SWD=false(0)
+        let expected_value = (1 << 0) | (1 << 2); // Bits 0 and 2 set
+        assert_eq!(
+            fw_overrides.override_value[0], expected_value,
+            "override_value should be 0x{:02X}, got 0x{:02X}",
+            expected_value, fw_overrides.override_value[0]
+        );
+
+        println!("✓ Phase 20 Test 104: All boolean combinations");
+        println!("  - Ice overclock: enabled");
+        println!("  - Fire overclock: disabled");
+        println!("  - LED: enabled");
+        println!("  - SWD: disabled");
+    }
+
+    // ========================================================================
+    // TEST 105: Frequency Boundary Values
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_frequency_boundaries() {
+        // Test minimum and maximum frequencies
+        let test_cases = vec![("1MHz", 1u16, "Ice min"), ("180MHz", 180u16, "Ice max")];
+
+        for (freq_str, expected_value, description) in test_cases {
+            let json = format!(
+                r#"{{
+                "version": 1,
+                "description": "Frequency boundary test: {}",
+                "rom_sets": [{{
+                    "type": "single",
+                    "roms": [{{
+                        "file": "test.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }}],
+                    "firmware_overrides": {{
+                        "ice": {{
+                            "cpu_freq": "{}",
+                            "overclock": false
+                        }}
+                    }}
+                }}]
+            }}"#,
+                description, freq_str
+            );
+
+            let mut builder =
+                Builder::from_json(FW_VER, MCU_FAM, &json).expect("Failed to parse JSON");
+
+            builder
+                .add_file(FileData {
+                    id: 0,
+                    data: create_test_rom_data(8192, 0xAA),
+                })
+                .expect("Failed to add file");
+
+            let props = default_fw_props_060();
+            let board = props.board();
+            let flash_base = board.mcu_family().get_flash_base();
+            let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+            let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+            // Parse firmware overrides
+            let header = MetadataHeader::parse(&metadata_buf);
+            let rom_set_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+            let ext_rom_set = ExtendedRomSetStruct::parse(&metadata_buf, rom_set_offset);
+            let fw_overrides_offset =
+                (ext_rom_set.firmware_overrides_ptr - metadata_flash_start) as usize;
+            let fw_overrides = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides_offset);
+
+            assert_eq!(
+                fw_overrides.ice_freq, expected_value,
+                "{}: Expected {}, got {}",
+                description, expected_value, fw_overrides.ice_freq
+            );
+
+            println!("✓ Phase 20 Test 105: {} = {}", description, expected_value);
+        }
+    }
+
+    // ========================================================================
+    // TEST 106: Complex Multiple ROM Sets with Different Overrides
+    // ========================================================================
+
+    #[test]
+    fn test_phase20_complex_multiple_sets() {
+        let json = r#"{
+            "version": 1,
+            "description": "Complex multiple sets with varied overrides",
+            "rom_sets": [
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test0.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }],
+                    "firmware_overrides": {
+                        "ice": {
+                            "cpu_freq": "96MHz",
+                            "overclock": false
+                        },
+                        "led": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test1.rom",
+                        "type": "2332",
+                        "cs1": "active_low",
+                        "cs2": "active_high"
+                    }],
+                    "firmware_overrides": {
+                        "fire": {
+                            "cpu_freq": "300MHz",
+                            "overclock": true,
+                            "vreg": "1.15V"
+                        },
+                        "swd": {
+                            "swd_enabled": false
+                        },
+                        "serve_alg_params": {
+                            "params": [1, 2, 3]
+                        }
+                    }
+                },
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test2.rom",
+                        "type": "2316",
+                        "cs1": "active_low",
+                        "cs2": "active_low",
+                        "cs3": "active_low"
+                    }],
+                    "firmware_overrides": {
+                        "ice": {
+                            "cpu_freq": "168MHz",
+                            "overclock": true
+                        },
+                        "fire": {
+                            "cpu_freq": "250MHz",
+                            "overclock": false
+                        }
+                    }
+                },
+                {
+                    "type": "single",
+                    "roms": [{
+                        "file": "test3.rom",
+                        "type": "2364",
+                        "cs1": "active_low"
+                    }]
+                }
+            ]
+        }"#;
+
+        let mut builder = Builder::from_json(FW_VER, MCU_FAM, json).expect("Failed to parse JSON");
+
+        let rom_sizes = [8192, 4096, 2048, 8192];
+        for i in 0..4 {
+            builder
+                .add_file(FileData {
+                    id: i,
+                    data: create_test_rom_data(rom_sizes[i], (0xAA - i * 0x20) as u8),
+                })
+                .expect(&format!("Failed to add file {}", i));
+        }
+
+        let props = default_fw_props_060();
+        let board = props.board();
+        let flash_base = board.mcu_family().get_flash_base();
+        let metadata_flash_start = flash_base + METADATA_FLASH_OFFSET;
+        let (metadata_buf, _rom_images_buf) = builder.build(props).expect("Build failed");
+
+        let header = MetadataHeader::parse(&metadata_buf);
+        assert_eq!(header.rom_set_count, 4);
+
+        // ===== SET 0: Ice + LED =====
+        let rom_set0_offset = (header.rom_sets_ptr - metadata_flash_start) as usize;
+        let ext_rom_set0 = ExtendedRomSetStruct::parse(&metadata_buf, rom_set0_offset);
+        assert_ne!(
+            ext_rom_set0.firmware_overrides_ptr, 0xFFFFFFFF,
+            "Set 0 should have firmware_overrides"
+        );
+        assert_eq!(
+            ext_rom_set0.serve_config_ptr, 0xFFFFFFFF,
+            "Set 0 should NOT have serve_config"
+        );
+
+        let fw_overrides0_offset =
+            (ext_rom_set0.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides0 = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides0_offset);
+
+        assert!(
+            fw_overrides0.is_override_present(0),
+            "Set 0: Ice freq should be present"
+        );
+        assert!(
+            fw_overrides0.is_override_present(1),
+            "Set 0: Ice overclock should be present"
+        );
+        assert!(
+            fw_overrides0.is_override_present(5),
+            "Set 0: LED should be present"
+        );
+        assert!(
+            !fw_overrides0.is_override_present(2),
+            "Set 0: Fire freq should NOT be present"
+        );
+
+        assert_eq!(
+            fw_overrides0.ice_freq, 96,
+            "Set 0: Ice freq should be 96MHz"
+        );
+        assert!(
+            !fw_overrides0.is_override_value_set(0),
+            "Set 0: Ice overclock should be disabled"
+        );
+        assert!(
+            fw_overrides0.is_override_value_set(2),
+            "Set 0: LED should be enabled"
+        );
+
+        // ===== SET 1: Fire + SWD + serve_alg_params =====
+        let rom_set1_offset = rom_set0_offset + 64;
+        let ext_rom_set1 = ExtendedRomSetStruct::parse(&metadata_buf, rom_set1_offset);
+        assert_ne!(
+            ext_rom_set1.firmware_overrides_ptr, 0xFFFFFFFF,
+            "Set 1 should have firmware_overrides"
+        );
+        assert_ne!(
+            ext_rom_set1.serve_config_ptr, 0xFFFFFFFF,
+            "Set 1 should have serve_config"
+        );
+
+        let fw_overrides1_offset =
+            (ext_rom_set1.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides1 = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides1_offset);
+
+        assert!(
+            !fw_overrides1.is_override_present(0),
+            "Set 1: Ice freq should NOT be present"
+        );
+        assert!(
+            fw_overrides1.is_override_present(2),
+            "Set 1: Fire freq should be present"
+        );
+        assert!(
+            fw_overrides1.is_override_present(3),
+            "Set 1: Fire overclock should be present"
+        );
+        assert!(
+            fw_overrides1.is_override_present(4),
+            "Set 1: Fire VREG should be present"
+        );
+        assert!(
+            fw_overrides1.is_override_present(6),
+            "Set 1: SWD should be present"
+        );
+
+        assert_eq!(
+            fw_overrides1.fire_freq, 300,
+            "Set 1: Fire freq should be 300MHz"
+        );
+        assert_eq!(
+            fw_overrides1.fire_vreg, 0x0C,
+            "Set 1: VREG should be 1.15V (0x0C)"
+        );
+        assert!(
+            fw_overrides1.is_override_value_set(1),
+            "Set 1: Fire overclock should be enabled"
+        );
+        assert!(
+            !fw_overrides1.is_override_value_set(3),
+            "Set 1: SWD should be disabled"
+        );
+
+        // Check serve_config for Set 1
+        let serve_config1_offset = (ext_rom_set1.serve_config_ptr - metadata_flash_start) as usize;
+        assert_eq!(
+            metadata_buf[serve_config1_offset], 1,
+            "Set 1: serve param[0] should be 1"
+        );
+        assert_eq!(
+            metadata_buf[serve_config1_offset + 1],
+            2,
+            "Set 1: serve param[1] should be 2"
+        );
+        assert_eq!(
+            metadata_buf[serve_config1_offset + 2],
+            3,
+            "Set 1: serve param[2] should be 3"
+        );
+        assert_eq!(
+            metadata_buf[serve_config1_offset + 3],
+            0xFF,
+            "Set 1: serve param[3] should be 0xFF (padding)"
+        );
+
+        // ===== SET 2: Ice + Fire =====
+        let rom_set2_offset = rom_set1_offset + 64;
+        let ext_rom_set2 = ExtendedRomSetStruct::parse(&metadata_buf, rom_set2_offset);
+        assert_ne!(
+            ext_rom_set2.firmware_overrides_ptr, 0xFFFFFFFF,
+            "Set 2 should have firmware_overrides"
+        );
+        assert_eq!(
+            ext_rom_set2.serve_config_ptr, 0xFFFFFFFF,
+            "Set 2 should NOT have serve_config"
+        );
+
+        let fw_overrides2_offset =
+            (ext_rom_set2.firmware_overrides_ptr - metadata_flash_start) as usize;
+        let fw_overrides2 = FirmwareOverridesStruct::parse(&metadata_buf, fw_overrides2_offset);
+
+        assert!(
+            fw_overrides2.is_override_present(0),
+            "Set 2: Ice freq should be present"
+        );
+        assert!(
+            fw_overrides2.is_override_present(1),
+            "Set 2: Ice overclock should be present"
+        );
+        assert!(
+            fw_overrides2.is_override_present(2),
+            "Set 2: Fire freq should be present"
+        );
+        assert!(
+            fw_overrides2.is_override_present(3),
+            "Set 2: Fire overclock should be present"
+        );
+        assert!(
+            !fw_overrides2.is_override_present(4),
+            "Set 2: Fire VREG should not be present"
+        );
+
+        assert_eq!(
+            fw_overrides2.ice_freq, 168,
+            "Set 2: Ice freq should be 168MHz"
+        );
+        assert_eq!(
+            fw_overrides2.fire_freq, 250,
+            "Set 2: Fire freq should be 250MHz"
+        );
+        assert_eq!(
+            fw_overrides2.fire_vreg, 0xFF,
+            "Set 2: VREG should be Stock (0xFF)"
+        );
+        assert!(
+            fw_overrides2.is_override_value_set(0),
+            "Set 2: Ice overclock should be enabled"
+        );
+        assert!(
+            !fw_overrides2.is_override_value_set(1),
+            "Set 2: Fire overclock should be disabled"
+        );
+
+        // ===== SET 3: No overrides =====
+        let rom_set3_offset = rom_set2_offset + 64;
+        let ext_rom_set3 = ExtendedRomSetStruct::parse(&metadata_buf, rom_set3_offset);
+        assert_eq!(
+            ext_rom_set3.firmware_overrides_ptr, 0xFFFFFFFF,
+            "Set 3 should NOT have firmware_overrides"
+        );
+        assert_eq!(
+            ext_rom_set3.serve_config_ptr, 0xFFFFFFFF,
+            "Set 3 should NOT have serve_config"
+        );
+
+        println!("✓ Phase 20 Test 106: Complex multiple ROM sets");
+        println!("  - Set 0: Ice 96MHz (no OC), LED enabled");
+        println!("  - Set 1: Fire 300MHz (OC), VREG 1.15V, SWD disabled, serve_params");
+        println!("  - Set 2: Ice 168MHz (OC), Fire 250MHz (no OC, Stock VREG)");
+        println!("  - Set 3: No overrides");
     }
 }

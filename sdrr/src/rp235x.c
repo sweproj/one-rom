@@ -4,18 +4,25 @@
 //
 // MIT License
 
+#define RP235X_INCLUDES
 #include "include.h"
 #include "roms.h"
 
 // Internal function prototypes
+uint8_t calculate_pll_settings(
+    rp235x_clock_config_t *clock_config,
+    uint8_t overclock
+);
+static void get_clock_config(rp235x_clock_config_t *config);
+uint8_t get_vreg_from_target_mhz(uint16_t target_mhz);
 static void setup_xosc(void);
-static void setup_pll(void);
+static void setup_pll(rp235x_clock_config_t *config);
 static void setup_usb_pll(void);
-static void setup_qmi(void);
-static void setup_vreg(void);
+static void setup_qmi(rp235x_clock_config_t *config);
+static void setup_vreg(rp235x_clock_config_t *config);
 static void setup_adc(void);
 static void setup_cp(void);
-static void final_checks(void);
+static void final_checks(rp235x_clock_config_t *config);
 uint16_t get_temp(void);
 
 // RP2350 firmware needs a special boot block so the bootloader will load it.
@@ -98,15 +105,160 @@ void vbus_connect_handler(void) {
     enter_bootloader();
 }
 
+uint8_t calculate_pll_settings(
+    rp235x_clock_config_t *config,
+    uint8_t overclock
+) {
+    const uint32_t XOSC_MHZ = 12;
+    const uint8_t REFDIV = 1;
+
+    (void)overclock;
+    
+    uint32_t target_freq_mhz = config->sys_clock_freq_mhz;
+
+    if ((target_freq_mhz > RP235X_STOCK_CLOCK_SPEED_MHZ) && (!overclock)) {
+        LOG("!!! Requested frequency %dMHz exceeds max %dMHz - cannot calculate PLL",
+            target_freq_mhz, RP235X_STOCK_CLOCK_SPEED_MHZ);
+        return 0;
+    }
+    
+    uint32_t vco_min = 750;
+    uint32_t vco_max = 1600;
+    
+    // Try POSTDIV combinations (prefer higher PD1:PD2 ratios)
+    uint32_t best_error = UINT32_MAX;
+    uint8_t rc = 0;
+    for (uint8_t pd2 = 1; pd2 <= 7; pd2++) {
+        for (uint8_t pd1 = 1; pd1 <= 7; pd1++) {
+            uint32_t divisor = pd1 * pd2;
+            uint32_t vco_mhz = target_freq_mhz * divisor;
+            
+            uint32_t fbdiv = (vco_mhz + 6) / XOSC_MHZ;  // Round to nearest
+            
+            if (fbdiv >= 16 && fbdiv <= 320) {
+                uint32_t actual_vco = XOSC_MHZ * fbdiv;
+                if (actual_vco >= vco_min && actual_vco <= vco_max) {
+                    uint32_t target_vco = target_freq_mhz * divisor;
+                    uint32_t error = (actual_vco > target_vco) ? 
+                                    (actual_vco - target_vco) : 
+                                    (target_vco - actual_vco);
+                                    
+                    if (error < best_error) {
+                        best_error = error;
+                        config->pll_refdiv = REFDIV;
+                        config->pll_sys_fbdiv = (uint16_t)fbdiv;
+                        config->pll_sys_postdiv1 = pd1;
+                        config->pll_sys_postdiv2 = pd2;
+                        rc = 1;
+                    }
+                }
+            }
+        }
+    }
+    
+    return rc;
+}
+
+uint8_t get_vreg_from_target_mhz(uint16_t target_mhz) {
+    uint8_t vreg = FIRE_VREG_1_10V;
+    
+    // These are conservative values.  The RP235X accepts values up to 3.30V.
+    // Higher values may be required for very high overclocks, but may also
+    // damage the chip or reduce its lifespan.
+    //
+    // To use custom VREG settngs, use firmware overrides in the ROM config.
+    if (target_mhz >= 500) {
+        vreg = FIRE_VREG_1_60V;
+    } else if (target_mhz >= 450) {
+        vreg = FIRE_VREG_1_50V;
+    } else if (target_mhz >= 425) {
+        vreg = FIRE_VREG_1_40V;
+    } else if (target_mhz >= 400) {
+        vreg = FIRE_VREG_1_30V;
+    } else if (target_mhz >= 375) {
+        vreg = FIRE_VREG_1_25V;
+    } else if (target_mhz >= 340) {
+        vreg = FIRE_VREG_1_20V;
+    } else if (target_mhz > 300) {
+        vreg = FIRE_VREG_1_15V;
+    }
+
+    return vreg;
+}
+
+// Figures out the PLL and VREG configuration based on the combination of
+// compile time info and any ROM set overrides.
+void get_clock_config(rp235x_clock_config_t *config) {
+    if (sdrr_runtime_info.fire_freq == FIRE_FREQ_NONE) {
+        // Use compile time setting if not overridden
+        config->sys_clock_freq_mhz = TARGET_FREQ_MHZ;
+    } else if (sdrr_runtime_info.fire_freq == FIRE_FREQ_STOCK) {
+        // Use stock speed (150MHz) if requested
+        config->sys_clock_freq_mhz = RP235X_STOCK_CLOCK_SPEED_MHZ;
+    } else if (sdrr_runtime_info.fire_freq < RP235X_MAX_CONFIGURABLE_MHZ) {
+        config->sys_clock_freq_mhz = sdrr_runtime_info.fire_freq;
+    } else {
+        LOG("!!! Fire frequency set to more than absolute maximum %0d/%0d - using stock", sdrr_runtime_info.fire_freq, RP235X_MAX_CONFIGURABLE_MHZ);
+        config->sys_clock_freq_mhz = RP235X_STOCK_CLOCK_SPEED_MHZ;
+    }
+
+    // Check for overclocking enabled
+    if (config->sys_clock_freq_mhz > RP235X_STOCK_CLOCK_SPEED_MHZ) {
+        if (sdrr_runtime_info.overclock_enabled) {
+            LOG("Overclocking enabled - allowing %dMHz", config->sys_clock_freq_mhz);
+        } else {
+            LOG("!!! Overclocking disabled - capping at stock %dMHz", RP235X_STOCK_CLOCK_SPEED_MHZ);
+            config->sys_clock_freq_mhz = RP235X_STOCK_CLOCK_SPEED_MHZ;
+        }
+    }
+
+    // Calculate PLL settings, to get as close to target frequency as possible.
+    // This can fail for very low and very high frequencies.
+    if (!calculate_pll_settings(
+        config,
+        sdrr_runtime_info.overclock_enabled
+    )) {
+        LOG("!!! Could not calculate PLL settings - using compile time settings %dMHz", TARGET_FREQ_MHZ);
+        config->sys_clock_freq_mhz = TARGET_FREQ_MHZ;  
+        config->pll_refdiv = PLL_SYS_REFDIV;
+        config->pll_sys_fbdiv = PLL_SYS_FBDIV;
+        config->pll_sys_postdiv1 = PLL_SYS_POSTDIV1;
+        config->pll_sys_postdiv2 = PLL_SYS_POSTDIV2;
+    }
+
+    // Set VREG
+    if ((sdrr_runtime_info.fire_vreg != FIRE_VREG_STOCK) && (sdrr_runtime_info.fire_vreg != FIRE_VREG_NONE)) {
+        // Overriding VREG
+        config->vreg = sdrr_runtime_info.fire_vreg;
+    } else {
+        // Using calculated VREG
+        config->vreg = get_vreg_from_target_mhz(config->sys_clock_freq_mhz);
+    }
+
+    LOG("Setting clock to %dMHz: refdiv=%d, fbdiv=%d, postdiv1=%d, postdiv2=%d, vreg=%d",
+        config->sys_clock_freq_mhz,
+        config->pll_refdiv,
+        config->pll_sys_fbdiv,
+        config->pll_sys_postdiv1,
+        config->pll_sys_postdiv2,
+        config->vreg
+    );
+
+    sdrr_runtime_info.sysclk_mhz = config->sys_clock_freq_mhz;
+}
+
 void setup_clock(void) {
     LOG("Setting up clock");
 
+    rp235x_clock_config_t config;
+    get_clock_config(&config);
+
     setup_xosc();
-    setup_qmi();
-    setup_vreg();
-    setup_pll();
+    setup_qmi(&config);
+    setup_vreg(&config);
+    setup_pll(&config);
     setup_cp();
-    final_checks();
+    final_checks(&config);
 }
 
 void setup_gpio(void) {
@@ -151,16 +303,17 @@ void setup_gpio(void) {
 }
 
 // Reconfigure flash (QMI) speed if required
-void setup_qmi(void) {
+void setup_qmi(rp235x_clock_config_t *config) {
 #if TARGET_FREQ_MHZ > (MAX_FLASH_CLOCK_FREQ_MHZ * 256)
 #error "Flash divider > 256 not supported by the hardware"
 #endif
-    if (TARGET_FREQ_MHZ > MAX_FLASH_CLOCK_FREQ_MHZ) {
-        DEBUG("Target clock speed exceeds max flash speed %dMHz vs %dHz", TARGET_FREQ_MHZ, MAX_FLASH_CLOCK_FREQ_MHZ);
+    uint16_t target_flash_freq_mhz = config->sys_clock_freq_mhz;
+    if (target_flash_freq_mhz > MAX_FLASH_CLOCK_FREQ_MHZ) {
+        DEBUG("Target clock speed exceeds max flash speed %dMHz vs %dHz", target_flash_freq_mhz, MAX_FLASH_CLOCK_FREQ_MHZ);
 
         // Calculate the divider
-        uint8_t divider = TARGET_FREQ_MHZ / MAX_FLASH_CLOCK_FREQ_MHZ;
-        if (TARGET_FREQ_MHZ % MAX_FLASH_CLOCK_FREQ_MHZ) {
+        uint8_t divider = target_flash_freq_mhz / MAX_FLASH_CLOCK_FREQ_MHZ;
+        if (target_flash_freq_mhz % MAX_FLASH_CLOCK_FREQ_MHZ) {
             divider += 1;
         }
 
@@ -178,41 +331,25 @@ void setup_qmi(void) {
     }
 }
 
-void setup_vreg(void) {
+void setup_vreg(rp235x_clock_config_t *config) {
     uint32_t vreg_ctrl = POWMAN_VREG_CTRL;
     uint32_t vreg = POWMAN_VREG;
+    uint8_t voltage = config->vreg;
     DEBUG("Current VREG_CTRL: 0x%08X", vreg_ctrl);
     DEBUG("Current VREG_STATUS: 0x%08X", POWMAN_VREG_STATUS);
     DEBUG("Current VREG: 0x%08X", vreg);
+    DEBUG("Target VREG setting: %d", voltage);
 
-    if (TARGET_FREQ_MHZ > 300) {
-        uint8_t voltage;
+    if (voltage > 0b11111) {
+        LOG("!!! Invalid VREG setting %d - not changing", voltage);
+        return;
+    }
+
+    if (config->vreg != FIRE_VREG_1_10V) {
         uint8_t high_temp = HT_TH_100;
         uint8_t unlimited_voltage = 0;
-        if (TARGET_FREQ_MHZ <= 330) {
-            voltage = VREG_1_15V;
-        } else if (TARGET_FREQ_MHZ <= 360) {
-            voltage = VREG_1_20V;
-        } else if (TARGET_FREQ_MHZ <= 390) {
-            voltage = VREG_1_25V;
-        } else if (TARGET_FREQ_MHZ <= 420) {
-            voltage = VREG_1_30V;
-        } else {
+        if (config->vreg > FIRE_VREG_1_30V) {
             unlimited_voltage = 1;
-            if (TARGET_FREQ_MHZ <= 450) {
-                LOG("!!! Setting voltage to 1.40V !!!");
-                voltage = VREG_1_40V;
-            } else if (TARGET_FREQ_MHZ <= 480) {
-                LOG("!!! Setting voltage to 1.50V !!!");
-                voltage = VREG_1_50V;
-            } else {
-                // Seems good to around 540
-#if TARGET_FREQ_MHZ > 540
-#error "Current max is 540MHz with 1.6V"
-#endif
-                LOG("!!! Setting voltage to 1.60V !!!");
-                voltage = VREG_1_60V;
-            }
         }
 
         DEBUG("Unlocking VREG");
@@ -222,7 +359,7 @@ void setup_vreg(void) {
         while (!(POWMAN_VREG_CTRL & POWMAN_VREG_CTRL_UNLOCK));
 
         if (unlimited_voltage) {
-            LOG("!!! Disabling voltage limit for >420MHz operation !!!");
+            LOG("!!! Disabling voltage limit for > 1.30V operation !!!");
             vreg_ctrl |= POWMAN_VREG_CTRL_DISABLE_VOLTAGE_LIMIT;
             POWMAN_VREG_CTRL = vreg_ctrl;
             while (!(POWMAN_VREG_CTRL & POWMAN_VREG_CTRL_DISABLE_VOLTAGE_LIMIT));
@@ -253,7 +390,7 @@ void setup_vreg(void) {
 }
 
 // Set up the PLL with the generated values
-void setup_pll(void) {
+void setup_pll(rp235x_clock_config_t *config) {
     // Release PLL_SYS from reset
     RESET_RESET &= ~RESET_PLL_SYS;
     while (!(RESET_DONE & RESET_PLL_SYS));
@@ -262,8 +399,8 @@ void setup_pll(void) {
     PLL_SYS_PWR = PLL_PWR_PD | PLL_PWR_VCOPD;
 
     // Set feedback divider and reference divider
-    PLL_SYS_FBDIV_INT = PLL_SYS_FBDIV;
-    PLL_SYS_CS = PLL_CS_REFDIV(PLL_SYS_REFDIV);
+    PLL_SYS_FBDIV_INT = config->pll_sys_fbdiv;
+    PLL_SYS_CS = PLL_CS_REFDIV(config->pll_refdiv);
 
     // Power up VCO (keep post-dividers powered down)
     PLL_SYS_PWR = PLL_PWR_POSTDIVPD;
@@ -272,8 +409,8 @@ void setup_pll(void) {
     while (!(PLL_SYS_CS & PLL_CS_LOCK));
 
     // Set post dividers and power up everything
-    PLL_SYS_PRIM = PLL_PRIM_POSTDIV1(PLL_SYS_POSTDIV1) |
-                     PLL_PRIM_POSTDIV2(PLL_SYS_POSTDIV2);
+    PLL_SYS_PRIM = PLL_PRIM_POSTDIV1(config->pll_sys_postdiv1) |
+                     PLL_PRIM_POSTDIV2(config->pll_sys_postdiv2);
 
     // Power up post dividers
     PLL_SYS_PWR = 0;
@@ -342,8 +479,8 @@ uint16_t get_temp(void) {
     return (uint16_t)(ADC_RESULT & ADC_RESULT_MASK);
 }
 
-void final_checks(void) {
-    if (TARGET_FREQ_MHZ > 300) {
+void final_checks(rp235x_clock_config_t *config) {
+    if (config->sys_clock_freq_mhz > 300) {
         DEBUG("!!!Extreme overlocking - enabling and reading temp sensor");
 
         // USB clock required for ADC
@@ -376,27 +513,45 @@ void setup_mco(void) {
 }
 
 // Set up the image select pins to be inputs with the appropriate pulls.
-uint32_t setup_sel_pins(uint32_t *sel_mask) {
+//
+// As of 0.6.0 sel_jumper_pulls is a bit field indicating whether the
+// jumper pulls up (1) or down (0) each sel pin individually.
+uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
     uint32_t num;
     uint32_t pad;
 
-    if (sdrr_info.pins->sel_jumper_pull == 0) {
-        // Jumper will pull down, so we pull up
-        pad = PAD_INPUT_PU;
-    } else if (sdrr_info.pins->sel_jumper_pull == 1) {
-        // Jumper will pull up, so we pull down
-        pad = PAD_INPUT_PD;
-    } else {
-        LOG("!!! Invalid sel pull %d", sdrr_info.pins->sel_jumper_pull);
-        return 0;
-    }
-
+    // Initialize outputs
     *sel_mask = 0;
+    *flip_bits = 0;
+
     num = 0;
     for (int ii = 0; (ii < MAX_IMG_SEL_PINS); ii++) {
         uint8_t pin = sdrr_info.pins->sel[ii];
-        if (pin < MAX_USED_GPIOS) {
-            // Enable pull-up
+        
+        if (pin >= MAX_USED_GPIOS) {
+            // Ignore invalid pins
+            continue;
+        }
+        
+        if ((sdrr_info.swd_enabled) &&
+            ((pin == sdrr_info.pins->swclk_sel) ||
+             (pin == sdrr_info.pins->swdio_sel))) {
+            LOG("!!! Sel pin %d used for SWD - not using", pin);
+        } else if (pin < MAX_USED_GPIOS) {
+            // Set the appropriate pad value based on the bit field
+            if (sdrr_info.pins->sel_jumper_pull & (1 << ii)) {
+                // This pin pulls up, so we pull down
+                pad = PAD_INPUT_PD;
+            } else {
+                // This pin pulls down, so we pull up
+                pad = PAD_INPUT_PU;
+
+                // Flip this bit when reading the SEL pins, as closing will
+                // pull the pin low, but that should read a
+                *flip_bits |= (1 << pin);
+            }
+
+            // Enable pull
             GPIO_PAD(pin) = pad;
 
             // Set the pin in our bit mask
@@ -414,33 +569,26 @@ uint32_t setup_sel_pins(uint32_t *sel_mask) {
     return num;
 }
 
-// Get the value of the sel pins.  If, on this board, the MCU pulls are low
-// (i.e. closing the jumpers pulls them up) we return the value as is, as
-// closed should indicate 1.  In the other case, where MCU pulls are high
-// (closing jumpers) pulls the pins low, we invert - so closed still indicates
-// 1.
+// Get the value of the sel pins.
+// 
+// As of 0.6.0, we support sel_jumper_pulls as a bit field indicating whether
+// each individual sel pin's jumper pulls up (1) or down (0).
 //
-// We will probably make this behaviour configurable soon.
-//
-// On all RP2350 boards, the SEL pins are pulled low by jumpers to indicate
-// a 1, so reverse to the default STM32F4 behavior.
-uint32_t get_sel_value(uint32_t sel_mask) {
-    uint8_t invert;
+// If a pull is low (i.e. closing the jumpers pulls them up) we return the
+// value as is, as closed should indicate 1.  In the other case, where MCU
+// pulls are high (closing jumpers) pulls the pins low, we invert - so closed
+// still indicates 1.
+uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits) {
     uint32_t gpio_value;
 
-    if (sdrr_info.pins->sel_jumper_pull == 0) {
-        // Closing the jumper produces a 0, so invert
-        invert = 1;
-    } else {
-        // Closing the jumper produces a 1, so don't invert
-        invert = 0;
-    }
+    // Read GPIO input register
+    gpio_value = SIO_GPIO_IN;
 
-    gpio_value = SIO_GPIO_IN & sel_mask;
-    if (invert) {
-        // If we are inverting, we need to flip the bits
-        gpio_value = ~gpio_value;
-    }
+    // Flip any flip bits as required
+    gpio_value ^= flip_bits;
+
+    // Mask to just the sel pins
+    gpio_value &= sel_mask;
 
     return gpio_value;
 }
@@ -509,12 +657,13 @@ void enter_bootloader(void) {
     // However, we do want to explicitly disable mass storage mode, so we set
     // bit 0 of p0 (not p1!).  If you want mass storage mode, jump BOOTSEL to
     // GND when plugging in.
-    // p0 |= 0x01;     // Disable mass storage mode
+    p0 |= 0x01;     // Disable mass storage mode
     reboot(flags, ms_delay, p0, p1);
 }
 
 void check_config(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime,
     const sdrr_rom_set_t *set
 ) {
     uint8_t failed = 0;
@@ -523,10 +672,10 @@ void check_config(
         LOG("!!! Unsupported number of ROM pins: %d", rom_pins);
         failed = 1;
     } else if (rom_pins == 28) {
-#if !defined(RP_PIO)
-        LOG("!!! 28-bit ROM mode requires PIO support");
-        failed = 1;
-#endif // RP_PIO
+        if (runtime->fire_pio_mode == 0) {
+            LOG("!!! 28-bit ROM mode requires PIO support");
+            failed = 1;
+        }
     }
 
     // Check ports (banks on RP235X) are as expected
@@ -548,74 +697,82 @@ void check_config(
     }
 
     if (rom_pins == 24) {
-#if !defined(RP_PIO)
-        // Checks on valid for CPU serving mode
+        if (!runtime->fire_pio_mode) {
+            // Checks on valid for CPU serving mode
 
-        // We expect to use pins 0-15 or 8-23 for address lines
-        uint8_t seen_a_0_7 = 0;
-        uint8_t seen_a_16_23 = 0;
-        for (int ii = 0; ii < 13; ii++) {
-            uint8_t pin = info->pins->addr[ii];
-            if (pin < 8) {
-                seen_a_0_7 = 1;
-            } else if (pin > 15) {
-                seen_a_16_23 = 1;
+            // We expect to use pins 0-15 or 8-23 for address lines
+            uint8_t seen_a_0_7 = 0;
+            uint8_t seen_a_16_23 = 0;
+            for (int ii = 0; ii < 13; ii++) {
+                uint8_t pin = info->pins->addr[ii];
+                if (pin < 8) {
+                    seen_a_0_7 = 1;
+                } else if (pin > 15) {
+                    seen_a_16_23 = 1;
+                }
             }
-        }
-        if (seen_a_0_7 && seen_a_16_23) {
-            LOG("!!! ROM address lines using invalid mix of pins");
-            failed = 1;
-        }
+            if (seen_a_0_7 && seen_a_16_23) {
+                LOG("!!! ROM address lines using invalid mix of pins");
+                failed = 1;
+            }
 
-        // We expect to use pins 0-7 or 16-23 for data lines
-        uint8_t seen_d_0_7 = 0;
-        uint8_t seen_d_16_23 = 0;
-        for (int ii = 0; ii < 8; ii++) {
-            uint8_t pin = info->pins->data[ii];
-            if (pin < 8) {
-                seen_d_0_7 = 1;
-            } else if (pin > 15) {
-                seen_d_16_23 = 1;
+            // We expect to use pins 0-7 or 16-23 for data lines
+            uint8_t seen_d_0_7 = 0;
+            uint8_t seen_d_16_23 = 0;
+            for (int ii = 0; ii < 8; ii++) {
+                uint8_t pin = info->pins->data[ii];
+                if (pin < 8) {
+                    seen_d_0_7 = 1;
+                } else if (pin > 15) {
+                    seen_d_16_23 = 1;
+                }
             }
-        }
-        if (seen_d_0_7 && seen_d_16_23) {
-            LOG("!!! ROM data lines using invalid mix of pins");
-            failed = 1;
-        }
+            if (seen_d_0_7 && seen_d_16_23) {
+                LOG("!!! ROM data lines using invalid mix of pins");
+                failed = 1;
+            }
 
-        // Check X1/X2 pins
-        if (set->rom_count > 1) {
-            if (seen_a_0_7 && (info->pins->x1 > 16)) {
-                LOG("!!! Multi-ROM mode, but pin X1 invalid");
-                failed = 1;
-            }
-            if (seen_a_0_7 && (info->pins->x2 > 17)) {
-                LOG("!!! Multi-ROM mode, but pin X2 invalid");
-                failed = 1;
-            }
-            if (seen_a_16_23 && ((info->pins->x1 < 8) || (info->pins->x1 > 23))) {
-                LOG("!!! Multi-ROM mode, but pin X1 invalid");
-                failed = 1;
-            }
-            if (seen_a_16_23 && ((info->pins->x2 < 8) || (info->pins->x2 > 23))) {
-                LOG("!!! Multi-ROM mode, but pin X2 invalid");
-                failed = 1;
-            }
-            if (info->pins->x1 == info->pins->x2) {
-                LOG("!!! Multi-ROM mode, but pin X1==X2");
-                failed = 1;
-            }
-            if (info->pins->x_jumper_pull > 1) {
-                LOG("!!! X jumper pull value invalid");
-                failed = 1;
+            // Check X1/X2 pins
+            if (set->rom_count > 1) {
+                if (seen_a_0_7 && (info->pins->x1 > 16)) {
+                    LOG("!!! Multi-ROM mode, but pin X1 invalid");
+                    failed = 1;
+                }
+                if (seen_a_0_7 && (info->pins->x2 > 17)) {
+                    LOG("!!! Multi-ROM mode, but pin X2 invalid");
+                    failed = 1;
+                }
+                if (seen_a_16_23 && ((info->pins->x1 < 8) || (info->pins->x1 > 23))) {
+                    LOG("!!! Multi-ROM mode, but pin X1 invalid");
+                    failed = 1;
+                }
+                if (seen_a_16_23 && ((info->pins->x2 < 8) || (info->pins->x2 > 23))) {
+                    LOG("!!! Multi-ROM mode, but pin X2 invalid");
+                    failed = 1;
+                }
+                if (info->pins->x1 == info->pins->x2) {
+                    LOG("!!! Multi-ROM mode, but pin X1==X2");
+                    failed = 1;
+                }
+                if (info->pins->x_jumper_pull > 1) {
+                    LOG("!!! X jumper pull value invalid");
+                    failed = 1;
+                }
             }
         }
-#endif // RP_PIO
     }
 
-    // Check sel jumper pull value
-    if (info->pins->sel_jumper_pull > 1) {
-        LOG("!!! Sel jumper pull value invalid");
+    // As of 0.6.0 sel_jumper_pulls is a bit field.  Check it isn't larger
+    // than it should be given the number of valid sel pins.
+    uint8_t sel_pins_used = 0;
+    for (int ii = 0; ii < MAX_IMG_SEL_PINS; ii++)
+    {
+        if (info->pins->sel[ii] < MAX_USED_GPIOS) {
+            sel_pins_used += 1;
+        }
+    }
+    if (info->pins->sel_jumper_pull >= (1 << sel_pins_used)) {
+        LOG("!!! Sel jumper pull value invalid for number of sel pins used");
         failed = 1;
     }
 

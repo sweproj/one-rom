@@ -57,7 +57,7 @@ impl State {
     }
 
     pub const fn is_user_building(&self) -> bool {
-        matches!(self, State::UserBuilding{ .. })
+        matches!(self, State::UserBuilding { .. })
     }
 }
 
@@ -140,7 +140,9 @@ impl Create {
         if let Some(releases) = releases {
             let latest = releases.latest();
             let latest = releases.release_from_string(latest);
-            if let Some(r) = latest && r.supports_hw(board, mcu) {
+            if let Some(r) = latest
+                && r.supports_hw(board, mcu)
+            {
                 self.select_release(r.clone())
             } else {
                 debug!("No latest release found in releases for this hardware");

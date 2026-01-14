@@ -41,7 +41,7 @@ use onerom_config::mcu::Variant as McuVariant;
 
 /// Maximum SDRR firmware versions supported by this version of`sdrr-fw-parser`
 pub const MAX_VERSION_MAJOR: u16 = 0;
-pub const MAX_VERSION_MINOR: u16 = 5;
+pub const MAX_VERSION_MINOR: u16 = 6;
 pub const MAX_VERSION_PATCH: u16 = 999;
 
 // lib.rs - Public API and core traits
@@ -244,9 +244,12 @@ impl<'a, R: Reader> Parser<'a, R> {
         parse_and_validate_runtime_info(&runtime_buf)
     }
 
-    async fn retrieve_runtime_header_from_info(&mut self, info: &SdrrInfo) -> Result<SdrrRuntimeInfoHeader, String> {
+    async fn retrieve_runtime_header_from_info(
+        &mut self,
+        info: &SdrrInfo,
+    ) -> Result<SdrrRuntimeInfoHeader, String> {
         let runtime_info_ptr = info.runtime_info_ptr;
-        if runtime_info_ptr < self.base_ram_address && runtime_info_ptr != 0xFFFF_FFFF_u32{
+        if runtime_info_ptr < self.base_ram_address && runtime_info_ptr != 0xFFFF_FFFF_u32 {
             return Err(format!(
                 "Invalid runtime info pointer: 0x{:08X}",
                 runtime_info_ptr
@@ -288,7 +291,7 @@ impl<'a, R: Reader> Parser<'a, R> {
         let ram = if let Some(flash) = &flash {
             self.parse_ram_from_info(flash).await
         } else {
-            self.parse_ram().await 
+            self.parse_ram().await
         };
 
         let ram = match ram {
@@ -366,6 +369,14 @@ impl<'a, R: Reader> Parser<'a, R> {
         // Parse and validate header using the helper
         let mut header = self.retrieve_header().await?;
 
+        // Get firmware version
+        let version = FirmwareVersion::new(
+            header.major_version,
+            header.minor_version,
+            header.patch_version,
+            header.build_number,
+        );
+
         // Update our base address based on the header - before this we don't
         // need to have the correct base_flash_address set.  Base RAM is the
         // same.
@@ -394,24 +405,30 @@ impl<'a, R: Reader> Parser<'a, R> {
         };
 
         // Parse extra info
-        let (extra_info, runtime_info_ptr) =
-            match parsing::read_extra_info(self.reader, header.extra_ptr, self.base_flash_address)
-                .await
-            {
-                Ok(info) => {
-                    let runtime_info_ptr = info.runtime_info_ptr;
-                    (Some(info), runtime_info_ptr)
-                }
-                Err(e) => {
-                    parse_errors.push(ParseError::new("Extra Info", e));
-                    (None, 0xFFFF_FFFF_u32)
-                }
-            };
+        let (extra_info, runtime_info_ptr) = match parsing::read_extra_info(
+            self.reader,
+            header.extra_ptr,
+            self.base_flash_address,
+            &version,
+        )
+        .await
+        {
+            Ok(info) => {
+                let runtime_info_ptr = info.runtime_info_ptr;
+                (Some(info), runtime_info_ptr)
+            }
+            Err(e) => {
+                parse_errors.push(ParseError::new("Extra Info", e));
+                (None, 0xFFFF_FFFF_u32)
+            }
+        };
 
         // If necessary, parse OneRomMetadataHeader
         let metadata_present = if header.major_version > 0 || header.minor_version > 4 {
             // OneRomMetadataHeader should be parsed for 0.5.0 and above.  Its
             // pointer is actually stored in rom_sets_ptr.
+            // However, it is valid to build a firmware file without metadata even
+            // beyond 0.5.0 - so we do not report that as an error.
             let metadata_ptr = header.rom_sets_ptr;
             header.rom_set_count = 0;
             header.rom_sets_ptr = 0;
@@ -450,9 +467,8 @@ impl<'a, R: Reader> Parser<'a, R> {
                         false
                     }
                 }
-                Err(e) => {
+                Err(_) => {
                     // Set ROM set info to 0
-                    parse_errors.push(ParseError::new("Metadata", e));
                     false
                 }
             }
@@ -463,7 +479,9 @@ impl<'a, R: Reader> Parser<'a, R> {
 
         // Parse ROM sets with error collection
         let rom_sets =
-            match parsing::read_rom_sets(self.reader, &header, self.base_flash_address).await {
+            match parsing::read_rom_sets(self.reader, &header, self.base_flash_address, &version)
+                .await
+            {
                 Ok(sets) => {
                     if sets.len() != header.rom_set_count as usize {
                         parse_errors.push(ParseError::new(
@@ -495,7 +513,7 @@ impl<'a, R: Reader> Parser<'a, R> {
 
         // Try to decode board, model and MCU variant from hw_rev
         let board = hw_rev.as_ref().and_then(|s| Board::try_from_str(s));
-        let model = board.as_ref().and_then(|b| Some(b.model()));
+        let model = board.as_ref().map(|b| b.model());
         let mcu_lookup_str = format!(
             "{}{}",
             header.stm_line.chip_suffix(),
@@ -547,12 +565,7 @@ impl<'a, R: Reader> Parser<'a, R> {
             parse_errors,
             extra_info,
             metadata_present,
-            version: FirmwareVersion::new(
-                header.major_version,
-                header.minor_version,
-                header.patch_version,
-                header.build_number,
-            ),
+            version,
             board,
             model,
             mcu_variant,
@@ -560,7 +573,10 @@ impl<'a, R: Reader> Parser<'a, R> {
         })
     }
 
-    async fn parse_ram_from_runtime_info(&mut self, runtime_info: SdrrRuntimeInfoHeader) -> Result<SdrrRuntimeInfo, String> {
+    async fn parse_ram_from_runtime_info(
+        &mut self,
+        runtime_info: SdrrRuntimeInfoHeader,
+    ) -> Result<SdrrRuntimeInfo, String> {
         Ok(SdrrRuntimeInfo {
             image_sel: runtime_info.image_sel,
             rom_set_index: runtime_info.rom_set_index,

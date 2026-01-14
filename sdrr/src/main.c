@@ -22,6 +22,23 @@ sdrr_runtime_info_t sdrr_runtime_info __attribute__((section(".sdrr_runtime_info
     .rom_table = NULL,
     .rom_table_size = 0,
     .bootloader_entry = 0,
+#if defined(OVERCLOCK) && (OVERCLOCK == 1)
+    .overclock_enabled = 1,
+#else // !OVERCLOCK
+    .overclock_enabled = 0,
+#endif // OVERCLOCK
+    .status_led_enabled = 0,  // updated from sdrr_info in vector.c
+    .swd_enabled = 0,  // updated from sdrr_info in vector.c
+    .fire_vreg = FIRE_VREG_STOCK,
+    .ice_freq = ICE_FREQ_NONE,
+    .fire_freq = FIRE_FREQ_NONE,
+    .sysclk_mhz = TARGET_FREQ_MHZ,
+#if defined(RP_PIO) && (RP_PIO == 1)
+    .fire_pio_mode = 1,
+#else // !RP_PIO
+    .fire_pio_mode = 0,
+#endif // RP_PIO
+    .pad = {0},
 };
 
 // This function checks the state of the image select pins, and returns an
@@ -30,11 +47,11 @@ sdrr_runtime_info_t sdrr_runtime_info __attribute__((section(".sdrr_runtime_info
 // etc.
 uint32_t check_sel_pins(uint32_t *sel_mask) {
     uint32_t num_sel_pins;
-    uint32_t orig_sel_mask, gpio_value, sel_value;
+    uint32_t orig_sel_mask, gpio_value, sel_value, sel_flip_bits;
 
     // Setup the pins first.  Do this first to allow any pull-ups to settle
     // before reading.
-    num_sel_pins = setup_sel_pins(&orig_sel_mask);
+    num_sel_pins = setup_sel_pins(&orig_sel_mask, &sel_flip_bits);
     if (num_sel_pins == 0) {
         LOG("No image select pins");
         disable_sel_pins();
@@ -43,7 +60,7 @@ uint32_t check_sel_pins(uint32_t *sel_mask) {
     }
 
     // Read the actual GPIO value, masked appropriately
-    gpio_value = get_sel_value(orig_sel_mask);
+    gpio_value = get_sel_value(orig_sel_mask, sel_flip_bits);
 
     (void)num_sel_pins;  // In case unused - no DEBUG logging 
     DEBUG("Read SIO_GPIO_IN: 0x%08X, %d Sel pins, mask 0x%08X", gpio_value, num_sel_pins, orig_sel_mask);
@@ -81,17 +98,13 @@ uint32_t check_sel_pins(uint32_t *sel_mask) {
 //
 // This must be done before we set up the PLL, peripheral clocks, etc, as
 // those must be disabled for the bootloader.
-void check_enter_bootloader(void) {
-    uint32_t sel_pins, sel_mask;
-    sel_pins = check_sel_pins(&sel_mask);
-
+//
+// As this checks the sel pins, cache and return the result, so we don't need
+// to re-check it later.
+void check_enter_bootloader(uint32_t sel_pins, uint32_t sel_mask) {
     LOG("Checking whether to enter bootloader");
 
-    if (sel_mask == 0) {
-        // Failure - no sel pins
-        return;
-    }
-    if ((sel_pins & sel_mask) == sel_mask) {
+    if ((sel_mask) && ((sel_pins & sel_mask) == sel_mask)) {
         // SEL pins are all high - enter the bootloader
         LOG("Entering bootloader");
 
@@ -100,6 +113,8 @@ void check_enter_bootloader(void) {
 
         enter_bootloader();
     }
+
+    return;
 }
 
 // Check the metadata is present
@@ -134,6 +149,11 @@ void limp_mode(limp_mode_pattern_t pattern) {
 
     uint32_t on_time, off_time;
 
+    if (!sdrr_runtime_info.status_led_enabled && sdrr_info.status_led_enabled) {
+        LOG("Status LED disabled but present - enable for limp mode");
+        setup_status_led();
+    }
+
     switch (pattern) {
         case LIMP_MODE_NO_ROMS:
             // Slow blink - around 0.5s on, 2.5s off
@@ -162,6 +182,62 @@ void limp_mode(limp_mode_pattern_t pattern) {
     }
 }
 
+// Read in firmware overrides from the selected ROM set, if present (0.6.0+)
+// and modify sdrr_runtime_info accordingly.
+void process_firmware_overrides(
+    sdrr_runtime_info_t *runtime_info,
+    const sdrr_rom_set_t *set
+) {
+    if (set->extra_info == 1) {
+        const onerom_firmware_overrides_t *overrides = set->firmware_overrides;
+        if ((overrides != NULL) && (overrides != (void*)0xFFFFFFFF)) {
+#if defined(STM32F4)
+            if (overrides->override_present[0] & (1 << 0)) {
+                runtime_info->ice_freq = overrides->ice_freq;
+                LOG("ICE freq override: %d", runtime_info->ice_freq);
+            }
+            if (overrides->override_present[0] & (1 << 1)) {
+                runtime_info->overclock_enabled = overrides->override_value[0] & (1 << 0) ? 1 : 0;
+                LOG("ICE overclock override: %d", runtime_info->overclock_enabled);
+            }
+#endif
+#if defined(RP235X)
+            if (overrides->override_present[0] & (1 << 2)) {
+                runtime_info->fire_freq = overrides->fire_freq;
+                LOG("Fire freq override: %d", runtime_info->fire_freq);
+            }
+            if (overrides->override_present[0] & (1 << 3)) {
+                runtime_info->overclock_enabled = overrides->override_value[0] & (1 << 1) ? 1 : 0;
+                LOG("Fire overclock override: %d", runtime_info->overclock_enabled);
+            }
+            if (overrides->override_present[0] & (1 << 4)) {
+                runtime_info->fire_vreg = overrides->fire_vreg;
+                LOG("Fire VREG override: %d", runtime_info->fire_vreg);
+            }
+#endif
+            if (overrides->override_present[0] & (1 << 5)) {
+                runtime_info->status_led_enabled = overrides->override_value[0] & (1 << 2) ? 1 : 0;
+                LOG("Status LED override: %d", runtime_info->status_led_enabled);
+            }
+            if (overrides->override_present[0] & (1 << 6)) {
+                runtime_info->swd_enabled = overrides->override_value[0] & (1 << 3) ? 1 : 0;
+                LOG("SWD enabled override: %d", runtime_info->swd_enabled);
+            }
+#if defined(RP235X)
+            if (overrides->override_present[0] & (1 << 7)) {
+                runtime_info->fire_pio_mode = overrides->override_value[0] & (1 << 4) ? 1 : 0;
+                LOG("Fire PIO mode override: %d", runtime_info->fire_pio_mode);
+            }
+#endif
+        }
+    }
+    else if (set->extra_info == 0) {
+        LOG("No extra info in ROM set - no overrides present");
+    } else {
+        LOG("!!! Unsupported extra_info value in ROM set: %d", set->extra_info);
+    }
+}
+
 // Needs to do the following:
 // - Set up the clock to 68.8Mhz
 // - Set up GPIO ports A, B and C to inputs
@@ -186,31 +262,50 @@ int main(void) {
     DEBUG("Setting up GPIO");
     setup_gpio();
 
-    // Enable logging
+    // Enable logging.  Done after GPIO setup, so SWD pins are configured.
     if (sdrr_info.boot_logging_enabled) {
         LOG_INIT();
     }
 
-    // Check if we should enter bootloader mode as the first thing we do
+    // Set up VBUS detect interrupt.  Done next, so we can enter DFU mode as 
+    // soon as USB plugged in
+    if (sdrr_info.extra->usb_dfu) {
+        LOG("USB DFU supported - setting up VBUS detect");
+        setup_vbus_interrupt();
+    }
+
+    // Read image select pin values - we need this to check whether to enter
+    // bootloader mode if they are all 1.
+    uint32_t sel_mask, sel_pins;
+    sel_pins = check_sel_pins(&sel_mask);
+
+    // Now check whether to enter bootloader mode
     if (sdrr_info.bootloader_capable) {
-        check_enter_bootloader();
+        check_enter_bootloader(sel_pins, sel_mask);
+    }
+    
+    // Now get the rom set from the image select pins.  We do this before
+    // setting up the clock, in case there's any clock configuration overrides
+    // to be applied from the selected ROM set.
+    const sdrr_rom_set_t *set = NULL;
+    uint8_t md = metadata_present(&sdrr_info);
+    if (md && (sdrr_info.metadata_header->rom_set_count > 0)) {
+        sdrr_runtime_info.rom_set_index = get_rom_set_index(sel_pins, sel_mask);
+        set = sdrr_info.metadata_header->rom_sets + sdrr_runtime_info.rom_set_index;
+
+        // Now process any firmware overrides from the selected ROM set.
+        process_firmware_overrides(&sdrr_runtime_info, set);
+    } else if (!md) {
+        LOG("No metadata present (valid state for fresh One ROM");
+    } else {
+        LOG("!!! No ROM sets in this firmware");
     }
 
     // Initialize clock
     setup_clock();
 
-    if (sdrr_info.extra->usb_dfu) {
-        // Set up VBUS detect interrupt
-        LOG("USB DFU supported - setting up VBUS detect");
-        setup_vbus_interrupt();
-    }
-
-    const sdrr_rom_set_t *set = NULL;
-    uint8_t md = metadata_present(&sdrr_info);
-    if (md && (sdrr_info.metadata_header->rom_set_count > 0)) {
-        sdrr_runtime_info.rom_set_index = get_rom_set_index();
-        set = sdrr_info.metadata_header->rom_sets + sdrr_runtime_info.rom_set_index;
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)
+    if (set != NULL) {
         // Set up the ROM table
         if (sdrr_info.preload_image_to_ram) {
             sdrr_runtime_info.rom_table = preload_rom_image(set);
@@ -220,12 +315,8 @@ int main(void) {
             sdrr_runtime_info.rom_table = (void *)&(set->data[0]);
         }
         sdrr_runtime_info.rom_table_size = set->size;
-#endif // !TIMER_TEST && !TOGGLE_PA4
-    } else if (!md) {
-        LOG("No metadata present (valid state for fresh One ROM");
-    } else {
-        LOG("!!! No ROM sets in this firmware");
     }
+#endif // !TIMER_TEST && !TOGGLE_PA4
 
     // Startup MCO after preloading the ROM - this allows us to test (with a
     // scope), how long the startup takes.
@@ -235,7 +326,7 @@ int main(void) {
 
     // Setup status LED up now, so we don't need to call the function from the
     // main loop - which might be running from RAM.
-    if (sdrr_info.status_led_enabled) {
+    if (sdrr_runtime_info.status_led_enabled) {
         setup_status_led();
     }
 
@@ -248,7 +339,7 @@ int main(void) {
     }
 
     // Do final checks before entering the main loop
-    check_config(&sdrr_info, set);
+    check_config(&sdrr_info, &sdrr_runtime_info, set);
 
     // Startup - from a stable 5V supply to here - takes:
     // - ~3ms    F411 100MHz BOOT_LOGGING=1
@@ -276,7 +367,7 @@ int main(void) {
 #endif // !MAIN_LOOP_LOGGING
     //XIP_QMI_M0_TIMING &= ~0x04;
     //XIP_QMI_M0_TIMING |= 0x01;
-    main_loop(&sdrr_info, set);
+    main_loop(&sdrr_info, &sdrr_runtime_info, set);
 #endif
 
 #if defined(EXECUTE_FROM_RAM) || defined(XIP_CACHE_WARM)

@@ -109,7 +109,11 @@ pub enum RomType {
     Type27512,
 
     /// A 23128 ROM
-    Type23128 { cs1: CsActive, cs2: CsActive, cs3: CsActive },
+    Type23128 {
+        cs1: CsActive,
+        cs2: CsActive,
+        cs3: CsActive,
+    },
 
     /// A 2364 ROM
     Type2364 { cs: CsActive },
@@ -171,7 +175,7 @@ impl RomType {
 
     pub const fn invalid_addr_lines(&self) -> &'static [u8] {
         match self {
-            RomType::Type27512  => &[],
+            RomType::Type27512 => &[],
             RomType::Type23128 { .. } => &[15],
             RomType::Type2364 { .. } => &[],
             RomType::Type2332 { .. } => &[],

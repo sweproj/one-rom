@@ -64,7 +64,7 @@
                     "description": "8KB DesTestMAX Kernal ($E000) ROM - https://factorofmatt.com/destestmax",
                     "file": "https://img1.wsimg.com/blobby/go/66231677-2ba7-409f-8dee-bbd44bbf8f37/downloads/destest-max-v0.1.zip?ver=1750944987245",
                     "extract": "destest-max.rom",
-                    "licence": "https://factorofmatt.com/destestmax%2Fdestestmax-sl",
+                    "license": "https://factorofmatt.com/destestmaxdllanding",
                     "type": "2364",
                     "cs1": "active_low"
                 }

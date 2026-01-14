@@ -9,6 +9,6 @@
     "rust-analyzer.server.extraEnv": {
         "RUST_BACKTRACE": "1",
     },
-    "rust-analyzer.runnables.command": "+nightly",
-    "rust-analyzer.cargo.features": ["validate-28-fire"]
+    "rust-analyzer.cargo.features": ["validate-28-fire"],
+    "C_Cpp.loggingLevel": "Debug"
 }

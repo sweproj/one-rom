@@ -24,7 +24,7 @@ use crate::file::{FileSource, check_output_dir, source_image_file};
 #[derive(Parser, Debug)]
 #[clap(
     name = "sdrr-gen",
-    about = "Software Defined Retro ROM configuration generator",
+    about = "One ROM firmware configuration generator",
     version
 )]
 pub struct Args {
@@ -465,7 +465,7 @@ impl Args {
                         ));
                     }
                 }
-                "ce"|"oe" => {
+                "ce" | "oe" => {
                     // Not specified
                 }
                 other => {

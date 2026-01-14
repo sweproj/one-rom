@@ -90,7 +90,8 @@ pub async fn read_async(
     let address = if let Some(address) = address.abs_from_hw_info(&hw_info) {
         address
     } else {
-        let log = format!("Failed to resolve address for reading {words} words of memory at {address}");
+        let log =
+            format!("Failed to resolve address for reading {words} words of memory at {address}");
         warn!("{log}");
         return Message::ReadFailed(client, log).into();
     };
@@ -138,8 +139,7 @@ pub async fn flash_async(
         Some(mcu) => mcu.family().get_flash_base(),
     };
     let result =
-        spawn_blocking(move || probe_flash(probe.inner().clone(), chip_id, address, &data))
-            .await;
+        spawn_blocking(move || probe_flash(probe.inner().clone(), chip_id, address, &data)).await;
 
     match result {
         Ok(Ok(())) => Message::FlashFirmwareResult(client, Ok(())).into(),
