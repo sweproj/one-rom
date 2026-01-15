@@ -581,7 +581,7 @@ impl<'a> Style<'a> {
         widget::rich_text![
             Span::new("Copyright © 2").color(Self::COLOUR_TEXT),
             Span::new("0").color(Self::COLOUR_GOLD),
-            Span::new("25").color(Self::COLOUR_TEXT),
+            Span::new("26").color(Self::COLOUR_TEXT),
         ]
         .font(Self::FONT_MICHROMA)
         .size(Self::FONT_SIZE_BODY)
