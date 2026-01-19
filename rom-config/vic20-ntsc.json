@@ -55,6 +55,17 @@
                     "cs1": "active_low"
                 }
             ]
+        },
+        {
+            "type": "single",
+            "roms": [
+                {
+                    "description": "8KB VIC-20 One RAM Tester (NTSC), V0.1.0",
+                    "file": "https://github.com/piersfinlayson/vic20-one-ram-test/releases/download/v0.1.0/vic-20-one-ram-tester.ntsc.e0",
+                    "type": "2364",
+                    "cs1": "active_low"
+                }
+            ]
         }
     ]
 }

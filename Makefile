@@ -17,7 +17,7 @@
 VERSION_MAJOR := 0
 VERSION_MINOR := 6
 VERSION_PATCH := 0
-BUILD_NUMBER := 1
+BUILD_NUMBER := 2
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 export VERSION_MAJOR VERSION_MINOR VERSION_PATCH BUILD_NUMBER GIT_COMMIT
 
@@ -817,16 +817,7 @@ clean-firmware:
 clean-gen:
 	rm -fr $(GEN_OUTPUT_DIR)
 
-clean-sdrr-common:
-	cd rust/sdrr-common && cargo clean
+clean-rust:
+	cd rust && cargo clean
 
-clean-sdrr-gen: clean-sdrr-common
-	cd rust/sdrr-gen && cargo clean
-
-clean-sdrr-fw-parser:
-	cd rust/sdrr-fw-parser && cargo clean
-
-clean-sdrr-info: clean-sdrr-common clean-sdrr-fw-parser
-	cd rust/sdrr-info && cargo clean
-
-clean: clean-firmware clean-gen clean-sdrr-gen clean-sdrr-info
+clean: clean-firmware clean-rust

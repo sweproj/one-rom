@@ -34,6 +34,8 @@
 //                      // lines as inputs/outputs.  Slight less performant
 //                      // than SIO access.
 // #define RP_PIO 1     // Use PIO by default for GPIO access on the RP2350.
+// #define DEBUG_BUILD 1    // Enable debug checks.  If BOOT_LOGGING is
+//                          // defined, DEBUG_LOGGING is also enabled.
 //
 // sdrr-gen also provides the rom images:
 //
@@ -80,6 +82,12 @@ extern const sdrr_info_t sdrr_info;
 //
 // Definition consistency checking
 //
+#if defined(DEBUG_BUILD) && (DEBUG_BUILD == 1) && defined(BOOT_LOGGING) && (BOOT_LOGGING == 1)
+#if !defined(DEBUG_LOGGING)
+#define DEBUG_LOGGING 1
+#endif // !DEBUG_LOGGING
+#endif // DEBUG_BUILD && BOOT_LOGGING
+
 #if defined(TIMER_TEST) && defined(TOGGLE_PA4)
 #error "TIMER_TEST and EXECUTE_FROM_RAM are mutually exclusive"
 #endif // TIMER_TEST/TOGGLE_PA4

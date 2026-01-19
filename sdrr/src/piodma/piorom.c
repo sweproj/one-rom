@@ -1,16 +1,17 @@
-// Copyright (C) 2025 Piers Finlayson <piers@piers.rocks>
+// Copyright (C) 2026 Piers Finlayson <piers@piers.rocks>
 //
 // MIT License
 
 // RP2350 PIO/DMA autonomous ROM serving support
 
 #include "include.h"
-#include "piorom.h"
 
 #if defined(RP235X)
 
-// # Introduction
+#include "piodma/piodma.h"
 
+// # Introduction
+//
 // This file contains a completely autonomous PIO and DMA based ROM serving
 // implementation.  Once started, the PIO state machines and DMA channels
 // serve ROM data in response to external chip select and address lines
@@ -334,6 +335,9 @@
 #define PIO_CONFIG_CS_INACTIVE_DATA_HOLD_DELAY  0
 #endif // PIO_CONFIG_CS_INACTIVE_DATA_HOLD_DELAY
 
+// IRQ to trigger ROM read by the CS Handler SM.
+#define ROM_ADDR_READ_TRIGGER_IRQ  0
+
 // Number of data and address lines
 #define NUM_DATA_LINES    8
 #define NUM_ADDR_LINES    16
@@ -459,70 +463,6 @@ typedef struct piorom_config {
     // 40 bytes to here
 } piorom_config_t;
 
-//
-// PIO state machine programs
-//
-
-// Base instructions for SM0
-#define MOV_PINDIRS_NULL        0xa063
-#define MOV_X_PINS              0xa020
-#define JMP_X_DEC(DEST)         (0x0040 | ((DEST) & 0x1F))
-#define MOV_PINDIRS_NOT_NULL    0xa06b
-#define JMP_NOT_X(DEST)         (0x0020 | ((DEST) & 0x1F))
-
-// Optional instructions for SM0
-#define IRQ_SET(X)              (0xc000 | ((X) & 0x07))
-#define NOP                     0xa042
-
-// Base instructions for SM1
-#define PULL_BLOCK              0x80a0
-#define MOV_X_OSR               0xa027
-#define IN_X(NUM)               (0x4020 | ((NUM) & 0x1F))
-#define IN_PINS(NUM)            (0x4000 | ((NUM) & 0x1F))
-
-// Base instructions for SM2
-#define MOV_PINS_NULL           0xa003
-#define OUT_PINS(NUM)           (0x6000 | ((NUM) & 0x1F))
-
-// Optional instructions for SM1
-#define WAIT_IRQ_HIGH(X)        (0x20c0 | ((X) & 0x07))
-
-// General purpose instructions
-
-// Add a side-set delay to any instruction (max 31 cycles)
-#define ADD_DELAY(INST, DELAY)  ((INST) | (((DELAY) & 0x1F) << 8))
-
-// Clear OSR
-#define OUT_NULL(X)             (0x6000 | ((X) & 0x1F))
-
-// Clear ISR
-#define IN_NULL(X)              (0x4000 | ((X) & 0x1F))
-
-// Jump to instruction unconditionally
-#define JMP(X)                  (0x0000 | ((X) & 0x1F))
-
-// Set X
-#define SET_X(VALUE)            (0xe020 | ((VALUE) & 0x1F))
-
-// Set Y
-#define SET_Y(VALUE)            (0xe040 | ((VALUE) & 0x1F))
-
-// Jump X != Y
-#define JMP_X_NOT_Y(DEST)       (0x00A0 | ((DEST) & 0x1F))
-
-// Forward declarations for debug logging functions
-#if defined(DEBUG_LOGGING)
-static void piorom_instruction_decoder(uint32_t instr, char out_str[64]);
-static void piorom_log_pio_sm(
-    const char *sm_name,
-    uint8_t pio_sm,
-    piorom_config_t *config,
-    uint32_t *instr_scratch,
-    uint8_t start,
-    uint8_t wrap_bottom,
-    uint8_t wrap_top
-);
-#endif // DEBUG_LOGGING
 
 // SM0 - CS Handler
 //
@@ -540,7 +480,7 @@ static void piorom_log_pio_sm(
 //                                   ; OPTIONAL: N cycle delay before setting
 //                                   ; data pins to outputs
 // 0xaN42, //  nop    [N]            ; OPTIONAL: N cycle delay before setting
-//                                   ; data pins to outputs (if not on irq)
+//                                  ROM_ADDR_READ_TRIGGER_IRQ ; data pins to outputs (if not on irq)
 // 0xa06b, //  mov    pindirs, ~null ; set data pins to output
 // 0xa020, //  mov    x, pins        ; read CS lines again
 // 0x002Y, //  jmp    !x, Y [N]      ; CS still active, if so jump back one
@@ -600,249 +540,270 @@ static void piorom_log_pio_sm(
 //                      ; and outputs on data pins
 // .wrap
 
-// Loads the PIO programs into the PIO instruction memory.
+// Build and load the PIO programs for ROM serving
 //
-// Constructs all state machine instructions dynamically based on the config.
+// Uses the single-pass PIO assembler macros from pioasm.h
 static void piorom_load_programs(piorom_config_t *config) {
-    volatile pio_sm_reg_t *sm_reg;
-    uint8_t offset = 0;
+    // Get the high X bits of the RAM table address for preloading into the
+    // address reader SM.
+    uint8_t num_address_pins = 16;  // Hardcode for now
+    uint8_t rom_table_num_addr_bits = 32 - num_address_pins;
+    uint32_t high_bits_mask = (1 << rom_table_num_addr_bits) - 1;
+    uint32_t low_bits_mask = (1 << num_address_pins) - 1;
+    uint32_t __attribute__((unused)) alignment_size = (1 << num_address_pins) / 1024;
+    DEBUG("Checking RAM table address 0x%08X is %uKB aligned", config->rom_table_addr, alignment_size);
+    DEBUG("High bits mask: 0x%08X, low bits mask: 0x%08X", high_bits_mask, low_bits_mask);
+    if (config->rom_table_addr & low_bits_mask) {
+        LOG("!!! PIO ROM serving requires ROM table address to be %uKB aligned",
+            alignment_size);
+        limp_mode(LIMP_MODE_INVALID_CONFIG);
+    }
+    uint32_t rom_table_high_bits = (config->rom_table_addr >> config->num_addr_pins) & high_bits_mask;
+    DEBUG("ROM table high %d bits: 0x%08X", rom_table_num_addr_bits, rom_table_high_bits);
+
+#if defined(DEBUG_LOGGING)
+    // Log other config values
     uint8_t num_cs_pins = config->num_cs_pins;
     uint8_t cs_base_pin = config->cs_base_pin;
     uint8_t num_data_pins = config->num_data_pins;
     uint8_t data_base_pin = config->data_base_pin;
     uint8_t num_addr_pins = config->num_addr_pins;
     uint8_t addr_base_pin = config->addr_base_pin;
-    uint32_t rom_table_addr = config->rom_table_addr;
     uint8_t addr_read_irq = config->addr_read_irq;
     uint8_t addr_read_delay = config->addr_read_delay;
     uint8_t cs_active_delay = config->cs_active_delay;
     uint8_t no_dma = config->no_dma;
+    uint16_t cs_handler_clkdiv_int = config->sm0_clkdiv_int;
+    uint8_t cs_handler_clkdiv_frac = config->sm0_clkdiv_frac;
+    uint16_t addr_reader_clkdiv_int = config->sm1_clkdiv_int;
+    uint8_t addr_reader_clkdiv_frac = config->sm1_clkdiv_frac;
+    uint16_t data_writer_clkdiv_int = config->sm2_clkdiv_int;
+    uint8_t data_writer_clkdiv_frac = config->sm2_clkdiv_frac;
     uint8_t contiguous_cs_pins = config->contiguous_cs_pins;
     uint8_t multi_rom_mode = config->multi_rom_mode;
-    uint32_t cs_2nd_match = config->cs_pin_2nd_match;
-    uint32_t instr_scratch[32];
+    uint32_t cs_pin_2nd_match = config->cs_pin_2nd_match;
+    DEBUG("PIO ROM Serving Config:");
+    DEBUG("- CS pins: %d-%d", cs_base_pin, cs_base_pin + num_cs_pins - 1);
+    DEBUG("- CS invert: %s %s %s",
+        (config->invert_cs[0] ? "Y" : "N"),
+        (config->invert_cs[1] ? "Y" : "N"),
+        (config->invert_cs[2] ? "Y" : "N"));
+    DEBUG("- Contiguous CS pins: %s, 0x%02X", (contiguous_cs_pins ? "Y" : "N"), cs_pin_2nd_match);
+    DEBUG("- Multi-ROM mode: %s", (multi_rom_mode ? "Y" : "N"));
+    DEBUG("- Data pins: %d-%d", data_base_pin, data_base_pin + num_data_pins - 1);
+    DEBUG("- Address pins: %d-%d", addr_base_pin, addr_base_pin + num_addr_pins - 1);
+    DEBUG("- CS Handler CLKDIV: %d.%02d", cs_handler_clkdiv_int, cs_handler_clkdiv_frac);
+    DEBUG("- Addr Reader CLKDIV: %d.%02d", addr_reader_clkdiv_int, addr_reader_clkdiv_frac);
+    DEBUG("- Data Writer CLKDIV: %d.%02d", data_writer_clkdiv_int, data_writer_clkdiv_frac);
+    DEBUG("- PIO algorithm config:");
+    DEBUG("  - Addr read IRQ: %s, DMA: %s", (addr_read_irq ? "Y" : "N"), (no_dma ? "N" : "Y"));
+    DEBUG("  - Addr read delay: %u, CS active delay: %u", addr_read_delay, cs_active_delay);
+    DEBUG("  - CS active to data output delay: %u", cs_active_delay);
+#endif // DEBUG_LOGGING
 
-    // Clear all PIO0 IRQs
-    PIO0_IRQ = 0x000000FF;
+    // Set up the PIO assembler
+    PIO_ASM_INIT();
+    
+    // Clear all PIO IRQs
+    PIO_CLEAR_ALL_IRQS();
 
+    // PIO0 Programs
     //
+    // All ROM serving handlers
+    PIO_SET_BLOCK(0);
+
     // SM0 - CS handler
     //
+    // Handles detecting CS active/inactive and setting data pins to
+    // outputs/inputs accordingly.  Also triggers address read SM via IRQ if
+    // configured to do so.
+    PIO_SET_SM(0);
 
-    // Load the CS handler program
-    uint8_t sm0_start = offset;
-    uint8_t sm0_wrap_bottom = 0;
-    uint8_t sm0_wrap_top = 0;
-    if (contiguous_cs_pins) {
+    if (config->contiguous_cs_pins) {
         // "Normal" case - all CS pins contiguous
-        sm0_wrap_bottom = offset;
-        instr_scratch[offset++] = MOV_PINDIRS_NULL;
-        uint8_t load_cs_offset = offset;
-        instr_scratch[offset++] = MOV_X_PINS;
-        if (!multi_rom_mode) {
-            instr_scratch[offset++] = JMP_X_DEC(load_cs_offset);
+        PIO_ADD_INSTR(MOV_PINDIRS_NULL);
+
+        PIO_LABEL_NEW(load_cs);
+        PIO_ADD_INSTR(MOV_X_PINS);
+        if (!config->multi_rom_mode) {
+            PIO_ADD_INSTR(JMP_X_DEC(PIO_LABEL(load_cs)));
         } else {
-            instr_scratch[offset++] = JMP_NOT_X(load_cs_offset);
+            PIO_ADD_INSTR(JMP_NOT_X(PIO_LABEL(load_cs)));
         }
-        if (addr_read_irq) {
-            if (!cs_active_delay) {
-                instr_scratch[offset++] = IRQ_SET(0);
+        if (config->addr_read_irq) {
+            if (!config->cs_active_delay) {
+                PIO_ADD_INSTR(IRQ_SET(ROM_ADDR_READ_TRIGGER_IRQ));
             } else {
-                instr_scratch[offset++] = ADD_DELAY(IRQ_SET(0), cs_active_delay);
+                PIO_ADD_INSTR(ADD_DELAY(IRQ_SET(ROM_ADDR_READ_TRIGGER_IRQ), config->cs_active_delay));
             }
         } else {
-            if (cs_active_delay) {
-                instr_scratch[offset++] = ADD_DELAY(NOP, (cs_active_delay - 1));
+            if (config->cs_active_delay) {
+                PIO_ADD_INSTR(ADD_DELAY(NOP, (config->cs_active_delay - 1)));
             }
         }
-        instr_scratch[offset++] = MOV_PINDIRS_NOT_NULL;
-        uint8_t check_cs_gone_inactive = offset;
-        instr_scratch[offset++] = MOV_X_PINS;
-        sm0_wrap_top = offset;
-        if (!multi_rom_mode) {
-            instr_scratch[offset++] = JMP_NOT_X(check_cs_gone_inactive);
+        PIO_ADD_INSTR(MOV_PINDIRS_NOT_NULL);
+        PIO_LABEL_NEW(check_cs_gone_inactive)
+        PIO_ADD_INSTR(MOV_X_PINS);
+        PIO_WRAP_TOP();
+        if (!config->multi_rom_mode) {
+            PIO_ADD_INSTR(JMP_NOT_X(PIO_LABEL(check_cs_gone_inactive)));
         } else {
-            instr_scratch[offset++] = JMP_X_DEC(check_cs_gone_inactive);
+            PIO_ADD_INSTR(JMP_X_DEC(PIO_LABEL(check_cs_gone_inactive)));
         }
         if (config->cs_inactive_delay) {
-            instr_scratch[offset++] = ADD_DELAY(NOP, (config->cs_inactive_delay - 1));
-            sm0_wrap_top++;
+            PIO_WRAP_TOP();
+            PIO_ADD_INSTR(ADD_DELAY(NOP, (config->cs_inactive_delay - 1)));
         }
     } else {
         // Non-contiguous CS pins - need to check for 2 different possible
         // CS values
-        instr_scratch[offset++] = SET_Y(cs_2nd_match);
+        PIO_ADD_INSTR(SET_Y(config->cs_pin_2nd_match));
         
         // inactive:
-        uint8_t inactive_offset = offset;
-        instr_scratch[offset++] = MOV_PINDIRS_NULL;
+        PIO_LABEL_NEW(inactive_offset);
+        PIO_ADD_INSTR(MOV_PINDIRS_NULL);
 
         // test_if_active:
-        uint8_t test_if_active_offset = offset;
-        instr_scratch[offset++] = MOV_X_PINS;
-        uint8_t active_offset = offset + 2;
-        instr_scratch[offset++] = JMP_NOT_X(active_offset);
-        instr_scratch[offset++] = JMP_X_NOT_Y(test_if_active_offset);
+        PIO_LABEL_NEW(test_if_active_offset);
+        PIO_ADD_INSTR(MOV_X_PINS);
+
+        PIO_LABEL_NEW_OFFSET(active_offset, 2);
+        PIO_ADD_INSTR(JMP_NOT_X(PIO_LABEL(active_offset)));
+        PIO_ADD_INSTR(JMP_X_NOT_Y(PIO_LABEL(test_if_active_offset)));
 
         // active:
-        if (addr_read_irq) {
-            if (!cs_active_delay) {
-                instr_scratch[offset++] = IRQ_SET(0);
+        if (config->addr_read_irq) {
+            if (!config->cs_active_delay) {
+                PIO_ADD_INSTR(IRQ_SET(ROM_ADDR_READ_TRIGGER_IRQ));
             } else {
-                instr_scratch[offset++] = ADD_DELAY(IRQ_SET(0), cs_active_delay);
+                PIO_ADD_INSTR(ADD_DELAY(IRQ_SET(ROM_ADDR_READ_TRIGGER_IRQ), config->cs_active_delay));
             }
         } else {
-            if (cs_active_delay) {
-                instr_scratch[offset++] = ADD_DELAY(NOP, (cs_active_delay - 1));
+            if (config->cs_active_delay) {
+                PIO_ADD_INSTR(ADD_DELAY(NOP, (config->cs_active_delay - 1)));
             }
         }
-        instr_scratch[offset++] = MOV_PINDIRS_NOT_NULL;
+        PIO_ADD_INSTR(MOV_PINDIRS_NOT_NULL);
 
         // .wrap_target:
         // test_if_inactive:
-        sm0_wrap_bottom = offset;
-        uint8_t test_if_inactive_offset = offset;
-        instr_scratch[offset++] = MOV_X_PINS;
-        instr_scratch[offset++] = JMP_NOT_X(test_if_inactive_offset);
-        sm0_wrap_top = offset;
-        instr_scratch[offset++] = JMP_X_NOT_Y(inactive_offset);
+        PIO_WRAP_BOTTOM();
+        PIO_LABEL_NEW(test_if_inactive_offset);
+        PIO_ADD_INSTR(MOV_X_PINS);
+        PIO_ADD_INSTR(JMP_NOT_X(PIO_LABEL(test_if_inactive_offset)));
+        PIO_WRAP_TOP();
+        PIO_ADD_INSTR(JMP_X_NOT_Y(PIO_LABEL(inactive_offset)));
         if (config->cs_inactive_delay) {
-            instr_scratch[offset++] = ADD_DELAY(NOP, (config->cs_inactive_delay - 1));
-            sm0_wrap_top++;
+            PIO_WRAP_TOP();
         }
     }
 
     // Configure the CS handler SM
-    sm_reg = PIO0_SM_REG(0);
-    sm_reg->clkdiv = PIO_CLKDIV_INT(
+    PIO_SM_CLKDIV_SET(
         config->sm0_clkdiv_int,
         config->sm0_clkdiv_frac
     );
-    sm_reg->execctrl =
-        PIO_WRAP_BOTTOM(sm0_wrap_bottom) |
-        PIO_WRAP_TOP(sm0_wrap_top);
-    sm_reg->shiftctrl =
-        PIO_IN_COUNT(num_cs_pins) | // Reading the CS pins
-        PIO_IN_SHIFTDIR_L;          // Direction left important for non-
+    PIO_SM_EXECCTRL_SET(0);
+    PIO_SM_SHIFTCTRL_SET(
+        PIO_IN_COUNT(config->num_cs_pins) |
+        PIO_IN_SHIFTDIR_L           // Direction left important for non-
                                     // contiguous CS pin handling
-    sm_reg->pinctrl =
-        PIO_OUT_COUNT(num_data_pins) |  // "Output" data pins (just direction
-                                        // not value)
-        PIO_OUT_BASE(data_base_pin) |   // Data pins
-        PIO_IN_BASE(cs_base_pin);       // CS pins are input
-    sm_reg->instr = JMP(sm0_start); // Jump to start of program
+    );
+    PIO_SM_PINCTRL_SET(
+        PIO_OUT_COUNT(config->num_data_pins) |
+        PIO_OUT_BASE(config->data_base_pin) |
+        PIO_IN_BASE(config->cs_base_pin)
+    );
 
-    //
-    // SM1 - Address read
-    //
+    // Jump to start and log
+    PIO_SM_JMP_TO_START();
+    PIO_LOG_SM("CS Handler");
 
-    // Load the address read program
-    uint8_t sm1_start = offset;
-    uint8_t sm1_wrap_bottom = offset;
+    // SM1 - Address reader
+    //
+    // Reads address lines and pushes complete ROM table lookup address to the
+    // DMA chain.
+    PIO_SET_SM(1);
+
     // The ADDR_READ_DELAY gets added either to the IRQ (if it exists) or the
     // IN instruction (if no IRQ).  In the no IRQ case it is not important on
     // which instruction we add the delay, as it doesn't affect how "old" the
     // address will be went sent to the DMA, just how _frequently_ it is read.
-    if (!addr_read_irq && addr_read_delay) {
-        instr_scratch[offset++] = ADD_DELAY(IN_X(16), addr_read_delay);
+    if (!config->addr_read_irq && config->addr_read_delay) {
+        PIO_ADD_INSTR(ADD_DELAY(IN_X(rom_table_num_addr_bits), config->addr_read_delay));
     } else {
-        instr_scratch[offset++] = IN_X(16);
+        PIO_ADD_INSTR(IN_X(rom_table_num_addr_bits));
     }
-    if (addr_read_irq || no_dma) {
-        if (!addr_read_delay) {
-            instr_scratch[offset++] = WAIT_IRQ_HIGH(0);
+    if (config->addr_read_irq || config->no_dma) {
+        if (!config->addr_read_delay) {
+            PIO_ADD_INSTR(WAIT_IRQ_HIGH(ROM_ADDR_READ_TRIGGER_IRQ));
         } else {
-            instr_scratch[offset++] = ADD_DELAY(WAIT_IRQ_HIGH(0), addr_read_delay);
+            PIO_ADD_INSTR(ADD_DELAY(WAIT_IRQ_HIGH(ROM_ADDR_READ_TRIGGER_IRQ), config->addr_read_delay));
         }
     }
-    uint8_t sm1_wrap_top = offset;
-    instr_scratch[offset++] = IN_PINS(16);
+    PIO_WRAP_TOP();
+    PIO_ADD_INSTR(IN_PINS(num_address_pins));
 
     // Configure the address read SM
-    sm_reg = PIO0_SM_REG(1);
-    sm_reg->clkdiv = PIO_CLKDIV_INT(config->sm1_clkdiv_int, config->sm1_clkdiv_frac);
-    sm_reg->execctrl = 
-        PIO_WRAP_BOTTOM(sm1_wrap_bottom) |
-        PIO_WRAP_TOP(sm1_wrap_top);
-    sm_reg->shiftctrl =
-        PIO_IN_COUNT(num_addr_pins) |   // Reading the address pins (unused as
-                                        // this is for mov instructions)
-        PIO_AUTOPUSH |          // Auto push when we hit threshold
-        PIO_PUSH_THRESH(32) |   // Push when we have 32 bits (16 from X and 16
-                                // from address pins)
+    PIO_SM_CLKDIV_SET(
+        config->sm1_clkdiv_int,
+        config->sm1_clkdiv_frac
+    );
+    PIO_SM_EXECCTRL_SET(0);
+    PIO_SM_SHIFTCTRL_SET(
+        PIO_IN_COUNT(num_address_pins) |    // Reading the address pins (unused
+                                            // as this is for mov instructions)
+        PIO_AUTOPUSH |                      // Auto push when we hit threshold
+        PIO_PUSH_THRESH(32) |               // Push when we have 32 bits (from
+                                            // X and from address pins)
         PIO_IN_SHIFTDIR_L |     // Shift left, so address lines are in low bits
-        PIO_OUT_SHIFTDIR_L;     // Direction doesn't matter, as we push 32 bits
-    sm_reg->pinctrl =
-        PIO_IN_BASE(addr_base_pin); // Address pin base as start of input
+        PIO_OUT_SHIFTDIR_L      // Direction doesn't matter, as we push 32 bits
+    );
+    PIO_SM_PINCTRL_SET(
+        PIO_IN_BASE(config->addr_base_pin)
+    );
 
     // Preload the ROM table address into the X register
-    PIO0_SM_TXF(1) = (rom_table_addr >> 16) & 0xFFFF;   // Write high word to TX FIFO
-    sm_reg->instr = PULL_BLOCK;     // Pull it into OSR
-    sm_reg->instr = MOV_X_OSR;      // Store it in X
+    PIO_TXF = rom_table_high_bits;
+    PIO_SM_EXEC_INSTR(PULL_BLOCK);  // Pull it into OSR
+    PIO_SM_EXEC_INSTR(MOV_X_OSR);   // Store it in X
 
-    // Jump to start of program
-    sm_reg->instr = JMP(sm1_start); // Jump to start of program
+    // Jump to start and log
+    PIO_SM_JMP_TO_START();
+    PIO_LOG_SM("Address Reader");
 
-    // 
     // SM2 - Data byte output
+    //
+    // Outputs a data byte received from the DMA chain on the data pins.
+    PIO_SET_SM(2);
 
     // Load the data byte output program
-    uint8_t sm2_start = offset;
-    uint8_t sm2_wrap_bottom = offset;
-    uint8_t sm2_wrap_top = offset;
-    instr_scratch[offset++] = OUT_PINS(num_data_pins);
+    PIO_ADD_INSTR(OUT_PINS(config->num_data_pins));
 
     // Configure the data byte SM
-    sm_reg = PIO0_SM_REG(2);
-    sm_reg->clkdiv = PIO_CLKDIV_INT(config->sm2_clkdiv_int, config->sm2_clkdiv_frac);
-    sm_reg->execctrl = 
-        PIO_WRAP_BOTTOM(sm2_wrap_bottom) |
-        PIO_WRAP_TOP(sm2_wrap_top);
-    sm_reg->shiftctrl = 
-        PIO_OUT_SHIFTDIR_R |    // Writes LSB of OSR
-        PIO_AUTOPULL |          // Auto pull when we hit threshold
-        PIO_PULL_THRESH(num_data_pins);     // Pull when we have 8 bits
-    sm_reg->pinctrl =
-        PIO_OUT_BASE(data_base_pin) |       // Data pins
-        PIO_OUT_COUNT(num_data_pins);       // Number of data pins
-    sm_reg->instr = JMP(sm2_start); // Jump to start of program
+    PIO_SM_CLKDIV_SET(
+        config->sm2_clkdiv_int,
+        config->sm2_clkdiv_frac
+    );
+    PIO_SM_EXECCTRL_SET(0);
+    PIO_SM_SHIFTCTRL_SET(
+        PIO_OUT_SHIFTDIR_R |                    // Writes LSB of OSR
+        PIO_AUTOPULL |                          // Auto pull when we hit threshold
+        PIO_PULL_THRESH(config->num_data_pins)  // Pull when we have 8 bits
+    );
+    PIO_SM_PINCTRL_SET(
+        PIO_OUT_BASE(config->data_base_pin) |
+        PIO_OUT_COUNT(config->num_data_pins)
+    );
 
-    // Copy the constructed instructions into PIO instruction memory
-    for (int ii = 0; ii < offset; ii++) {
-        PIO0_INSTR_MEM(ii) = instr_scratch[ii];
-    }
+    // Jump to start and log
+    PIO_SM_JMP_TO_START();
+    PIO_LOG_SM("Data Byte Output");
 
-    // Log loaded program information
-#if defined(DEBUG_LOGGING)
-    DEBUG("PIO ROM serving programs:");
-    piorom_log_pio_sm(
-        "Chip Select Handler",
-        0,
-        config,
-        instr_scratch,
-        sm0_start,
-        sm0_wrap_bottom,
-        sm0_wrap_top
-    );
-    piorom_log_pio_sm(
-        "Address Read",
-        1,
-        config,
-        instr_scratch,
-        sm1_start,
-        sm1_wrap_bottom,
-        sm1_wrap_top
-    );
-    piorom_log_pio_sm(
-        "Data Byte Output",
-        2,
-        config,
-        instr_scratch,
-        sm2_start,
-        sm2_wrap_bottom,
-        sm2_wrap_top
-    );
-#endif // DEBUG_LOGGING
+    //
+    // PIO 0 - End of block
+    //
+    PIO_END_BLOCK();
 }
 
 // Starts the PIO state machines for ROM serving.
@@ -1148,44 +1109,52 @@ static void piorom_finish_config(
             if (num_cs_pins == 1) {
                 config->cs_base_pin = info->pins->cs1;
             } else {
-                if (info->pins->cs1 < info->pins->cs2) {
-                    if (info->pins->cs2 > (info->pins->cs1 + 1)) {
+                uint8_t next_pin;
+                if (num_cs_pins > 2) {
+                    next_pin = info->pins->cs3;
+                } else {
+                    next_pin = info->pins->cs2;
+                }
+                if (info->pins->cs1 < next_pin) {
+                    if (next_pin > (info->pins->cs1 + 1)) {
                         piorom_handle_non_contiguous_cs_pins(
                             config,
                             num_cs_pins,
                             info->pins->cs1,
                             info->pins->cs1,
-                            info->pins->cs2
+                            next_pin
                         );
                     }
                     config->cs_base_pin = info->pins->cs1;
                 } else {
-                    if (info->pins->cs1 > (info->pins->cs2 + 1)) {
+                    if (info->pins->cs1 > (next_pin + 1)) {
                         piorom_handle_non_contiguous_cs_pins(
                             config,
                             num_cs_pins,
-                            info->pins->cs2,
-                            info->pins->cs2,
+                            next_pin,
+                            next_pin,
                             info->pins->cs1
                         );
                     }
-                    config->cs_base_pin = info->pins->cs2;
+                    config->cs_base_pin = next_pin;
                 }
 
                 if (num_cs_pins > 2) {
+                    uint8_t final_pin = info->pins->cs2;
+
                     // piorom_handle_non_contiguous_cs_pins() handles if there
                     // are already too many breaks in contiguity
-                    if (info->pins->cs3 == (config->cs_base_pin - 1)) {
-                        config->cs_base_pin = info->pins->cs3;
-                    } else if (info->pins->cs3 == (config->cs_base_pin + 2)) {
+                    if (final_pin == (config->cs_base_pin - 1)) {
+                        config->cs_base_pin = final_pin;
+                    } else if (final_pin == (config->cs_base_pin + 2)) {
                         // cs_base_pin is already correct
-                    } else if (info->pins->cs3 > (config->cs_base_pin + 2)) {
+                    } else if (final_pin > (config->cs_base_pin + 2)) {
                         piorom_handle_non_contiguous_cs_pins(
                             config,
                             num_cs_pins,
                             config->cs_base_pin,
                             config->cs_base_pin+1,
-                            info->pins->cs3
+                            final_pin
                         );
                         // cs_base_pin is already correct
                     } else {
@@ -1193,11 +1162,11 @@ static void piorom_finish_config(
                         piorom_handle_non_contiguous_cs_pins(
                             config,
                             num_cs_pins,
-                            info->pins->cs3,
-                            info->pins->cs3,
+                            final_pin,
+                            final_pin,
                             config->cs_base_pin
                         );
-                        config->cs_base_pin = info->pins->cs3;
+                        config->cs_base_pin = final_pin;
                     }
                 }
             }
@@ -1316,10 +1285,6 @@ static void piorom_finish_config(
     config->rom_table_addr = rom_table_addr;
 
     // Final checks
-    if (config->rom_table_addr & 0xFFFF) {
-        LOG("!!! PIO ROM serving requires ROM table address to be 64KB aligned");
-        limp_mode(LIMP_MODE_INVALID_CONFIG);
-    }
     if ((config->rom_table_addr == 0) || (config->rom_table_addr == 0xFFFFFFFF)) {
         LOG("!!! PIO ROM serving requires valid ROM table address");
         limp_mode(LIMP_MODE_INVALID_CONFIG);
@@ -1401,19 +1366,11 @@ static piorom_config_t piorom_config = {
     .cs_pin_2nd_match = 255
 };
 
-// Configure and start the Autonomous PIO/DMA ROM serving implementation.
-void piorom(
-    const sdrr_info_t *info,
+// Apply any ROM set specific overrides to the PIO ROM serving configuration.
+void piorom_overrides(
     const sdrr_rom_set_t *set,
-    uint32_t rom_table_addr
+    piorom_config_t *config
 ) {
-    piorom_config_t config;
-
-    DEBUG("%s", log_divider);
-
-    memcpy(&config, &piorom_config, sizeof(piorom_config_t));
-
-    // Apply any ROM set overrides
     if ((set->extra_info) &&
         (set->serve_config != NULL) &&
         (set->serve_config != (void*)0xFFFFFFFF)) {
@@ -1422,7 +1379,7 @@ void piorom(
             // Current supported PIO serve override format:
             // Byte 0: 0xFE (signature)
             // Byte 1: addr_read_irq
-            // Byte 2: addr_base_pin
+            // Byte 2: addr_read_delay
             // Byte 3: cs_active_delay
             // Byte 4: cs_inactive_delay
             // Byte 5: no_dma
@@ -1436,23 +1393,49 @@ void piorom(
                 (serve_config[5] != 0xFF) &&
                 (serve_config[6] == 0xFE) &&
                 (serve_config[7] == 0xFF)) {
-                config.addr_read_irq = serve_config[1];
-                config.addr_read_delay = serve_config[2];
-                config.cs_active_delay = serve_config[3];
-                config.cs_inactive_delay = serve_config[4];
-                config.no_dma = serve_config[5];
+                config->addr_read_irq = serve_config[1];
+                config->addr_read_delay = serve_config[2];
+                config->cs_active_delay = serve_config[3];
+                config->cs_inactive_delay = serve_config[4];
+                config->no_dma = serve_config[5];
                 LOG("PIO found valid overriding serve config: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X",
-                    config.addr_read_irq,
-                    config.addr_read_delay,
-                    config.cs_active_delay,
-                    config.cs_inactive_delay,
-                    config.no_dma
+                    config->addr_read_irq,
+                    config->addr_read_delay,
+                    config->cs_active_delay,
+                    config->cs_inactive_delay,
+                    config->no_dma
                 );
             } else {
                 LOG("!!! PIO ROM serving invalid serve_config signature");
+                DEBUG("  Bytes: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X",
+                    serve_config[0],
+                    serve_config[1],
+                    serve_config[2],
+                    serve_config[3],
+                    serve_config[4],
+                    serve_config[5],
+                    serve_config[6],
+                    serve_config[7]
+                );
                 limp_mode(LIMP_MODE_INVALID_CONFIG);
             }
     }
+}
+
+// Configure and start the Autonomous PIO/DMA ROM serving implementation.
+void piorom(
+    const sdrr_info_t *info,
+    const sdrr_rom_set_t *set,
+    uint32_t rom_table_addr
+) {
+    piorom_config_t config;
+
+    DEBUG("%s", log_divider);
+
+    memcpy(&config, &piorom_config, sizeof(piorom_config_t));
+
+    // Apply any ROM set overrides
+    piorom_overrides(set, &config);
 
     piorom_finish_config(&config, info, set, rom_table_addr);
 
@@ -1494,6 +1477,8 @@ void piorom(
             __asm volatile("wfi");
         }
     } else {
+        DEBUG("PIO ROM serving running without DMA - CPU active loop");
+
         register volatile uint32_t *ctrl asm("r0") = &PIO0_CTRL;
         register volatile uint32_t *rxf1 asm("r2") = &PIO0_SM_RXF(1);
         register volatile uint32_t *txf2 asm("r3") = &PIO0_SM_TXF(2);
@@ -1539,390 +1524,5 @@ void piorom(
         );
     }
 }
-
-#if defined(DEBUG_LOGGING)
-static const char* piorom_get_jmp_condition(uint8_t cond) {
-    switch (cond) {
-        case 0b000: return "";
-        case 0b001: return "!x";
-        case 0b010: return "x--";
-        case 0b011: return "!y";
-        case 0b100: return "y--";
-        case 0b101: return "x!=y";
-        case 0b110: return "pin";
-        case 0b111: return "!osre";
-        default: return "???";
-    }
-}
-
-static const char* piorom_get_wait_source(uint8_t src) {
-    switch (src) {
-        case 0b00: return "gpio";
-        case 0b01: return "pin";
-        case 0b10: return "irq";
-        case 0b11: return "jmppin";
-        default: return "???";
-    }
-}
-
-static const char* piorom_get_in_source(uint8_t src) {
-    switch (src) {
-        case 0b000: return "pins";
-        case 0b001: return "x";
-        case 0b010: return "y";
-        case 0b011: return "null";
-        case 0b100: return "reserved";
-        case 0b101: return "reserved";
-        case 0b110: return "isr";
-        case 0b111: return "osr";
-        default: return "???";
-    }
-}
-
-static const char* piorom_get_out_dest(uint8_t dest) {
-    switch (dest) {
-        case 0b000: return "pins";
-        case 0b001: return "x";
-        case 0b010: return "y";
-        case 0b011: return "null";
-        case 0b100: return "pindirs";
-        case 0b101: return "pc";
-        case 0b110: return "isr";
-        case 0b111: return "exec";
-        default: return "???";
-    }
-}
-
-static const char* piorom_get_mov_dest(uint8_t dest) {
-    switch (dest) {
-        case 0b000: return "pins";
-        case 0b001: return "x";
-        case 0b010: return "y";
-        case 0b011: return "pindirs";
-        case 0b100: return "exec";
-        case 0b101: return "pc";
-        case 0b110: return "isr";
-        case 0b111: return "osr";
-        default: return "???";
-    }
-}
-
-static const char* piorom_get_mov_op(uint8_t op) {
-    switch (op) {
-        case 0b00: return "";
-        case 0b01: return "~";
-        case 0b10: return "::";
-        case 0b11: return "reserved";
-        default: return "???";
-    }
-}
-
-static const char* piorom_get_mov_source(uint8_t src) {
-    switch (src) {
-        case 0b000: return "pins";
-        case 0b001: return "x";
-        case 0b010: return "y";
-        case 0b011: return "null";
-        case 0b100: return "reserved";
-        case 0b101: return "status";
-        case 0b110: return "isr";
-        case 0b111: return "osr";
-        default: return "???";
-    }
-}
-
-static const char* piorom_get_set_dest(uint8_t dest) {
-    switch (dest) {
-        case 0b000: return "pins";
-        case 0b001: return "x";
-        case 0b010: return "y";
-        case 0b011: return "reserved";
-        case 0b100: return "pindirs";
-        case 0b101: return "reserved";
-        case 0b110: return "reserved";
-        case 0b111: return "reserved";
-        default: return "???";
-    }
-}
-
-static char* append_str(char* dest, const char* src) {
-    while (*src) {
-        *dest++ = *src++;
-    }
-    return dest;
-}
-
-static char* append_char(char* dest, char c) {
-    *dest++ = c;
-    return dest;
-}
-
-static char* append_uint(char* dest, uint32_t val) {
-    if (val == 0) {
-        *dest++ = '0';
-        return dest;
-    }
-    
-    char temp[11];
-    int i = 0;
-    while (val > 0) {
-        temp[i++] = '0' + (val % 10);
-        val /= 10;
-    }
-    
-    while (i > 0) {
-        *dest++ = temp[--i];
-    }
-    return dest;
-}
-
-static char* append_delay(char* dest, uint8_t delay) {
-    if (delay > 0) {
-        dest = append_str(dest, " [");
-        dest = append_uint(dest, delay);
-        dest = append_char(dest, ']');
-    }
-    return dest;
-}
-
-void piorom_instruction_decoder(uint32_t instr, char out_str[64]) {
-    uint8_t opcode = (instr >> 13) & 0x7;
-    uint8_t delay = (instr >> 8) & 0x1F;
-    char* p;
-    
-    switch (opcode) {
-        case 0b000: { // JMP
-            uint8_t condition = (instr >> 5) & 0x7;
-            uint8_t address = instr & 0x1F;
-            p = out_str;
-            p = append_str(p, "jmp ");
-            p = append_str(p, piorom_get_jmp_condition(condition));
-            p = append_str(p, ", ");
-            p = append_uint(p, address);
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-        
-        case 0b001: { // WAIT
-            uint8_t pol = (instr >> 7) & 0x1;
-            uint8_t source = (instr >> 5) & 0x3;
-            uint8_t index = instr & 0x1F;
-            p = out_str;
-            p = append_str(p, "wait ");
-            p = append_uint(p, pol);
-            p = append_char(p, ' ');
-            p = append_str(p, piorom_get_wait_source(source));
-            p = append_str(p, ", ");
-            p = append_uint(p, index);
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-        
-        case 0b010: { // IN
-            uint8_t source = (instr >> 5) & 0x7;
-            uint8_t bitcount = instr & 0x1F;
-            p = out_str;
-            p = append_str(p, "in ");
-            p = append_str(p, piorom_get_in_source(source));
-            p = append_str(p, ", ");
-            p = append_uint(p, bitcount);
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-        
-        case 0b011: { // OUT
-            uint8_t dest = (instr >> 5) & 0x7;
-            uint8_t bitcount = instr & 0x1F;
-            p = out_str;
-            p = append_str(p, "out ");
-            p = append_str(p, piorom_get_out_dest(dest));
-            p = append_str(p, ", ");
-            p = append_uint(p, bitcount);
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-        
-        case 0b100: { // PUSH/PULL/MOV indexed
-            uint8_t bit7 = (instr >> 7) & 0x1;
-            uint8_t bit4 = (instr >> 4) & 0x1;
-            p = out_str;
-            
-            if (bit4 == 0) {
-                // PUSH or PULL
-                uint8_t if_flag = (instr >> 6) & 0x1;
-                uint8_t block = (instr >> 5) & 0x1;
-                
-                if (bit7 == 0) {
-                    // PUSH
-                    p = append_str(p, "push");
-                    if (if_flag) {
-                        p = append_str(p, " iffull ");
-                    } else {
-                        p = append_char(p, ' ');
-                    }
-                    p = append_str(p, block ? "block" : "noblock");
-                } else {
-                    // PULL
-                    p = append_str(p, "pull");
-                    if (if_flag) {
-                        p = append_str(p, " ifempty ");
-                    } else {
-                        p = append_char(p, ' ');
-                    }
-                    p = append_str(p, block ? "block" : "noblock");
-                }
-            } else {
-                // MOV indexed
-                uint8_t idx_i = (instr >> 3) & 0x1;
-                uint8_t index = instr & 0x3;
-                
-                if (bit7 == 0) {
-                    // MOV RX
-                    p = append_str(p, "mov rxfifo[");
-                    if (idx_i) {
-                        p = append_uint(p, index);
-                    } else {
-                        p = append_char(p, 'y');
-                    }
-                    p = append_str(p, "], isr");
-                } else {
-                    // MOV TX
-                    p = append_str(p, "mov txfifo[");
-                    if (idx_i) {
-                        p = append_uint(p, index);
-                    } else {
-                        p = append_char(p, 'y');
-                    }
-                    p = append_str(p, "], osr");
-                }
-            }
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-        
-        case 0b101: { // MOV
-            uint8_t dest = (instr >> 5) & 0x7;
-            uint8_t op = (instr >> 3) & 0x3;
-            uint8_t source = instr & 0x7;
-            p = out_str;
-            
-            // Check for nop (mov y, y)
-            if (dest == 0b010 && op == 0b00 && source == 0b010) {
-                p = append_str(p, "nop");
-            } else {
-                p = append_str(p, "mov ");
-                p = append_str(p, piorom_get_mov_dest(dest));
-                p = append_str(p, ", ");
-                p = append_str(p, piorom_get_mov_op(op));
-                p = append_str(p, piorom_get_mov_source(source));
-            }
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-        
-        case 0b110: { // IRQ
-            uint8_t clr = (instr >> 6) & 0x1;
-            uint8_t wait = (instr >> 5) & 0x1;
-            uint8_t idx_mode = (instr >> 3) & 0x3;
-            uint8_t index = instr & 0x7;
-            p = out_str;
-            p = append_str(p, "irq ");
-            
-            // prev/next
-            if (idx_mode == 0b01) {
-                p = append_str(p, "prev ");
-            } else if (idx_mode == 0b11) {
-                p = append_str(p, "next ");
-            }
-            
-            // set/wait/clear
-            if (clr) {
-                p = append_str(p, "clear ");
-            } else if (wait) {
-                p = append_str(p, "wait ");
-            }
-            
-            p = append_uint(p, index);
-            
-            // rel
-            if (idx_mode == 0b10) {
-                p = append_str(p, " rel");
-            }
-            
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-        
-        case 0b111: { // SET
-            uint8_t dest = (instr >> 5) & 0x7;
-            uint8_t data = instr & 0x1F;
-            p = out_str;
-            p = append_str(p, "set ");
-            p = append_str(p, piorom_get_set_dest(dest));
-            p = append_str(p, ", ");
-            p = append_uint(p, data);
-            p = append_delay(p, delay);
-            *p = '\0';
-            break;
-        }
-    }
-}
-
-void piorom_log_pio_sm(
-    const char *sm_name,
-    uint8_t pio_sm,
-    piorom_config_t *config,
-    uint32_t *instr_scratch,
-    uint8_t start,
-    uint8_t wrap_bottom,
-    uint8_t wrap_top
-) {
-    // Scratch for instruction decoding
-    char instr[64];
-
-    // Get clock divider for this SM
-    uint16_t clkdiv_int;
-    uint8_t clkdiv_frac;
-    if (pio_sm == 0) {
-        clkdiv_int = config->sm0_clkdiv_int;
-        clkdiv_frac = config->sm0_clkdiv_frac;
-    } else if (pio_sm == 1) {
-        clkdiv_int = config->sm1_clkdiv_int;
-        clkdiv_frac = config->sm1_clkdiv_frac;
-    } else {
-        clkdiv_int = config->sm2_clkdiv_int;
-        clkdiv_frac = config->sm2_clkdiv_frac;
-    }
-
-    // Log
-    DEBUG("  SM%d - %s:", pio_sm, sm_name);
-    DEBUG(
-        "    CLKDIV: %d.%02d EXECCTRL: 0x%08X SHIFTCTRL: 0x%08X PINCTRL: 0x%08X",
-        clkdiv_int,
-        clkdiv_frac,
-        PIO0_SM_REG(pio_sm)->execctrl,
-        PIO0_SM_REG(pio_sm)->shiftctrl,
-        PIO0_SM_REG(pio_sm)->pinctrl
-    );
-    DEBUG("      .program sm%d", pio_sm);
-    for (int ii = start; ii <= wrap_top; ii++) {
-        if (ii == wrap_bottom) {
-            DEBUG("      .wrap_target");
-        }
-        piorom_instruction_decoder(instr_scratch[ii], instr);
-        DEBUG("        0x%02X: 0x%04X ; %s", ii - start, instr_scratch[ii], instr);
-        if (ii == wrap_top) {
-            DEBUG("      .wrap");
-        }
-    }
-}
-#endif // DEBUG_LOGGING
 
 #endif // RP235X

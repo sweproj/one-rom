@@ -16,6 +16,7 @@ extern uint32_t _sdrr_runtime_info_start;
 extern uint32_t _ram_rom_image_start[];
 // Logging function to output various debug information via RTT
 void log_init(void) {
+    return;
     LOG("%s", log_divider);
     LOG("%s v%d.%d.%d (build %d) - %s", product, sdrr_info.major_version, sdrr_info.minor_version, sdrr_info.patch_version, sdrr_info.build_number, project_url);
     LOG("%s %s", copyright, author);

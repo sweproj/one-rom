@@ -62,11 +62,28 @@ void dfu(void);
 #endif // STM32F4
 
 // piorom.c
+#if defined(RP235X)
 extern void piorom(
     const sdrr_info_t *info,
     const sdrr_rom_set_t *set,
     uint32_t rom_table_addr
 );
+extern void pioram(
+    const sdrr_info_t *info,
+    uint32_t rom_table_addr
+);
+// piodis.c
+void pio_log_sm(
+    const char *sm_name,
+    uint8_t pio_block,
+    uint8_t pio_sm,
+    uint16_t *instr_scratch,
+    uint8_t first_instr,
+    uint8_t start,
+    uint8_t end
+);
+
+#endif // RP235X
 
 // rom_impl.c
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)

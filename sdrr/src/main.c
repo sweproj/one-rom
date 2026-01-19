@@ -330,6 +330,7 @@ int main(void) {
         setup_status_led();
     }
 
+#if !defined(ONE_RAM)
     if (set == NULL) {
         // Brief blink pattern to indicate no ROM being served.  Stays off for
         // a fifth of the time as it is on.  Exact timings depend on clock
@@ -337,6 +338,7 @@ int main(void) {
         LOG("No ROM set to serve - entering limp mode");
         limp_mode(LIMP_MODE_NO_ROMS);
     }
+#endif // !ONE_RAM
 
     // Do final checks before entering the main loop
     check_config(&sdrr_info, &sdrr_runtime_info, set);
@@ -344,6 +346,13 @@ int main(void) {
     // Startup - from a stable 5V supply to here - takes:
     // - ~3ms    F411 100MHz BOOT_LOGGING=1
     // - ~1.5ms  F411 100MHz BOOT_LOGGING=0
+
+#if defined(ONE_RAM)
+    // Serve RAM
+    LOG("!!! Experimental ONE_RAM mode enabled - serving RAM image");
+    status_led_on(sdrr_info.pins->status);
+    pioram(&sdrr_info, (uint32_t)sdrr_runtime_info.rom_table);
+#endif
 
 // Check for incompatible options
 #if defined(EXECUTE_FROM_RAM) && defined(XIP_CACHE_WARM)

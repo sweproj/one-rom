@@ -43,15 +43,8 @@ OBJCOPY := $(TOOLCHAIN)/arm-none-eabi-objcopy
 SIZE := $(TOOLCHAIN)/arm-none-eabi-size
 
 # Source files
-SRCS := src/constants.c src/main.c src/rom_impl.c src/test.c src/utils.c src/vector.c
-ifeq ($(findstring stm32f4,$(VARIANT)),stm32f4)
-SRCS += src/stm32f4.c
-else ifeq ($(findstring rp2350,$(VARIANT)),rp2350)
-SRCS += src/rp235x.c src/piorom.c
-else
-# Ignore
-endif
-OBJS := $(addprefix $(BUILD_DIR)/,$(notdir $(SRCS:.c=.o))) $(PLATFORM_OBJS)
+SRCS := src/constants.c src/main.c src/rom_impl.c src/test.c src/utils.c src/vector.c src/stm32f4.c src/rp235x.c src/piodma/pio.c src/piodma/piorom.c src/piodma/pioram.c src/piodma/dma.c src/piodma/piodis.c
+OBJS := $(patsubst src/%,$(BUILD_DIR)/%,$(SRCS:.c=.o))
 SEGGER_SRCS := segger-rtt/RTT/SEGGER_RTT.c segger-rtt/RTT/SEGGER_RTT_printf.c
 SEGGER_OBJS := $(BUILD_DIR)/SEGGER_RTT.o $(BUILD_DIR)/SEGGER_RTT_printf.o
 
@@ -77,10 +70,8 @@ LDSCRIPT=$(OUTPUT_DIR)/linker.ld
 COMMON_FLAGS := -mthumb -mfloat-abi=hard -ffast-math -fshort-enums
 ifeq ($(findstring stm32f4,$(VARIANT)),stm32f4)
 COMMON_FLAGS += -mcpu=cortex-m4 -mfpu=fpv4-sp-d16
-PLATFORM_OBJS := stm32f4.o
 else ifeq ($(findstring rp2350,$(VARIANT)),rp2350)
 COMMON_FLAGS += -mcpu=cortex-m33 -mfpu=fpv5-sp-d16
-PLATFORM_OBJS := rp235x.o
 else
 $(error Unsupported variant: $(VARIANT))
 endif
@@ -101,16 +92,6 @@ all: $(BIN) size
 $(BUILD_DIR):
 	mkdir -p $@
 
-# Build pioasm
-pio-asm: pico-sdk
-	@echo "- Building pioasm"
-	@cd pico-sdk/tools/pioasm && \
-		mkdir -p build && \
-		cd build && \
-		cmake .. && \
-		make
-	@echo "- pioasm binary is at pico-sdk/tools/pioasm/build/pioasm"
-
 # Clone the pico-sdk repo
 pico-sdk:
 	@if [ ! -d "$@" ]; then \
@@ -125,6 +106,7 @@ segger-rtt:
 
 # sdrr object files
 $(BUILD_DIR)/%.o: src/%.c ../Makefile | $(BUILD_DIR) segger-rtt
+	@mkdir -p $(@D)
 	@echo "- Compiling sdrr/$<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
@@ -184,4 +166,4 @@ clean-build:
 clean: clean-build clean-segger-src clean-pico-sdk
 
 # Include dependency files
--include $(BUILD_DIR)/*.d
+-include $(shell find $(BUILD_DIR) -name '*.d' 2>/dev/null)

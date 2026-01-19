@@ -1,9 +1,13 @@
-// Copyright (C) 2025 Piers Finlayson <piers@piers.rocks>
+// Copyright (C) 2026 Piers Finlayson <piers@piers.rocks>
 //
 // MIT License
 
-#ifndef PIOROM_H
-#define PIOROM_H
+// RP2350 PIO register definitions
+
+#ifndef PIOREG_H
+#define PIOREG_H
+
+#include <stdint.h>
 
 // Base register addresses
 #define DMA_BASE            (0x50000000)
@@ -84,11 +88,16 @@ typedef struct pio_sm_reg {
 // Macros to build PIO SM registers
 
 // CLKDIV
-#define PIO_CLKDIV_INT(X, Y)    (((X) & 0xFFFF) << 16 | ((Y) & 0xFF) << 8)
+#define PIO_CLKDIV(INT, FRAC)           (((INT) & 0xFFFF) << 16 | ((FRAC) & 0xFF) << 8)
+#define PIO_CLKDIV_INT_FROM_REG(REG)    (((REG) >> 16) & 0xFFFF)
+#define PIO_CLKDIV_FRAC_FROM_REG(REG)   (((REG) >> 8) & 0xFF)
 
 // EXECCTRL
-#define PIO_WRAP_BOTTOM(X)      (((X) & 0x1F) << 7)
-#define PIO_WRAP_TOP(X)         (((X) & 0x1F) << 12)
+#define PIO_WRAP_BOTTOM_AS_REG(X)   (((X) & 0x1F) << 7)
+#define PIO_WRAP_TOP_AS_REG(X)      (((X) & 0x1F) << 12)
+#define PIO_JMP_PIN(X)          (((X) & 0x1F) << 24)
+#define PIO_WRAP_TOP_FROM_REG(REG)    (((REG) >> 12) & 0x1F)
+#define PIO_WRAP_BOTTOM_FROM_REG(REG) (((REG) >> 7) & 0x1F)
 
 // SHIFTCTRL
 #define PIO_IN_COUNT(X)         (((X) & 0x1F) << 0)
@@ -119,38 +128,4 @@ typedef struct pio_sm_reg {
 #define DREQ_PIO_X_SM_Y_TX(X, Y)      (0 + (X * 8) + Y)
 #define DREQ_PIO_X_SM_Y_RX(X, Y)      (4 + (X * 8) + Y)
 
-// DMA
-
-// DMA register offsets
-#define DMA_READ_ADDR_OFFSET        (0x00)
-#define DMA_WRITE_ADDR_OFFSET       (0x04)
-#define DMA_TRANS_COUNT_OFFSET      (0x08)
-#define DMA_CTRL_TRIG_OFFSET        (0x0C)
-#define DMA_READ_ADDR_TRIG_OFFSET   (0x3C)
-
-// DMA channel register structure
-typedef struct dma_ch_reg {
-    uint32_t read_addr;
-    uint32_t write_addr;
-    uint32_t transfer_count;
-    uint32_t ctrl_trig;
-} dma_ch_reg_t;
-
-// Macro to access a DMA channel's registers
-#define DMA_CH_REG(X)    ((volatile dma_ch_reg_t *)(DMA_BASE + ((X) * 0x40)))
-
-#define DMA_CTRL_TRIG_EN                (1 << 0)
-#define DMA_CTRL_TRIG_DATA_SIZE_8BIT    (0 << 2)
-#define DMA_CTRL_TRIG_DATA_SIZE_16BIT   (1 << 2)
-#define DMA_CTRL_TRIG_DATA_SIZE_32BIT   (2 << 2)
-#define DMA_CTRL_TRIG_CHAIN_TO(X)       (((X) & 0xF) << 13)
-#define DMA_CTRL_TRIG_TREQ_SEL(X)       (((X) & 0x3F) << 17)
-#define DMA_CTRL_TRIG_TREQ_PERM         0x3f
-
-// Macro to access DMA channel X's READ_ADDR register
-#define DMA_CH_READ_ADDR(X)    (*(volatile uint32_t *)(DMA_BASE + ((X) * 0x40) + DMA_READ_ADDR_OFFSET))
-
-// Macro to access DMA channel X's READ_ADDR_TRIG register
-#define DMA_CH_READ_ADDR_TRIG(X)    (*(volatile uint32_t *)(DMA_BASE + ((X) * 0x40) + DMA_READ_ADDR_TRIG_OFFSET))
-
-#endif // PIOROM_H
+#endif // PIOREG_H

@@ -6,6 +6,9 @@
 
 #define RP235X_INCLUDES
 #include "include.h"
+
+#if defined(RP235X)
+
 #include "roms.h"
 
 // Internal function prototypes
@@ -841,3 +844,5 @@ void setup_xosc(void) {
     CLOCK_REF_CTRL = CLOCK_REF_SRC_XOSC;
     while ((CLOCK_REF_SELECTED & CLOCK_REF_SRC_SEL_XOSC) != CLOCK_REF_SRC_SEL_XOSC);
 }
+
+#endif // RP235X
