@@ -10,6 +10,244 @@
 
 #include "piodma/piodma.h"
 
+// Some possible improvements and other thoughts:
+//
+// - Why bother triggering WRITE data and address readers when /W goes low?
+//   Just run them 24x7 alongside the READ address reader.  The important
+//   thing is only to trigger the DMA when /W goes high.  May need a slight
+//   delay after triggering DMA to avoid it potentially firing again quickly,
+//   particularly if /W is bouncy.  Would need an algorithm change to check /W
+//   goes low before re-arming.  So, perhaps, on balance, it's best to stay
+//   with a separate SM re-arming them.
+//
+// - PIO1 SM0 technically uses different criteria to re-arm than PIO1 SM1, and
+//   PIO2 SM2 (EITHER /CE or /W going inactive, vs just /W going inactive).
+//   It might be possible for this to cause a problem.
+
+// # Introduction
+//
+// This file contains a completely autonomous PIO and DMA based RAM serving
+// implementation.  Once started, the PIO state machines and DMA channels
+// serve RAM data for both reads and writes in response to external chip
+// select, output enable, write enable and address lines without any further
+// CPU intervention.
+//
+// Unlike a ROM chip, a RAM chip has a /W (Write Enable, active low) pin,
+// which switches between READ (like a ROM) and WRITE (data is written to the
+// device) modes.
+//
+// # Algorithm Summary
+//
+// The implementation uses six PIO state machines across three PIO blocks and
+// four DMA channels, with the following overall operation:
+//
+// Direction Control:
+// - PIO2 SM0 - Data Pin Direction Handler
+//
+// READ Path:
+// - PIO1 SM0 - Address Reader
+// - DMA0     - Address Forwarder
+// - DMA1     - Data Byte Fetcher
+// - PIO2 SM1 - Data Byte Writer
+//
+// WRITE Path:
+// - PIO0 SM0 - Write Enable Detector
+// - PIO1 SM1 - Address Reader
+// - PIO2 SM2 - Data Byte Reader
+// - DMA2     - Address Forwarder
+// - DMA3     - Data Byte Writer
+//
+// PIO blocks:
+// - PIO0 - Write Enable Handler
+// - PIO1 - Address Handlers
+// - PIO2 - Data Pin Handlers
+//
+// DMA channels:
+// 0/1 - READ path
+// 2/3 - WRITE path
+//
+//                         Data Direction Control
+//                         ======================
+//
+//                        <--------------------------------------------
+//                        |                                           ^
+//   Loops continuously   |                                           |
+//                        v  /OE AND /CE active        /W inactive    |
+// PIO2_SM0 --------------+----------------------+-------------------->
+//     ^                  |                      |    Set data pins
+//     |       /OE OR /CE |            /W active |     to outputs
+//     |         inactive |                      |
+//     |                  v                      v
+//     <------------------<-----------------------
+//             Sets Data Pins to Inputs
+//
+//                        READ Path (Continuous Loop)
+//                        ===========================
+//
+//   PIO1_SM0 Loops continuously
+//
+//    ---> PIO1_SM0 --+-----> DMA0 --------> DMA1 -------> PIO2_SM1
+//    ^        ^      |        ^              ^                |
+//    |        |      |        |              |                v
+//    |    Read Addr  |  Forward Addr    Get Data Byte    Write Data Pins
+//    |               |
+//    |               v
+//    <----------------
+//
+//                        WRITE Path (On /W Trigger)
+//                        ==========================
+//
+//   PIO0_SM0 Loops continuously
+//
+//   /CE AND /W active
+//         |
+//         v              IRQ                   /W inactive
+//     PIO0_SM0 ---------+--->--> PIO1_SM1 ---+-------------> DMA2
+//         ^             |   ^        ^       |   Read Addr    |
+//         |             |   |        |       |  via RX FIFO   |
+//   ------>             |   |    Read Addr   |                |
+//   ^                   |   |                v                | Forward
+//   |                   |   <-----------------                | Address
+//   |                   |                                     |
+//   |                   |                                     |
+//   |                   | IRQ                  /W inactive    v
+//   |                   +--->--> PIO2_SM2 ---+-------------> DMA3
+//   |                   |   ^        ^       |     Data       |
+//   |                   |   |        |       |  via RX FIFO   |
+//   |                   |   | Read Data Pins |                |
+//   |                   |   |                v                |
+//   |                   |   <-----------------                v
+//   |                   |                                Store Data
+//   |                   |                                  in RAM
+//   |                   v
+//   |                   <------------
+//   |                   |           ^
+//   |       Re-arm      v           |
+//   <-------------------+----------->
+//    /CE OR /W inactive   /CE AND /W active
+//
+// (Diagrams not to scale)
+//
+// # Detailed Operation
+//
+// The detailed operation is as follows:
+//
+// ## Data Direction Control
+//
+// PIO2 SM0 - Data Pin Direction Handler
+//  - Continuously monitors /CE, /OE and /W pins.
+//  - Sets data pins to inputs when /CE inactive OR /OE inactive OR /W
+//    active.
+//  - Sets data pins to outputs only when /CE AND /OE active AND /W
+//    inactive.
+//
+// ## READ Path
+//
+// PIO1 SM0 - Address Reader (READ)
+//  - (One time - reads high bits of RAM table address from TX FIFO,
+//    preloaded by CPU before starting.)
+//  - Continuously reads address lines.
+//  - Combines high RAM table address bits with current address pins.
+//  - Pushes complete 32-bit RAM table lookup address to RX FIFO
+//    (triggering DMA0).
+//  - Loops continuously to serve next address with slight delay to
+//    avoid overwhelming DMA chain.
+//
+// DMA0 - Address Forwarder (READ)
+//  - Triggered by PIO1 SM0 RX FIFO using DREQ_PIO1_RX0.
+//  - Reads 32-bit RAM table lookup address from PIO1 SM0 RX FIFO.
+//  - Writes address into DMA1 READ_ADDR_TRIG register, re-arming DMA1.
+//
+// DMA1 - Data Byte Fetcher (READ)
+//  - Triggered by DMA0 writing to READ_ADDR_TRIG.
+//  - Reads RAM byte from address specified in READ_ADDR register.
+//  - Writes byte into PIO2 SM1 TX FIFO.
+//  - Waits to be re-triggered by DMA0.
+//
+// PIO2 SM1 - Data Byte Writer (READ)
+//  - Waits for data byte in TX FIFO (from DMA1).
+//  - When available, outputs byte on data pins.
+//  - Loops back to wait for next byte.
+//  - (Direction control handled separately by PIO2 SM0.)
+//
+// ## WRITE Path
+//
+// PIO0 SM0 - Write Enable Detector
+//  - Continuously monitors /CE and /W pins.
+//  - When both go low (write enabled), performs debounce check by
+//    reading multiple times (PIORAM_WRITE_ACTIVE_CHECK_COUNT).
+//  - Once confirmed low, triggers single IRQ to signal write operation to
+//    trigger both address and data reader SMs.
+//  - Waits for either /CE OR /W to go high before re-arming.
+//
+// PIO1 SM1 - Address Reader (WRITE)
+//  - (One time - reads high bits of RAM table address from TX FIFO,
+//    preloaded by CPU before starting.)
+//  - Triggered by PIO0 SM0 IRQ, write enable detection (same IRQ as PIO2 SM2
+//    data byte writer).
+//  - Waits for IRQ from PIO0 SM0 (write enable detection).
+//  - Loops reading address lines until /W goes high.
+//  - When /W goes high, pushes last read address to RX FIFO (triggering
+//    DMA2) and loops back to wait for next IRQ.
+//  - Perfectly synchronised with PIO2 SM2 data byte writer to sample and
+//    output at the same time.
+//
+// PIO2 SM2 - Data Byte Reader (WRITE)
+//  - Triggered by PIO0_SM0 IRQ, write enable detection (same IRQ as PIO1 SM1
+//    address reader).
+//  - Waits for IRQ from PIO0 SM0 (write enable detection).
+//  - Loops reading data pins until /W goes high.
+//  - When /W goes high, pushes last read data byte to RX FIFO (for DMA3)
+//    and loops back to wait for next IRQ.
+//  - Synchronized with address reader to sample at same time.
+//  - Perfectly synchronised with PIO1 SM1 address reader to sample and
+//    output at the same time.
+//
+// DMA2 - Address Forwarder (WRITE)
+//  - Triggered by PIO1 SM1 RX FIFO using DREQ_PIO1_RX1.
+//  - Reads 32-bit RAM table address from PIO1 SM1 RX FIFO.
+//  - Writes address into DMA3 WRITE_ADDR_TRIG register, triggereing DMA3.
+//
+// DMA3 - Data Byte Writer (WRITE)
+//  - Triggered by DMA2 writing to WRITE_ADDR_TRIG.
+//  - Reads data byte from PIO2 SM2 RX FIFO.
+//  - Writes byte to RAM table at address specified by DMA2.
+//  - Waits to be re-triggered.
+//
+// There are a number of hardware pre-requisites for this to work:
+// - RP2350, not RP2040 (uses pindirs as mov destination and mov pins as
+//   source with IN pin masking).
+// - All /CE, /OE and /W pins must be readable by all PIOs (always true
+//   for inputs on RP2350).
+// - All Data lines must be connected to contiguous GPIOs.
+// - All Address lines must be connected to contiguous GPIOs.
+// - Address space limited to powers of two (typically 2KB for 6116).
+//
+// To minimize jitter:
+// - DMA channels should have high AHB5 bus priority using BUS_PRIORITY.
+// - Avoid other SRAM access to banks containing RAM table.
+// - These DMAs should have higher priority than others if present.
+// - Minimize peripheral access on AHB5 during operation.
+//
+// # PIO Allocation
+//
+// There are a number of constraints over PIO allocation:
+// - There are 3 PIO blocks total.
+// - Each PIO block has 4 state machines.
+// - Only one PIO block can control specific pin outputs.
+//
+// We have these requirements:
+// - The only pins which need output control are the data pins.
+// - We need 6 PIOs total.
+// - 2 PIOs need to control data pin outputs (one to write data, one to set
+//   to inputs/outputs).
+//
+// The PIO assignment was chosen to logically split the functionality, while
+// meeting the above constraints.  There are other ways it could have been
+// arranged - in particular it would be possible to collapse PIO blocks 0 and
+// 1 together (or even 0 and 2 together), freeing up a whole PIO block for
+// other uses if necessary.
+
 //
 // Config options
 //
@@ -193,7 +431,7 @@ static void pioram_load_programs(pioram_config_t *config) {
     PIO_LABEL_NEW(check_write_disabled);
     PIO_ADD_INSTR(MOV_X_PINS);
 
-    // If both /CE or /W still low, keep waiting, otherwise jump to start
+    // If both /CE and /W still low, keep waiting, otherwise jump to start
     PIO_WRAP_TOP();
     PIO_ADD_INSTR(JMP_NOT_X(PIO_LABEL(check_write_disabled)));
 
@@ -220,12 +458,12 @@ static void pioram_load_programs(pioram_config_t *config) {
     //
     PIO_END_BLOCK();
 
-    // PIO1 Programs
+    // PIO 1 Programs
     //
     // Address Readers
     PIO_SET_BLOCK(1);
 
-    // PIO1 - Address Readers
+    // PIO 1 - Address Readers
     // 
     // SM0 - Address Reader (RAM READ)
     //
@@ -338,16 +576,16 @@ static void pioram_load_programs(pioram_config_t *config) {
     PIO_LOG_SM("Address Reader (RAM WRITE)");
 
     //
-    // PIO 0 - End of block
+    // PIO 1 - End of block
     //
     PIO_END_BLOCK();
 
-    // PIO2 Programs
+    // PIO 2 Programs
     //
     // Data Handlers
     PIO_SET_BLOCK(2);
 
-    // PIO2 - Data Handlers
+    // PIO 2 - Data Handlers
     //
     // SM0 - Data Input/Output handler
     //
