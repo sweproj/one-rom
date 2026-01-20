@@ -1,8 +1,10 @@
 # One ROM Ice USB J 24 Pin 
 
-**Univerified**
+**Verified**
 
 Adds 2 more image select jumpers to Ice USB I, for a total of 4 image select jumpers.
+
+Note that firmware version v0.6.1 is required to support 4 image select jumpers - v0.6.0 only supports the first 2.
 
 There is a single set of gerbers, and two sets of POS/BOM files:
 - One for the STM32F411RET6 MCU.
