@@ -101,7 +101,7 @@
 //
 //   /CE AND /W active
 //         |
-//         v              IRQ                   /W inactive
+//         v               IRQ                  /W inactive
 //     PIO0_SM0 ---------+--->--> PIO1_SM1 ---+-------------> DMA2
 //         ^             |   ^        ^       |   Read Addr    |
 //         |             |   |        |       |  via RX FIFO   |
@@ -178,7 +178,9 @@
 //    reading multiple times (PIORAM_WRITE_ACTIVE_CHECK_COUNT).
 //  - Once confirmed low, triggers single IRQ to signal write operation to
 //    trigger both address and data reader SMs.
-//  - Waits for either /CE OR /W to go high before re-arming.
+//  - Waits for either /CE OR /W to go high before re-arming.  Has NOPs
+//    inserted, to avoid potentially re-arming too quickly on bouncy /W
+//    signals.
 //
 // PIO1 SM1 - Address Reader (WRITE)
 //  - (One time - reads high bits of RAM table address from TX FIFO,
