@@ -817,16 +817,19 @@ generate_manifest() {
     get_hw_display() {
         local hw_rev="$1"
         case "$hw_rev" in
-            24-h) echo "Ice H/H2" ;;
-            24-g) echo "G" ;;
-            24-f) echo "F" ;;
-            ice-24-f) echo "Ice F/F2" ;;
-            ice-24-g) echo "Ice G" ;;
-            ice-24-h) echo "Ice H/H2" ;;
-            ice-24-usb-h) echo "Ice H/H2" ;;
-            p24-a) echo "A/A2" ;;
-            fire-24-a) echo "Fire A/A2" ;;
-            fire-24-usb-b) echo "Fire USB B" ;;
+            24-h) echo "Ice 24 H" ;;
+            24-g) echo "Ice 24 G" ;;
+            24-f) echo "Ice 24 F" ;;
+            ice-24-f) echo "Ice 24 F" ;;
+            ice-24-g) echo "Ice 24 G" ;;
+            ice-24-h) echo "Ice 24 H" ;;
+            ice-24-usb-h) echo "Ice 24 H" ;;
+            p24-a) echo "Fire 24 A" ;;
+            fire-24-a) echo "Fire 24 A" ;;
+            fire-24-usb-b) echo "Fire 24 B" ;;
+            fire-24-c) echo "Fire 24 C" ;;
+            fire-24-d) echo "Fire 24 D" ;;
+            fire-28-a) echo "Fire 28 A" ;;
             *) echo "$hw_rev" ;;  # Default to hw_rev itself
         esac
     }

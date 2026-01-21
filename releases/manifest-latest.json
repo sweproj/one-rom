@@ -2,57 +2,57 @@
   "version": "v0.6.0",
   "hardware": {
     "fire-24-a": {
-      "display": "Fire A/A2",
+      "display": "Fire 24 A",
       "description": "One ROM Fire 24 (rev A/A2)",
       "usb_support": false
     },
     "fire-24-c": {
-      "display": "fire-24-c",
+      "display": "Fire 24 C",
       "description": "One ROM Fire 24 (rev C)",
       "usb_support": true
     },
     "fire-24-d": {
-      "display": "fire-24-d",
+      "display": "Fire 24 D",
       "description": "One ROM Fire 24 (rev D)",
       "usb_support": true
     },
     "fire-24-usb-b": {
-      "display": "Fire USB B",
+      "display": "Fire 24 B",
       "description": "One ROM Fire 24 (rev B)",
       "usb_support": true
     },
     "fire-28-a": {
-      "display": "fire-28-a",
+      "display": "Fire 28 A",
       "description": "One ROM Fire 28 (rev A)",
       "usb_support": true
     },
     "ice-24-f": {
-      "display": "Ice F/F2",
+      "display": "Ice 24 F",
       "description": "One ROM Ice 24 (rev F/F2)",
       "usb_support": false
     },
     "ice-24-g": {
-      "display": "Ice G",
+      "display": "Ice 24 G",
       "description": "One ROM Ice 24 (rev G)",
       "usb_support": false
     },
     "ice-24-i": {
-      "display": "ice-24-i",
+      "display": "Ice 24 I",
       "description": "One ROM Ice 24 USB (rev I)",
       "usb_support": true
     },
     "ice-24-j": {
-      "display": "ice-24-j",
+      "display": "Ice 24 J",
       "description": "One ROM Ice 24 (rev J)",
       "usb_support": true
     },
     "ice-24-usb-h": {
-      "display": "Ice H/H2",
+      "display": "Ice 24 H",
       "description": "One ROM Ice 24 USB (rev H/H2)",
       "usb_support": true
     },
     "ice-28-a": {
-      "display": "ice-28-a",
+      "display": "Ice 28 A",
       "description": "One ROM Ice 28 (rev A)",
       "usb_support": false
     }

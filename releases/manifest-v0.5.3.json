@@ -2,22 +2,22 @@
   "version": "v0.5.3",
   "hardware": {
     "24-f": {
-      "display": "F",
+      "display": "Ice 24 F",
       "description": "One ROM STM32F4 24-pin rev F",
       "usb_support": false
     },
     "24-g": {
-      "display": "G",
+      "display": "Ice 24 G",
       "description": "One ROM STM32F4 24-pin rev G",
       "usb_support": false
     },
     "ice-24-usb-h": {
-      "display": "Ice H/H2",
+      "display": "Ice 24 H",
       "description": "One ROM STM32F4 24-pin rev H",
       "usb_support": true
     },
     "p24-a": {
-      "display": "A/A2",
+      "display": "Fire 24 A",
       "description": "One ROM RP2350 24-pin rev A",
       "usb_support": false
     }
