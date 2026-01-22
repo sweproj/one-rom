@@ -42,6 +42,17 @@ source ~/.zshrc
 
 8. Select Confirm Production file.
 
-9. Select PCB Assembly
+9. Select PCB Assembly.
+
+10. Select Standard (not Economic, as this includes V-CUT).
+
+11. Select Edge Rails/Fiducials Added by Customer.
+
+12. When adding BOM, ensure "Single Piece, pls help me repeat the data" is selected.
+
+13. Ensure all parts selected.
+
+
+
 
 Use the standard bom and pos files.
