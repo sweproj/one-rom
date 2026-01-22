@@ -59,7 +59,7 @@ You can choose to install the dependencies locally, or use the [Docker container
 
     On macOS you would be using [Homebrew](https://brew.sh/).
 
-4. Install [Rust](https://www.rust-lang.org/tools/install):
+4. Install [Rust](https://www.rust-lang.org/tools/install) - this will take a while:
 
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
