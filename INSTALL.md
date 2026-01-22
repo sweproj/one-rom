@@ -1,14 +1,12 @@
 # INSTALL
 
-one-rom requires a fairly involved toolchain to build, due to the extend of the project (embedded firmware, desktop application, webassembly, etc).  This document covers installing the toolchain and dependencies on linux (primarily focusing on an x86_64 Debian-based distribution, although notes are also provided for an ARM64 based host).  Other hosts (Mac, Windows) are possible, and it is recommended to use macOS for building One ROM Studio for Mac, and Windows for building Windows installers.
+one-rom requires a fairly involved toolchain to build, due to the extend of the project (embedded firmware, desktop application, webassembly, etc).  This document covers installing the toolchain and dependencies on linux (primarily focusing on an x86_64 Debian-based distribution, although notes are also provided for an ARM64 based host).
 
-Get hold of a [supported microcontroller](README.md#supported-stm32-microcontrollers) and the [PCB](sdrr-pcb) and solder the PCB up.
+Other hosts (Mac, Windows) are possible, and it is recommended to use macOS for building One ROM Studio for Mac, and Windows for building Windows installers.
 
-Get rev E from here:
+However, we strongly recommend sticking to a *nix based host (Linux or macOS) for building the One ROM firmware itself, and instructions for settig up a full Windows build host are not included below.
 
-[![Order from OSH Park](https://oshpark.com/assets/badge-5b7ec47045b78aef6eb9d83b3bac6b1920de805e9a0c227658eac6e19a045b9c.png)](https://oshpark.com/shared_projects/9TJoAirm)
-
-At this point, you can choose to install the dependencies locally, or use the [Docker container](ci/docker/README.md) to build the One ROM firmware.
+You can choose to install the dependencies locally, or use the [Docker container](ci/docker/README.md) to build the One ROM firmware.
 
 0. Install pre-requisites
 
@@ -23,33 +21,35 @@ At this point, you can choose to install the dependencies locally, or use the [D
     cd one-rom
     ```
 
-2. Install the required [ARM GNU toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) for AArch32 bare-metal target (arm-none-eabi).
+2. Install the required ARM GNU toolchain.  You have options here.
 
-    Recommended approach - download the toolchain from ARM's developer site (this is quite large, so may take a while):
+    - Install it [from ARM's website](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) for AArch32 bare-metal target (arm-none-eabi).
 
-    ```bash
-    wget https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz
-    tar -xvf arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz
-    sudo mv arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi /opt/
-    ```
+        Recommended approach - download the toolchain from ARM's developer site (this is quite large, so may take a while) - this is for x86_64 linux hosts::
 
-    Or install it via your package manager, e.g., on Debian/Ubuntu:
+        ```bash
+        wget https://developer.arm.com/-/media/Files/downloads/gnu/14.3.rel1/binrel/arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz
+        tar -xvf arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi.tar.xz
+        sudo mv arm-gnu-toolchain-14.3.rel1-x86_64-arm-none-eabi /opt/
+        ```
 
-    ```bash
-    sudo apt -y install gcc-arm-none-eabi
-    ```
+        If you are on ARM64 linux, or a Mac (Intel or ARM), select the correct version from ARM's site.  Again update TOOLCHAIN.
 
-    Or install the aarch64 version if you are on an ARM64 host.  Again update TOOLCHAIN.
+    - Install it via your package manager, e.g., on Debian/Ubuntu:
 
-    If you install using the package manager, you will need to update the `TOOLCHAIN` environment variable or variable in the [Makefile](sdrr/Makefile) to point to the correct compiler binary directory.  It should probably `/usr/bin` or similar.
+        ```bash
+        sudo apt -y install gcc-arm-none-eabi
+        ```
 
-2a. If on an ARM64 host you will also need x86_64-linux-gnu cross tools:
+    Now you will need to update the `TOOLCHAIN` environment variable in your shell or variable in the [Makefile](sdrr/Makefile) to point to the correct compiler binary directory.  It should probably `/usr/bin` or `/opt/arm-gnu-toolchain-14.3.rel1-darwin-arm64-arm-none-eabi/bin` or similar.
+
+    If on an ARM64 host you will also need x86_64-linux-gnu cross tools:
 
     ```bash
     sudo apt -y install gcc-x86-64-linux-gnu
     ```
 
-3. Install curl, zip and json-x development packages (required for tests), vice (for demos), dfu-util (for STM32 DFU flashing), jq (for JSON manifest generation):
+3. Install the following packages required for building and testing.  Of these `vice` and `dfu-util` are optional.  (`vice` is used to build some Commodore demo programs, and `dfu-util` can be used for SWD programming Ice variants.):
 
     ```bash
     sudo apt -y install dfu-util jq libcurl4-openssl-dev libzip-dev libjson-c-dev libudev-dev vice
@@ -57,18 +57,20 @@ At this point, you can choose to install the dependencies locally, or use the [D
 
     If you are using a different package manager, the package name may vary slightly, e.g., `libcurl-devel` on Fedora.
 
+    On macOS you would be using [Homebrew](https://brew.sh/).
+
 4. Install [Rust](https://www.rust-lang.org/tools/install):
 
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
     source $HOME/.cargo/env
     rustup target install thumbv7em-none-eabihf
-    cargo install wasm-pack
     cargo install cross
-    cargo install cargo-dist
+    cargo install wasm-pack   # Only required to build one-rom-wasm
+    cargo install cargo-dist  # Only required to build One ROM Studio installers
     ```
 
-    If planning to build One ROM Studio for all possible targets (you likely only want to build a subset):
+    If planning to build One ROM Studio for all possible targets (you likely only want to build a subset!) you will also need to install additional Rust targets and the mingw-w64 toolchain for Windows targets.  If you just want to build the One ROM firmware you do not need to do this step.
     
     ```bash
     rustup target install \
@@ -83,7 +85,7 @@ At this point, you can choose to install the dependencies locally, or use the [D
     sudo apt -y install mingw-w64
     ```
 
-5. Install [probe-rs](https://probe.rs/) for flashing the firmware to One ROM.
+5. Install [probe-rs](https://probe.rs/) for flashing the firmware to One ROM using an SWD programmer.  This is optional if you want to just build the firmware and use another tool to flash it.
 
     ```bash
     curl --proto '=https' --tlsv1.2 -LsSf https://github.com/probe-rs/probe-rs/releases/latest/download/probe-rs-tools-installer.sh | sh
@@ -92,4 +94,98 @@ At this point, you can choose to install the dependencies locally, or use the [D
 
 6. Connect up One ROM to your [programmer](README.md#programmer).
 
-At this point you can follow the instructions in [Quick Start](README.md#quick-start) to build and flash the One ROM firmware.
+At this point you can follow the instructions below to build and flash the firmware.
+
+## Building the Firmware
+
+To build the firmware, you use a command like this:
+
+```bash
+HW_REV=fire-24-d MCU=rp2350 CONFIG=config/vic20-pal.mk make
+```
+
+You MUST include BOTH the `HW_REV` and `MCU` parameters.  This example builds the firmware for One ROM revision Fire board revision 24D, using the VIC20 PAL ROM set configuration (downloading the ROM images as part of that).
+
+See [CONFIGURATION.md](/docs/CONFIGURATION.md) for details of the available configuration options.
+
+## Programming the Firmware
+
+### USB
+
+USB is the simplest way to program One ROM if your hardware revision supports.
+
+After building the firmware as above, use the binary from `sdrr/build/sdrr-{MCU}.bin` and one of the following tools to update the firmware of your device.  You have two official One ROM options:
+- [One ROM Studio](https://onerom.org/studio)
+- [One ROM Web](https://onerom.org/web)
+
+If both cases, you need to select the option to upload a local firmware binary, and then program it.
+
+You also have board specific, third-party, options:
+
+#### Fire Boards
+
+- [pico⚡flash](https://picoflash.org) - A web based RP2040/RP2350 flash by One ROM's author. 
+- [picotool](https://github.com/raspberrypi/picotool) - A command line tool from Raspberry Pi for programming Raspberry Pi RP2040/RP2350-based boards.
+
+As well as `sdrr/build/sdrr-rp2350.bin`, if you have [picotool](https://github.com/raspberrypi/picotool) installed and in your path, a UF2 file is created as part of the build for Fire boards at `sdrr/build/sdrr-rp2350.uf2`.
+
+For a factory fresh Fire board, you can copy this UF2 to the RP2350 filesystem that mounts when you plug in the Fire board to program it.
+
+Note that the RP2350 filesystem is not automatically mounted when plugged into USB once you have One ROM firmware v0.6.0+ installed, but you can access it by pulling BOOT to GND on power up to enter this mode.
+
+#### Ice Boards
+
+There are many third-arty options for programming Ice USB boards, which use STM32's DFU mode.
+
+The author sometimes uses [dfu-util](http://dfu-util.sourceforge.net/).  As well as `sdrr/build/sdrr-stm32{MCU}.bin`, a DFU file is also created at `sdrr/build/sdrr-stm32{MCU}.dfu` which can be supplied directly to `dfu-util`.
+
+You can even use the following to build and flash via dfu-util in one step:
+
+```bash
+XXX make dfu-flash
+```
+
+### SWD Programmer
+
+Using SWD has an advantage over USB of being able to view debug logs from One ROM after re-programming.
+
+However, you will need to find some way to power One ROM while programming, as, unlike USB, SWD does not provide power.  You can power One ROM by installing it in your retro system and powering that on, or by providing 5V and GND to the appropriate pins on One ROM directly.  ⚠️ If you are powering One ROM directly, **do not** install it in a retro system at the same time, as this may damage your One ROM, programmer, or retro system.
+
+There are many tools that can be used to program One ROM via an SWD programmer.  We use [probe-rs](https://probe.rs/), which you may have installed already.
+
+If you installed `probe-rs`, you can a command like this to build and flash the firmware using an SWD programmer in a single step - replace XXX with the appropriate build config for your hardware revision, MCU and ROM set configuration:
+
+```bash
+XXX make run
+```
+
+Note that as well as `sdrr/build/sdrr-{MCU}.bin`, an ELF file is created at `sdrr/build/sdrr-{MCU}.elf` which can be used with other SWD programming tools, as it contains build symbols.  This is particularly useful for attaching to One ROM with the programmer, after it has been programmed, to view logs. 
+
+See [Pi-PICO-PROGRAMMER](/docs/PI-PICO-PROGRAMMER.md) for details of using a Raspberry Pi Pico as an inexpensive SWD programmer.  Many other SWD programmers are available, like the Raspberry Pi Debug Probe, generic DAPLink, ST-Link, etc. 
+
+Occassionally your One ROM may lock up, particularly if you are experimenting with overclocking or other advanced configuration options, or debugging firmware changes.  If this is is the case, try rebooting your programmer, One ROM, or both, and try again.  If you still have problems, see [Recovering a Bricked Device](docs/GETTING-STARTED.md#recovering-a-bricked-device) for help.
+
+## Additional Make Targets
+
+To build and then review the contents of the firmware run:
+
+```bash
+XXX make info
+XXX make info-detail # More details
+```
+
+To perform consistency checking on the firmware run the following:
+
+```bash
+XXX make test
+```
+
+Not all ROM types support this testing.  Please raise an issue if your specific ROM type fails this test.
+
+## Debugging
+
+To enable both high-level logging and debug logging, use the following when building:
+
+```bash
+BOOT_LOGGING=1 DEBUG_LOGGING=1 HW_REV=fire-24-d MCU=rp2350 CONFIG=config/vic20-pal.mk make
+```

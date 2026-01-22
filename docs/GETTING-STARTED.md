@@ -1,5 +1,14 @@
 # Getting Started
 
+## USB One ROMs
+
+Most people will be getting started with a USB One ROM device, which can be programmed over USB.  You are recommended to use either:
+
+- [One ROM Studio](https://onerom.org/studio) - a desktop application for Windows, macOS and Linux
+- [One ROM Web](https://onerom.org/web) - a web tool for programming One ROM from your browser.
+
+You only need to continue with this guide if you want to build the firmware yourself, or use an SWD programmer to program your One ROM device, or need to [unbrick a device](#recovering-a-bricked-device).
+
 ## Important
 
 ⚠️ **Do Not** power your One ROM device when it is installed in your retro system.
