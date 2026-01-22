@@ -6185,7 +6185,7 @@ dependencies = [
  "bytes",
  "clap",
  "onerom-config 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "onerom-gen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.3.0",
  "reqwest",
  "strum",
  "thiserror 2.0.17",

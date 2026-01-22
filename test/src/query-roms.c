@@ -7,35 +7,135 @@
 #include "roms-test.h"
 #include "json-config.h"
 
-static struct {
+// The address mangler uses CSx, not /CE or /OE.  Where /CE and /OE are used
+// instead, this address mangler refers to them as CS1 and CS2.
+
+typedef struct {
     uint8_t addr_pins[MAX_ADDR_LINES];
     uint8_t cs1_pin;
+    uint8_t cs2_pin;
+    uint8_t cs3_pin;
     uint8_t x1_pin;
     uint8_t x2_pin;
     int initialized;
-} address_mangler = {0};
+} address_mangler_t;
+static address_mangler_t address_mangler;
 
-void create_address_mangler(json_config_t* config) {
-    // Assert CS1 is same for all ROM types
-    if (config->rom.pin_count == 24 ) {
-        assert(config->mcu.pins.cs1.pin_2364 == config->mcu.pins.cs1.pin_2332);
-        assert(config->mcu.pins.cs1.pin_2332 == config->mcu.pins.cs1.pin_2316);
-        assert(config->mcu.pins.cs1.pin_2364 != 255);
+static void init_address_mangler(
+    const json_config_t* config,
+    const sdrr_rom_type_t rom_type,
+    address_mangler_t *mangler
+) {
+    // Initialize
+    mangler->initialized = 0;
+    mangler->cs1_pin = 255;
+    mangler->cs2_pin = 255;
+    mangler->cs3_pin = 255;
+    mangler->x1_pin = 255;
+    mangler->x2_pin = 255;
+    memset(mangler->addr_pins, 255, sizeof(mangler->addr_pins));
+
+    // Set CS pins b ased on ROM type
+    switch (rom_type) {
+        case ROM_TYPE_2316:
+            mangler->cs1_pin = config->mcu.pins.cs1.pin_2316;
+            mangler->cs2_pin = config->mcu.pins.cs2.pin_2316;
+            mangler->cs3_pin = config->mcu.pins.cs3.pin_2316;
+            break;
+
+        case ROM_TYPE_2332:
+            mangler->cs1_pin = config->mcu.pins.cs1.pin_2332;
+            mangler->cs2_pin = config->mcu.pins.cs2.pin_2332;
+            mangler->cs3_pin = config->mcu.pins.cs3.pin_2332;
+            break;
+
+        case ROM_TYPE_2364:
+            mangler->cs1_pin = config->mcu.pins.cs1.pin_2364;
+            mangler->cs2_pin = config->mcu.pins.cs2.pin_2364;
+            mangler->cs3_pin = config->mcu.pins.cs3.pin_2364;
+            break;
+
+        case ROM_TYPE_23128:
+            mangler->cs1_pin = config->mcu.pins.cs1.pin_23128;
+            mangler->cs2_pin = config->mcu.pins.cs2.pin_23128;
+            mangler->cs3_pin = config->mcu.pins.cs3.pin_23128;
+            break;
+
+        case ROM_TYPE_23256:
+            mangler->cs1_pin = config->mcu.pins.cs1.pin_23256;
+            mangler->cs2_pin = config->mcu.pins.cs2.pin_23256;
+            mangler->cs3_pin = config->mcu.pins.cs3.pin_23256;
+            break;
+
+        case ROM_TYPE_23512:
+            mangler->cs1_pin = config->mcu.pins.cs1.pin_23512;
+            mangler->cs2_pin = config->mcu.pins.cs2.pin_23512;
+            mangler->cs3_pin = config->mcu.pins.cs3.pin_23512;
+            break;
+
+        case ROM_TYPE_2716:
+            mangler->cs1_pin = config->mcu.pins.ce.pin_2716;
+            mangler->cs2_pin = config->mcu.pins.oe.pin_2716;
+            break;
+
+        case ROM_TYPE_2732:
+            mangler->cs1_pin = config->mcu.pins.ce.pin_2732;
+            mangler->cs2_pin = config->mcu.pins.oe.pin_2732;
+            break;
+
+        case ROM_TYPE_2764:
+            mangler->cs1_pin = config->mcu.pins.ce.pin_2764;
+            mangler->cs2_pin = config->mcu.pins.oe.pin_2764;
+            break;
+
+        case ROM_TYPE_27128:
+            mangler->cs1_pin = config->mcu.pins.ce.pin_27128;
+            mangler->cs2_pin = config->mcu.pins.oe.pin_27128;
+            break;
+
+        case ROM_TYPE_27256:
+            mangler->cs1_pin = config->mcu.pins.ce.pin_27256;
+            mangler->cs2_pin = config->mcu.pins.oe.pin_27256;
+            break;
+
+        case ROM_TYPE_27512:
+            mangler->cs1_pin = config->mcu.pins.ce.pin_27512;
+            mangler->cs2_pin = config->mcu.pins.oe.pin_27512;
+            break;
+
+        default:
+            printf("Error: Unsupported ROM type %d\n", rom_type);
+            exit(1);
+            break;
     }
-    
+
+
     memcpy(address_mangler.addr_pins, config->mcu.pins.addr, sizeof(address_mangler.addr_pins));
-    if (config->rom.pin_count == 24 ) {
-        address_mangler.cs1_pin = config->mcu.pins.cs1.pin_2364;
-    } else {
-        address_mangler.cs1_pin = config->mcu.pins.cs1.pin_23128;
-        if (address_mangler.cs1_pin == 255) {
-            address_mangler.cs1_pin = config->mcu.pins.ce.pin_27128;
-        }
+
+    // There is a special case for 24 pin ROMs - the 2732.  It has A11 as pin
+    // 21, whereas the other ROM types have it at pin 18.  For the 2732
+    // therefore we swap the A11 and A12 pins.
+    if (rom_type == ROM_TYPE_2732) {
+        // Find logical A11 and A12 pins
+        uint8_t pin_a11 = address_mangler.addr_pins[11];
+        uint8_t pin_a12 = address_mangler.addr_pins[12];
+        // Swap them
+        address_mangler.addr_pins[11] = pin_a12;
+        address_mangler.addr_pins[12] = pin_a11;
+#if defined(DEBUG_TEST)
+        printf("    Note: Swapped A11 and A12 pins %d/%d for 2732 ROM type\n", pin_a11, pin_a12);
+#endif // DEBUG_TEST
     }
+
     address_mangler.x1_pin = config->mcu.pins.x1;
     address_mangler.x2_pin = config->mcu.pins.x2;
     address_mangler.initialized = 1;
+}
 
+void create_address_mangler(const json_config_t* config, const sdrr_rom_type_t rom_type) {
+    init_address_mangler(config, rom_type, &address_mangler);
+
+    // Now renamp address/CS/X pins if they're not in the 0..15 range
     if (config->rom.pin_count == 24) {
         if ((config->mcu.ports.data_port == config->mcu.ports.addr_port) && (config->mcu.pins.data[0] < 8)) {
             // If data and address ports are the same, and data lines are 0-7, then
@@ -49,6 +149,12 @@ void create_address_mangler(json_config_t* config) {
             // And the CS and X lines too
             if (address_mangler.cs1_pin != 255) {
                 address_mangler.cs1_pin -= 8;
+            }
+            if (address_mangler.cs2_pin != 255) {
+                address_mangler.cs2_pin -= 8;
+            }
+            if (address_mangler.cs3_pin != 255) {
+                address_mangler.cs3_pin -= 8;
             }
             if (address_mangler.x1_pin != 255) {
                 address_mangler.x1_pin -= 8;
@@ -76,6 +182,21 @@ void create_address_mangler(json_config_t* config) {
             }
         }
     }
+
+#if defined(DEBUG_TEST)
+    printf("  Address Mangler Configuration:\n");
+    printf("    CS1 pin: %d\n", address_mangler.cs1_pin);
+    printf("    CS2 pin: %d\n", address_mangler.cs2_pin);
+    printf("    CS3 pin: %d\n", address_mangler.cs3_pin);
+    printf("    X1 pin: %d\n", address_mangler.x1_pin);
+    printf("    X2 pin: %d\n", address_mangler.x2_pin);
+    printf("    Address pins mapping (after any left shift to base 0):\n");
+    for (int ii = 0; ii < MAX_ADDR_LINES; ii++) {
+        if (address_mangler.addr_pins[ii] != 255) {
+            printf("      Logical A%d -> GPIO %d\n", ii, address_mangler.addr_pins[ii]);
+        }
+    }
+#endif // DEBUG_TEST
 }
 
 static struct {
@@ -83,7 +204,7 @@ static struct {
     int initialized;
 } byte_demangler = {0};
 
-void create_byte_demangler(json_config_t* config) {
+void create_byte_demangler(const json_config_t* config) {
     memcpy(byte_demangler.data_pins, config->mcu.pins.data, sizeof(byte_demangler.data_pins));
     if (!strcmp(config->mcu.family, "rp2350")) {
         for (int ii = 0; ii < NUM_DATA_LINES; ii++) {
@@ -101,20 +222,43 @@ uint8_t lookup_rom_byte(uint8_t set, uint16_t mangled_addr) {  // Removed unused
     return rom_set[set].data[mangled_addr];
 }
 
-uint16_t create_mangled_address(size_t rom_pins, uint16_t logical_addr, int cs1, int x1, int x2) {
+uint16_t create_mangled_address(
+    size_t rom_pins,
+    uint16_t logical_addr,
+    uint8_t cs1,
+    uint8_t cs2,
+    uint8_t cs3,
+    uint8_t x1,
+    uint8_t x2
+) {
     assert(address_mangler.initialized);
     
     uint16_t mangled = 0;
     
     if (rom_pins == 24) {
+        // Strictly these asserts aren't valid for RP2350 as one could use later pins for CS lines,
+        // but OK for now
         assert(address_mangler.cs1_pin <= 15);
+        assert(cs1 <= 1);
+        if (address_mangler.cs2_pin != 255) {
+            assert(address_mangler.cs2_pin <= 15);
+            // CS2 does not have to be provided
+        }
+        if (address_mangler.cs3_pin != 255) {
+            assert(address_mangler.cs3_pin <= 15);
+            // CS3 does not have to be provided
+        }
         assert(address_mangler.x1_pin <= 15);
         assert(address_mangler.x2_pin <= 15);
+        assert(x1 <= 1);
+        assert(x2 <= 1);
 
         // Set CS selection bits (active low)
-        if (cs1) mangled |= (1 << address_mangler.cs1_pin);
-        if (x1)  mangled |= (1 << address_mangler.x1_pin);  
-        if (x2)  mangled |= (1 << address_mangler.x2_pin);
+        if (cs1 == 1) mangled |= (1 << address_mangler.cs1_pin);
+        if (cs2 == 1) mangled |= (1 << address_mangler.cs2_pin);
+        if (cs3 == 1) mangled |= (1 << address_mangler.cs3_pin);
+        if (x1 == 1)  mangled |= (1 << address_mangler.x1_pin);  
+        if (x2 == 1)  mangled |= (1 << address_mangler.x2_pin);
     }
     
     // Map logical address bits to configured GPIO positions
@@ -144,7 +288,7 @@ uint8_t demangle_byte(uint8_t mangled_byte) {
 }
 
 // Convert ROM type number to string
-const char* rom_type_to_string(int rom_type) {
+const char* rom_type_to_string(sdrr_rom_type_t rom_type) {
     switch (rom_type) {
         case ROM_TYPE_2316: return "2316";
         case ROM_TYPE_2332: return "2332";  
@@ -162,6 +306,53 @@ const char* rom_type_to_string(int rom_type) {
     }
 }
 
+uint8_t get_num_cs(sdrr_rom_type_t rom_type) {
+    switch (rom_type) {
+        case ROM_TYPE_2316:
+        case ROM_TYPE_23128:
+            return 3;
+        case ROM_TYPE_2332:
+        case ROM_TYPE_23256:
+        case ROM_TYPE_23512:
+        case ROM_TYPE_2716:
+        case ROM_TYPE_2732:
+        case ROM_TYPE_2764:
+        case ROM_TYPE_27128:
+        case ROM_TYPE_27256:
+        case ROM_TYPE_27512:
+            return 2;
+        case ROM_TYPE_2364:
+        case ROM_TYPE_231024:
+            return 1;
+        default:
+            assert(0 && "Unknown ROM type in num_cs");
+            return 0;
+    }
+}
+
+static const uint8_t cs_combos_1[2][3] = {{0,255,255}, {1,255,255}};
+static const uint8_t cs_combos_2[4][3] = {{0,0,255}, {0,1,255}, {1,0,255}, {1,1,255}};
+static const uint8_t cs_combos_3[8][3] = {{0,0,0}, {0,0,1}, {0,1,0}, {0,1,1},
+                                           {1,0,0}, {1,0,1}, {1,1,0}, {1,1,1}};
+
+uint8_t cs_combinations(sdrr_rom_type_t rom_type, uint8_t **combos) {
+    uint8_t num_cs = get_num_cs(rom_type);
+    switch (num_cs) {
+        case 1:
+            *combos = (uint8_t *)cs_combos_1;
+            return 2;
+        case 2:
+            *combos = (uint8_t *)cs_combos_2;
+            return 4;
+        case 3:
+            *combos = (uint8_t *)cs_combos_3;
+            return 8;
+        default:
+            assert(0 && "Unknown number of CS lines in cs_combinations");
+            return 0;
+    }
+}
+
 // Convert CS state number to string
 const char* cs_state_to_string(int cs_state) {
     switch (cs_state) {
@@ -173,7 +364,7 @@ const char* cs_state_to_string(int cs_state) {
 }
 
 // Get expected ROM size for type
-size_t get_expected_rom_size(int rom_type) {
+size_t get_expected_rom_size(sdrr_rom_type_t rom_type) {
     switch (rom_type) {
         case ROM_TYPE_2316: return 2048;
         case ROM_TYPE_2332: return 4096;
@@ -191,7 +382,7 @@ size_t get_expected_rom_size(int rom_type) {
     }
 }
 
-int rom_type_from_string(const char* type_str) {
+sdrr_rom_type_t rom_type_from_string(const char* type_str) {
     if (strcmp(type_str, "2316") == 0) return ROM_TYPE_2316;
     else if (strcmp(type_str, "2332") == 0) return ROM_TYPE_2332;
     else if (strcmp(type_str, "2364") == 0) return ROM_TYPE_2364;
@@ -223,10 +414,15 @@ void print_compiled_rom_info(void) {
         printf("  ROM count: %d\n", rom_set[set_idx].rom_count);
         
         // Expected image size based on ROM count
+#if defined(RP235X)
+        const char* expected_size = "64KB";
+        const size_t expected_size_bytes = 65536;
+#else // ! RP235X
         const char* expected_size = (rom_set[set_idx].rom_count == 1) ? "16KB" : "64KB";
+        const size_t expected_size_bytes = (rom_set[set_idx].rom_count == 1) ? 16384 : 65536;
+#endif // RP235X
         printf("  Expected size: %s", expected_size);
-        if ((rom_set[set_idx].rom_count == 1 && rom_set[set_idx].size == 16384) ||
-            (rom_set[set_idx].rom_count > 1 && rom_set[set_idx].size == 65536)) {
+        if (rom_set[set_idx].size == expected_size_bytes) {
             printf(" ✓\n");
         } else {
             printf(" ✗\n");

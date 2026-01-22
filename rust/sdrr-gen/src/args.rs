@@ -401,7 +401,7 @@ impl Args {
                         );
                     }
                     if !matches!(size_handling, SizeHandling::None) {
-                        return Err("Cannot specify both 'dup' and 'pad'".to_string());
+                        return Err("Cannot specify more than one of 'trunc', 'dup' and 'pad'".to_string());
                     }
                     size_handling = SizeHandling::Duplicate;
                 }
@@ -412,9 +412,20 @@ impl Args {
                         );
                     }
                     if !matches!(size_handling, SizeHandling::None) {
-                        return Err("Cannot specify both 'dup' and 'pad'".to_string());
+                        return Err("Cannot specify more than one of 'trunc', 'dup' and 'pad'".to_string());
                     }
                     size_handling = SizeHandling::Pad;
+                }
+                "trunc" => {
+                    if parts.len() != 1 {
+                        return Err(
+                            "Invalid 'trunc' parameter format - doesn't take a value".to_string()
+                        );
+                    }
+                    if !matches!(size_handling, SizeHandling::None) {
+                        return Err("Cannot specify more than one of 'trunc', 'dup' and 'pad'".to_string());
+                    }
+                    size_handling = SizeHandling::Truncate;
                 }
                 _ => return Err(format!("Unknown key: {}", parts[0])),
             }

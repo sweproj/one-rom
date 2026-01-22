@@ -8,6 +8,10 @@ All notables changes between versions are documented in this file.
 
 - Prototype RAM support for 24 pin RAM chips, which use the same pin-out as the 6116/2016 RAM.  See PR #98 and discussion #70.
 
+### Fixed
+
+- 2732 ROM type serving was broken - the top 2K replicated the bottom 2K.  Fixed (#103).  This included fixing the testing, which had also not caught this issue.
+
 ## v0.6.0 - 2026-01-14
 
 **EXPERIMENTAL RELEASE** - may contain bugs, use with caution.  If you hit problems, report them as issues and revert to v0.5.10 or earlier.  See [#87](https://github.com/piersfinlayson/one-rom/pull/87) for details of testing done.

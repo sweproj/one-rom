@@ -1082,6 +1082,13 @@ fn generate_pin_map_methods(configs: &[HwConfigData]) -> String {
     code.push_str("    ///\n");
     code.push_str("    /// Returns array indexed by physical pin number, with value being the\n");
     code.push_str("    /// address line number (Some) or None if pin is not an address line.\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// Note that this function returns mappings per the address lines as laid\n");
+    code.push_str("    /// out in the board schematics, which is valid for nearly all ROM types,\n");
+    code.push_str("    /// but NOT the 2732.  This has to be special cased - pins A11 and A12 are\n");
+    code.push_str("    /// swapped on the 2732.\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// See onerom-gen src/image.rs handle_snowflake_rom_types() for an example\n");
     code.push_str(
         "    pub const fn phys_pin_to_addr_map(&self) -> &'static [Option<usize>; 16] {\n",
     );

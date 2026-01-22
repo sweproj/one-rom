@@ -4,7 +4,7 @@
 
 //! Generates firmware artifacts for One ROM.
 
-#![no_std]
+//#![no_std]
 
 extern crate alloc;
 

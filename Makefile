@@ -767,7 +767,7 @@ test: firmware
 	@echo "Building tests to:"
 	@echo "- verify generated firmware ROM images"
 	@echo "-----"
-	@GEN_OUTPUT_DIR=$(GEN_OUTPUT_DIR) make --no-print-directory -C test
+	@GEN_OUTPUT_DIR=$(GEN_OUTPUT_DIR) EXTRA_C_FLAGS="$(EXTRA_C_FLAGS)" make --no-print-directory -C test
 	@echo "=========================================="
 	@echo "Running tests to:"
 	@echo "- verify generated firmware ROM images"

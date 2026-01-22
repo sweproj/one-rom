@@ -760,8 +760,10 @@ impl RomSet {
             };
 
             let num_addr_lines = self.roms[rom_index].rom_type.num_addr_lines();
-            let phys_pin_to_addr_map = board.phys_pin_to_addr_map();
-            let mut phys_pin_to_addr_map = *phys_pin_to_addr_map;
+            let mut phys_pin_to_addr_map = handle_snowflake_rom_types(
+                board.phys_pin_to_addr_map(),
+                &self.roms[rom_index].rom_type,
+            );
             Self::truncate_phys_pin_to_addr_map(&mut phys_pin_to_addr_map, num_addr_lines);
 
             return self.roms[rom_index].get_byte(&phys_pin_to_addr_map, masked_address, board);
@@ -776,8 +778,8 @@ impl RomSet {
             // retrieve this for each ROM in the set, as each ROM may be
             // a different type (size).
             let num_addr_lines = rom_in_set.rom_type.num_addr_lines();
-            let phys_pin_to_addr_map = board.phys_pin_to_addr_map();
-            let mut phys_pin_to_addr_map = *phys_pin_to_addr_map;
+            let mut phys_pin_to_addr_map =
+                handle_snowflake_rom_types(board.phys_pin_to_addr_map(), &rom_in_set.rom_type);
             Self::truncate_phys_pin_to_addr_map(&mut phys_pin_to_addr_map, num_addr_lines);
 
             // All of CS1/X1/X2 have to have the same active low/high status
@@ -1163,4 +1165,33 @@ impl RomSet {
     pub fn serve_alg(&self) -> ServeAlg {
         self.serve_alg
     }
+}
+
+// Handle ROM Types which do not have a standard address layout.  Currently,
+// the only know ROM type needing special handling is the 2732, which has
+// swapped A11 and A12 lines.
+fn handle_snowflake_rom_types(
+    phys_pin_to_addr_map: &[Option<usize>],
+    rom_type: &RomType,
+) -> Vec<Option<usize>> {
+    let mut modified_map = phys_pin_to_addr_map.to_vec();
+    match rom_type {
+        RomType::Rom2732 => {
+            // Swap A11 and A12
+            let a11_index = modified_map.iter().position(|&x| x == Some(11));
+            let a12_index = modified_map.iter().position(|&x| x == Some(12));
+            if let (Some(i11), Some(i12)) = (a11_index, a12_index) {
+                modified_map[i11] = Some(12);
+                modified_map[i12] = Some(11);
+            } else {
+                // Address lines not found as expected.  Panic, as this is an
+                // internal error and implies a board has been added supporting
+                // the 2732 but without pins A11 and/or A12.
+            }
+        }
+        _ => {
+            // No special handling needed
+        }
+    }
+    modified_map
 }

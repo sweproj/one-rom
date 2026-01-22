@@ -55,16 +55,25 @@ typedef struct {
 //
 
 // query-roms.c
-extern void create_address_mangler(json_config_t* config);
-extern void create_byte_demangler(json_config_t* config);
-extern uint16_t create_mangled_address(size_t rom_pins, uint16_t logical_addr, int cs1_active, int x1_active, int x2_active);
+extern void create_address_mangler(const json_config_t* config, const sdrr_rom_type_t rom_type);
+extern void create_byte_demangler(const json_config_t* config);
+extern uint16_t create_mangled_address(
+    size_t rom_pins,
+    uint16_t logical_addr,
+    uint8_t cs1_active,
+    uint8_t cs2_active,
+    uint8_t cs3_active,
+    uint8_t x1_active,
+    uint8_t x2_active
+);
 extern uint8_t lookup_rom_byte(uint8_t set, uint16_t mangled_addr);
 extern uint8_t demangle_byte(uint8_t mangled_byte);
-extern const char* rom_type_to_string(int rom_type);
-extern size_t get_expected_rom_size(int rom_type);
-extern int rom_type_from_string(const char* type_str);
+extern const char* rom_type_to_string(sdrr_rom_type_t rom_type);
+extern uint8_t get_num_cs(sdrr_rom_type_t);
+extern uint8_t cs_combinations(sdrr_rom_type_t, uint8_t **combos);
+extern size_t get_expected_rom_size(sdrr_rom_type_t rom_type);
+extern sdrr_rom_type_t rom_type_from_string(const char* type_str);
 extern const char* cs_state_to_string(int cs_state);
-extern size_t get_expected_rom_size(int rom_type);
 extern void print_compiled_rom_info(void);
 
 // roms-config.c
