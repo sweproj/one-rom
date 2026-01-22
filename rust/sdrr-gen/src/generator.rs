@@ -334,7 +334,7 @@ fn generate_roms_implementation_file(
         writeln!(file, "        .multi_rom_cs1_state = {},", set_cs_state)?;
 
         // sdrr-gen does NOT support extra ROM set (override) info
-        writeln!(file, "        .extra_info = 0,")?;
+        writeln!(file, "        .extra_info = 1,")?;
 
         // Post 0.6.0 firmware additions
         writeln!(file, "        .serve_config = (void *)0,")?;

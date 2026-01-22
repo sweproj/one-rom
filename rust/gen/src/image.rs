@@ -25,7 +25,7 @@ use onerom_config::hw::Board;
 use onerom_config::mcu::Family as McuFamily;
 use onerom_config::rom::RomType;
 
-use crate::MIN_FIRMWARE_OVERRIDES_VERSION;
+use crate::{MIN_FIRMWARE_OVERRIDES_VERSION, PAD_METADATA_BYTE};
 use crate::meta::{
     ROM_SET_FIRMWARE_OVERRIDES_METADATA_LEN, ROM_SET_METADATA_LEN, ROM_SET_METADATA_LEN_EXTRA_INFO,
 };
@@ -1118,7 +1118,7 @@ impl RomSet {
         if version >= &MIN_FIRMWARE_OVERRIDES_VERSION {
             buf[offset] = 1; // extra_info = 1 for 0.6.0+
         } else {
-            buf[offset] = PAD_BLANK_BYTE; // pad byte for pre-0.6.0
+            buf[offset] = PAD_METADATA_BYTE; // pad byte for pre-0.6.0
         }
         offset += 1;
 

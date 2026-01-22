@@ -134,6 +134,11 @@
 #define PAD_SPACING         0x004
 #define GPIO_PAD(pin)       (*(volatile uint32_t*)(PADS_BANK0_BASE + PAD_OFFSET_START + pin*PAD_SPACING))  
 
+// Strictly speaking the SWD pins cannot be used as GPIOs, but they do have
+// PAD registers.  SWCLK comes after GPIO47, SWDIO after that.
+#define SWCLK_PAD 48
+#define SWDIO_PAD 49
+
 // Pad control bits
 #define PAD_SLEW_FAST_BIT   0
 #define PAD_PDE_BIT         2
@@ -141,7 +146,7 @@
 #define PAD_DRIVE_BIT       4
 #define PAD_IE_BIT          6
 #define PAD_OD_BIT          7
-#define PAD_ISO             8
+#define PAD_ISO_BIT         8
 #define PAD_DRIVE_MASK      0x3
 #define PAD_DRIVE_2MA       0x0
 #define PAD_DRIVE_4MA       0x1

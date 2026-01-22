@@ -294,11 +294,21 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
             continue;
         }
         
-        if ((sdrr_info.swd_enabled) &&
-            ((pin == sdrr_info.pins->swclk_sel) ||
-             (pin == sdrr_info.pins->swdio_sel))) {
-            LOG("!!! Sel pin %d used for SWD - not using", pin);
-        } else if (pin < MAX_PORT_PINS) {
+        if ((pin == sdrr_info.pins->swclk_sel) ||
+            (pin == sdrr_info.pins->swdio_sel)) {
+            DEBUG("Sel pin %d connected to SWD pin - disabling SWD pin", pin);
+
+            if (pin == sdrr_info.pins->swclk_sel) {
+                GPIOA_MODER &= ~GPIOA_MODER_SWCLK_MASK; // Set as input
+                GPIOA_PUPDR &= ~GPIOA_PUPDR_SWCLK_MASK; // Clear pulls
+            }
+            if (pin == sdrr_info.pins->swdio_sel) {
+                GPIOA_MODER &= ~GPIOA_MODER_SWDIO_MASK; // Set as input
+                GPIOA_PUPDR &= ~GPIOA_PUPDR_SWDIO_MASK; // Clear pulls
+            }
+        }
+        
+        if (pin < MAX_PORT_PINS) {
             // Set up the pull
             if (sdrr_info.pins->sel_jumper_pull & (1 << ii)) {
                 // This pin pulls up, so we pull down
@@ -369,6 +379,19 @@ void disable_sel_pins(void) {
         uint8_t pin = sdrr_info.pins->sel[ii];
         if (pin < MAX_PORT_PINS) {
             sel_2bit_mask |= (0b11 << (pin * 2));
+        }
+
+        if (sdrr_info.swd_enabled) {
+            if (pin == sdrr_info.pins->swclk_sel) {
+                GPIOA_MODER &= ~GPIOA_MODER_SWCLK_MASK;
+                GPIOA_MODER |= GPIOA_MODER_SWCLK_AF;  // Set as AF
+                GPIOA_AFRH &= ~GPIOA_AFRH_SWCLK_MASK;
+            }
+            if (pin == sdrr_info.pins->swdio_sel) {
+                GPIOA_MODER &= ~GPIOA_MODER_SWDIO_MASK;
+                GPIOA_MODER |= GPIOA_MODER_SWDIO_AF;  // Set as AF
+                GPIOA_AFRH &= ~GPIOA_AFRH_SWDIO_MASK;
+            }
         }
     }
 

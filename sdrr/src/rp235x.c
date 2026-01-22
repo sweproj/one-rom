@@ -536,17 +536,31 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
             continue;
         }
         
-        if ((sdrr_info.swd_enabled) &&
-            ((pin == sdrr_info.pins->swclk_sel) ||
-             (pin == sdrr_info.pins->swdio_sel))) {
-            LOG("!!! Sel pin %d used for SWD - not using", pin);
-        } else if (pin < MAX_USED_GPIOS) {
+        if ((pin == sdrr_info.pins->swclk_sel) ||
+            (pin == sdrr_info.pins->swdio_sel)) {
+            DEBUG("Sel pin %d connected to SWD pin - disabling SWD pad", pin);
+
+            SYSCFG_DBGFORCE |= SYSCFG_DBGFORCE_ATTACH_BIT;
+            
+            if (pin == sdrr_info.pins->swclk_sel) {
+                DEBUG("Current SWCLK pad: 0x%08X", GPIO_PAD(SWCLK_PAD));
+                GPIO_PAD(SWCLK_PAD) = (1 << PAD_ISO_BIT);
+            }
+            if (pin == sdrr_info.pins->swdio_sel) {
+                DEBUG("Current SWDIO pad: 0x%08X", GPIO_PAD(SWDIO_PAD));
+                GPIO_PAD(SWDIO_PAD) = (1 << PAD_ISO_BIT);
+            }
+        }
+        
+        if (pin < MAX_USED_GPIOS) {
             // Set the appropriate pad value based on the bit field
             if (sdrr_info.pins->sel_jumper_pull & (1 << ii)) {
                 // This pin pulls up, so we pull down
+                DEBUG("Sel pin %d configured as pull-down", pin);
                 pad = PAD_INPUT_PD;
             } else {
                 // This pin pulls down, so we pull up
+                DEBUG("Sel pin %d configured as pull-up", pin);
                 pad = PAD_INPUT_PU;
 
                 // Flip this bit when reading the SEL pins, as closing will
@@ -582,13 +596,28 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
 // pulls are high (closing jumpers) pulls the pins low, we invert - so closed
 // still indicates 1.
 uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits) {
-    uint32_t gpio_value;
+    uint32_t gpio_value = 0;
 
-    // Read GPIO input register
-    gpio_value = SIO_GPIO_IN;
+    // Read GPIO input register.  We read multiple times to allow for any
+    // spurious "highs", as some pins that the sel pin connected to might
+    // ocassionally glitch high.  A case in point is BOOT, which is shared
+    // with QSPI_SS.  This will mostly be low, as it is the main external
+    // flash chip select, and seems to always read low, but could go high
+    // if, for some reason, flash isn't busy.
+    //
+    // This isn't totally robust.  Scoping One ROM during this stage shows
+    // that QSPI_SS is almost always low, but it does glitch high every 40us,
+    // for perhaps 100ns, so there is a change of misreading.  If this turns
+    // out to be a problem, we should run this from RAM, disable XIP and
+    // isolate the QSPI_SS pad (like we do SWD pads).  Or, force some explicit
+    // flash reads, or even just take more votes.  I'm hoping that's not
+    // necessary.
 
-    // Flip any flip bits as required
-    gpio_value ^= flip_bits;
+    // Take 10-20 samples spread over ~1us to avoid any single glitch.
+    // At 150MHz, this is negligible cost (<150 cycles total).
+    for (int i = 0; i < 15; i++) {
+        gpio_value |= (SIO_GPIO_IN ^ flip_bits);
+    }
 
     // Mask to just the sel pins
     gpio_value &= sel_mask;
@@ -603,6 +632,18 @@ void disable_sel_pins(void) {
             // Disable pulls
             GPIO_PAD(pin) = ~(PAD_PU | PAD_PD);
 
+            SYSCFG_DBGFORCE &= ~SYSCFG_DBGFORCE_ATTACH_BIT;
+
+            if (pin == sdrr_info.pins->swclk_sel) {
+                // Use measured value to restore SWCLK function
+                DEBUG("Restoring SWCLK pad settings %d", pin);
+                GPIO_PAD(SWCLK_PAD) = 0x5A;
+            }
+            if (pin == sdrr_info.pins->swdio_sel) {
+                // Use measured value to restore SWDIO function
+                DEBUG("Restoring SWDIO pad settings %d", pin);
+                GPIO_PAD(SWDIO_PAD) = 0x5A;
+            }
         }
     }
 }

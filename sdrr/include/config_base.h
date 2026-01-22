@@ -418,7 +418,9 @@ typedef struct sdrr_rom_set_t {
     const sdrr_cs_state_t multi_rom_cs1_state;  // CS1 state
 
     // Whether 0.6.0 onwards firmware extra info (the subsequent fields) are
-    // present in this structure. If so, this is set to 1.
+    // present in this structure. If so, this is set to 1.  Note that even if
+    // those fields are not filled in, this is 1 - this is essentially used
+    // to indicate the side of the sdrr_rom_set_t structure being used.
     const uint8_t extra_info;
 
     // Beyond here 0.6.0 firmware onwards

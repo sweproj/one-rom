@@ -18,6 +18,8 @@ use crate::image::{CsConfig, CsLogic, Location, Rom, RomSet, RomSetType, SizeHan
 use crate::meta::Metadata;
 use crate::{Error, FIRMWARE_SIZE, MAX_METADATA_LEN, MIN_FIRMWARE_OVERRIDES_VERSION, Result};
 
+pub const MAX_SUPPORTED_FIRMWARE_VERSION: FirmwareVersion = FirmwareVersion::new(0, 6, 999, 0);
+
 pub(crate) use crate::firmware::*;
 
 /// Main Builder object
@@ -120,6 +122,13 @@ impl Builder {
     /// - `mcu_family`: MCU family this config is for
     /// - `json`: JSON string
     pub fn from_json(version: FirmwareVersion, mcu_family: Family, json: &str) -> Result<Self> {
+        if version > MAX_SUPPORTED_FIRMWARE_VERSION {
+            return Err(Error::FirmwareTooNew {
+                version,
+                maximum: MAX_SUPPORTED_FIRMWARE_VERSION,
+            });
+        }
+
         let config: Config = serde_json::from_str(json).map_err(|e| Error::InvalidConfig {
             error: e.to_string(),
         })?;
@@ -584,6 +593,13 @@ impl Builder {
     ///
     /// Returns (metadata, Rom images)
     pub fn build(&self, props: FirmwareProperties) -> Result<(Vec<u8>, Vec<u8>)> {
+        if props.version() > MAX_SUPPORTED_FIRMWARE_VERSION {
+            return Err(Error::FirmwareTooNew {
+                version: props.version(),
+                maximum: MAX_SUPPORTED_FIRMWARE_VERSION,
+            });
+        }
+
         // Validate ready to build
         self.build_validation(&props)?;
 

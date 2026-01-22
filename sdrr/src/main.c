@@ -290,10 +290,31 @@ int main(void) {
     const sdrr_rom_set_t *set = NULL;
     uint8_t md = metadata_present(&sdrr_info);
     if (md && (sdrr_info.metadata_header->rom_set_count > 0)) {
+        // Find out if extra_info is set to 1 on the first set.  If it is, the
+        // set structures are 0.6.0+ and are the size of sdrr_rom_set_t (64
+        // bytes), otherwise they are pre 0.6.0 (probably created by an old
+        // Studio/wasm version) and hence 16 bytes.
+        uint8_t extra_info = sdrr_info.metadata_header->rom_sets[0].extra_info;
+        DEBUG("First ROM set extra_info = %d", extra_info);
+#if defined(DEBUG_LOGGING)
+        if (extra_info == 1) {
+            DEBUG("ROM sets are 0.6.0+ format");
+        } else {
+            DEBUG("ROM sets are pre-0.6.0 format");
+        }
+#endif // DEBUG_LOGGING
+        uint8_t *base = (uint8_t *)sdrr_info.metadata_header->rom_sets;
+        size_t stride = (extra_info == 1) ? sizeof(sdrr_rom_set_t) : 16;
+
+        // Figure out what ROM set to use
         sdrr_runtime_info.rom_set_index = get_rom_set_index(sel_pins, sel_mask);
-        set = sdrr_info.metadata_header->rom_sets + sdrr_runtime_info.rom_set_index;
+
+        // Get pointer to the selected ROM set
+        set = (const sdrr_rom_set_t *)(base + (stride * sdrr_runtime_info.rom_set_index));
 
         // Now process any firmware overrides from the selected ROM set.
+        // This should be safe because the first thing that does is check that
+        // extra_info is 1.
         process_firmware_overrides(&sdrr_runtime_info, set);
     } else if (!md) {
         LOG("No metadata present (valid state for fresh One ROM");

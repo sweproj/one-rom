@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.9 - 2026-01-22
+
+### Fixed
+
+- Fixed #90 in v0.6.0 when older (pre v0.1.8) versions of One ROM Studio are used to build firmware images with more than one ROM set, One ROM will not boot on any ROM set other than ROM set 0.
+- 2732 ROM type serving was broken - the top 2K replicated the bottom 2K.  Fixed (#103).  This included fixing the testing, which had also not caught this issue.
+
+## v0.1.8 - 2026-01-14
+
+### Added
+
+- Support for low level config of firmware at runtime using JSON files #87.
+
 ## v0.1.7 - 2026-01-03
 
 ### Added

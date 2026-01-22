@@ -478,6 +478,16 @@ pub(crate) async fn read_rom_sets<R: Reader>(
             .map_err(|e| format!("Failed to parse ROM set header {i}: {e}"))?;
         current_offset += SdrrRomSetHeader::base_size() as u32;
         if *version >= FirmwareVersion::new(0, 6, 0, 0) {
+            // There are three scenarios here:
+            // - FW built with Studio v0.1.8 or later - extra_info == 1, rom_set size includes extra fields
+            // - FW built with Studio v0.1.7 or earlier - extra_info == 0, rom_set size excludes extra fields
+            // - FW built from source - extra_info == 0, rom_set size _includes_ extra fields
+            // It is not possible to distinguish between the last two cases, so we assume the first,
+            // as very few people build from source.
+            if header.extra_info == 1 {
+                current_offset += SdrrRomSetHeader::extra_size() as u32;
+            }
+        } else if *version >= FirmwareVersion::new(0, 6, 1, 0) {
             current_offset += SdrrRomSetHeader::extra_size() as u32;
         }
 

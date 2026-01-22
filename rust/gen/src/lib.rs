@@ -114,6 +114,10 @@ pub enum Error {
         version: FirmwareVersion,
         minimum: FirmwareVersion,
     },
+    FirmwareTooNew {
+        version: FirmwareVersion,
+        maximum: FirmwareVersion,
+    },
     WrongMcuFamily {
         actual: Family,
         required: Family,

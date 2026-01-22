@@ -149,6 +149,16 @@
 #define GPIO_PD_BITS      0b10
 
 #define GPIOA_MODER_PA9_MASK    (3 << (2*9))
+#define GPIOA_MODER_SWDIO_MASK  (3 << (2*13))
+#define GPIOA_MODER_SWCLK_MASK  (3 << (2*14))
+#define GPIOA_MODER_SWDIO_AF    (2 << (2*13))
+#define GPIOA_MODER_SWCLK_AF    (2 << (2*14))
+
+#define GPIOA_PUPDR_SWDIO_MASK  (3 << (2*13))
+#define GPIOA_PUPDR_SWCLK_MASK  (3 << (2*14))
+
+#define GPIOA_AFRH_SWDIO_MASK   (0xF << ((13 - 8) * 4))
+#define GPIOA_AFRH_SWCLK_MASK   (0xF << ((14 - 8) * 4))
 
 // RCC mask definitions
 #define RCC_CR_RSVD_RO_MASK     (0b1111 << 28) |     \

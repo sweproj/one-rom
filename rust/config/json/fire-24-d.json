@@ -72,7 +72,7 @@
                 26,
                 27
             ],
-            "sel_jumper_pull": [0, 0, 1, 1],
+            "sel_jumper_pull": [0, 0, 0, 1],
             "swclk_sel": 26,
             "swdio_sel": 27,
             "status": 29
