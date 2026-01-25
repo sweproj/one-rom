@@ -1,10 +1,12 @@
 # Fire 24 Rev D
 
-**Verified**
+**Verified** - although the RP2354 version is unverified.
 
 23xx Fire (RP2350 24 pin) combined USB+SWD One ROM PCB.  Includes 4 image select jumpers.  Supports PIO and CPU serving algorithms.
 
-Note that firmware version v0.6.1 is required to support 4 image select jumpers - v0.6.0 only supports the first 2.
+Note that firmware version v0.6.1+ is required to support 4 image select jumpers - v0.6.0 only supports the first 2.
+
+There are two variants of the BOM/POS files - one with the RP2350A and external flash, the second with the RP2354, which has built-in flash, so the external flash is omitted.  The RP2354 version is cheaper, but **has not** been verified yet.
 
 ## Contents
 
