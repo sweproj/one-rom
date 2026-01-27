@@ -1,5 +1,9 @@
 # Configuration
 
+This document describes Makefile configuration.  This uses also style ROM config files (see [`old-config`](/old-config/) for examples).  Generally, blank firmware images are now created using EXCLUDE_METADATA=1 in the Makefile configuration, and then Studio or Web to construct and image with ROM images - using new style config files (see ['onerom-config'](/onerom-config/) for examples).
+
+---
+
 The top-level [Makefile](/Makefile) allows you to specify a significant number of configuration options, including developer and debug level options.  These are commented in the Makefile.
 
 You can either pass options on the command line, or specify them in a config file which you then include using the `CONFIG` environment variable.  It is recommended to do this rather than modify the original `Makefile`.  For example:
@@ -11,7 +15,7 @@ MCU=f411re HW_REV=e ROM_CONFIGS=file=images/test/0_63_8192.rom,type=2364,cs1=0 m
 
 ```bash
 # Or use a pre-built config file
-MCU=f405rg CONFIG=config/c64.mk make run
+MCU=f405rg CONFIG=old-config/c64.mk make run
 ```
 
 ## Mandatory Configuration
@@ -75,7 +79,7 @@ Supprted commands are:
 - `dup`: Optional.  Valid only if file size is less than indicated by `type`, and only if ROM type size if an exact multiple of file size.  Causes the ROM image to be duplicated to fill the remaining space.  This is useful for 2KB and 4KB ROM images which need to be exposed as larger ROMs.
 - `pad`: Optional.  Valid only if file size ia less than indicated by `type`.  Pad out the remaining space with 0xAA bytes.  Useful for 2KB and 4KB ROM images which need to be exposed as larger ROMs.
 
-See [`config`](/config/) for examples of how to specify ROM images.
+See [`old-config`](/old-config/) for examples of how to specify ROM images.
 
 ## Advanced Configuration
 

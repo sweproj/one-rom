@@ -2,6 +2,20 @@
 
 All notables changes between versions are documented in this file.
 
+## v0.6.2 - 2026-01-27
+
+This release of One ROM introduces RAM support - for 6116 and 2016 2KB 24-pin static RAM chips, using Fire 24 C and onwards hardware revisions.
+
+For a demonstation of RAM support, and an explanation of how it works, see: https://youtu.be/o7dMY6p6OJU
+
+One ROM's JSON [config file format](onerom-config/README.md) now uses "chip_sets" instead of "rom_sets" and "chips" instead of "roms".  However, the old strings will continue to work for backwards compatibility.
+
+Other changes:
+- The ability to execute the main loop from RAM has been removed, to allow 512KB to be used for ROM RAM image on RP2350.  It would be possible to add this back where the image size to be held in RAM is under 512KB, and for Ice boards, but as executing from RAM is currently unused, it has been removed for now to save development and test effort.
+- fire-24-e revision added as **unverified**.  This adds USB-C, and is intended for production quantities of Fire 24 - as it required JLC's standard assembly service to be used, rather than economic, due to the use of 0201 passives.  The MCU has also been changed to the RP235A, to take advantage of the on-board flash, saving on cost (and space).
+- Rename directories `config/` -> `old-config` and `rom-config` -> `onerom-config`.
+- The new recommended by to build One ROM firmware is using [`scripts/onerom.sh`](scripts/onerom.sh).  This builds an empty firmware image, adds the chip metadata, and adds the ROM/RAM images in one command.  It even flashes the firmware if desired.  Images are output to [`builds/fw`](builds/fw).
+
 ## v0.6.1 - 2026-01-22
 
 ### Added

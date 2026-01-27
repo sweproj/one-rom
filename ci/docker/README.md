@@ -19,13 +19,13 @@ Either build via the [`one-rom` container](#building-one-rom-via-one-rom-contain
 docker run --name one-rom-builder piersfinlayson/one-rom-build:latest sh -c '
 git clone https://github.com/piersfinlayson/one-rom.git && \
 cd one-rom && \
-MCU=f401re HW_REV=24-f CONFIG=config/vic20-pal.mk make test info-detail
+MCU=f401re HW_REV=24-f CONFIG=old-config/vic20-pal.mk make test info-detail
 '
 docker cp one-rom-builder:/home/build/one-rom/sdrr/build/sdrr-stm32f401re.elf /tmp/
 docker rm one-rom-builder
 ```
 
-Change the `MCU=f401re HW_REV=24-f CONFIG=config/vic20-pal.mk` values to the appropriate ones for your firmware.
+Change the `MCU=f401re HW_REV=24-f CONFIG=old-config/vic20-pal.mk` values to the appropriate ones for your firmware.
 
 You can build additional configurations using the same container (i.e. not running `docker rm one-rom-builder`, but running further commands in `one-rom-builder`).  This avoids re-cloning the repo, and also avoids rebuilding all of the Rust tooling, which takes most of the build time.
 

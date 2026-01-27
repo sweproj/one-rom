@@ -5,8 +5,8 @@
 use std::env;
 use std::path::Path;
 
+mod chip;
 mod hw;
-mod rom;
 
 fn main() {
     // Get the manifest directory (where this crate's Cargo.toml is)
@@ -22,6 +22,6 @@ fn main() {
     // Build the auto-generated hw module
     hw::build(manifest_path);
 
-    // Build the auto-generated rom module
-    rom::build(manifest_path);
+    // Build the auto-generated chip module
+    chip::build(manifest_path);
 }

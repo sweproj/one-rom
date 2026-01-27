@@ -10,7 +10,7 @@ use log::{debug, error, info, trace, warn};
 use rfd::FileDialog;
 use std::path::PathBuf;
 
-use onerom_config::rom::ROM_TYPES;
+use onerom_config::chip::CHIP_TYPES;
 
 use crate::app::AppMessage;
 use crate::config::Config;
@@ -160,12 +160,12 @@ pub fn config_selected(create: &mut Create, config: Config) -> Task<AppMessage> 
             let rom_pins: u8 = create
                 .selected_hw_info
                 .board
-                .map_or(24, |board| board.rom_pins());
+                .map_or(24, |board| board.chip_pins());
 
             // build a vec of rom_types that match the selected rom pins
-            let rom_types = ROM_TYPES
+            let rom_types = CHIP_TYPES
                 .iter()
-                .filter(|rt| rt.rom_pins() == rom_pins)
+                .filter(|rt| rt.chip_pins() == rom_pins)
                 .cloned()
                 .collect::<Vec<_>>();
 

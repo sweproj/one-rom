@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 use serde::{Deserialize, Deserializer};
+use core::panic;
 use std::collections::{HashMap, HashSet};
 
 include!("../../src/mcu.rs");
@@ -39,6 +40,7 @@ impl<'de> Deserialize<'de> for Port {
 pub enum McuFamily {
     Stm32f4,
     Rp2350,
+    Rp2350B,
 }
 
 impl From<&McuFamily> for Family {
@@ -46,6 +48,7 @@ impl From<&McuFamily> for Family {
         match family {
             McuFamily::Stm32f4 => Family::Stm32f4,
             McuFamily::Rp2350 => Family::Rp2350,
+            McuFamily::Rp2350B => Family::Rp2350,
         }
     }
 }
@@ -55,6 +58,7 @@ impl McuFamily {
         match s.to_lowercase().as_str() {
             "stm32f4" | "f4" => Some(McuFamily::Stm32f4),
             "rp2350" => Some(McuFamily::Rp2350),
+            "rp2350b" => Some(McuFamily::Rp2350B),
             _ => None,
         }
     }
@@ -63,6 +67,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => 13, // 15 - 2 (top two reserved for X1/X2)
             McuFamily::Rp2350 => 25,
+            McuFamily::Rp2350B => 39,
         }
     }
 
@@ -70,6 +75,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => 15,
             McuFamily::Rp2350 => 25,
+            McuFamily::Rp2350B => 39,
         }
     }
 
@@ -77,6 +83,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => 7,
             McuFamily::Rp2350 => 25,
+            McuFamily::Rp2350B => 39,
         }
     }
 
@@ -84,6 +91,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => pin <= 15,
             McuFamily::Rp2350 => pin <= 29,
+            McuFamily::Rp2350B => pin <= 47,
         }
     }
 
@@ -91,6 +99,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => Port::A,
             McuFamily::Rp2350 => Port::Zero,
+            McuFamily::Rp2350B => Port::Zero,
         }
     }
 
@@ -98,6 +107,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => Port::C,
             McuFamily::Rp2350 => Port::Zero,
+            McuFamily::Rp2350B => Port::Zero,
         }
     }
 
@@ -105,6 +115,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => Port::C,
             McuFamily::Rp2350 => Port::Zero,
+            McuFamily::Rp2350B => Port::Zero,
         }
     }
 
@@ -112,16 +123,15 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => Port::B,
             McuFamily::Rp2350 => Port::Zero,
+            McuFamily::Rp2350B => Port::Zero,
         }
     }
 
     pub fn valid_x1_pins(&self) -> Vec<u8> {
         match self {
             McuFamily::Stm32f4 => vec![14],
-            McuFamily::Rp2350 => vec![
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-                23, 24, 25,
-            ],
+            McuFamily::Rp2350 => (0..26).collect(),
+            McuFamily::Rp2350B => (0..40).collect(),
         }
     }
 
@@ -129,6 +139,7 @@ impl McuFamily {
         match self {
             McuFamily::Stm32f4 => vec![15],
             McuFamily::Rp2350 => self.valid_x1_pins(),
+            McuFamily::Rp2350B => self.valid_x1_pins(),
         }
     }
 }
@@ -143,30 +154,64 @@ pub struct McuPorts {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct RomPins {
+pub struct ChipPins {
     pub quantity: u8,
 }
 
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Copy)]
+pub enum BitMode {
+    #[serde(rename = "8")]
+    Bit8,
+    #[serde(rename = "16")]
+    Bit16,
+}
+
+impl From<BitMode> for usize {
+    fn from(mode: BitMode) -> usize {
+        match mode {
+            BitMode::Bit8 => 8,
+            BitMode::Bit16 => 16,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
-pub struct Rom {
-    pub pins: RomPins,
+pub struct Chip {
+    pub pins: ChipPins,
+    pub bit_modes: Vec<BitMode>,
+}
+
+impl Chip {
+    pub const MAX_ADDR_PINS: usize = 19;
+
+    pub fn max_addr_pins(&self) -> u8 {
+        match self.pins.quantity {
+            24 => 16, // Includes CS and X pins
+            28 => 16, // Just addr pins
+            40 => 19, // Just addr pins
+            _ => panic!(
+                "Unsupported ROM type {}, expected 24, 28, or 40-pin ROM",
+                self.pins.quantity
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct McuPins {
     pub data: Vec<u8>,
     pub addr: Vec<u8>,
-    #[serde(default, deserialize_with = "deserialize_rom_map")]
+    #[serde(default, deserialize_with = "deserialize_chip_map")]
     pub cs1: HashMap<String, u8>,
-    #[serde(default, deserialize_with = "deserialize_rom_map")]
+    #[serde(default, deserialize_with = "deserialize_chip_map")]
     pub cs2: HashMap<String, u8>,
-    #[serde(default, deserialize_with = "deserialize_rom_map")]
+    #[serde(default, deserialize_with = "deserialize_chip_map")]
     pub cs3: HashMap<String, u8>,
     pub x1: Option<u8>,
     pub x2: Option<u8>,
-    #[serde(default, deserialize_with = "deserialize_rom_map")]
+    #[serde(default, deserialize_with = "deserialize_chip_map")]
     pub ce: HashMap<String, u8>,
-    #[serde(default, deserialize_with = "deserialize_rom_map")]
+    #[serde(default, deserialize_with = "deserialize_chip_map")]
     pub oe: HashMap<String, u8>,
     pub x_jumper_pull: u8,
     pub sel: Vec<u8>,
@@ -218,7 +263,7 @@ pub struct HwConfigJson {
     pub description: String,
     #[serde(default)]
     pub alt: Vec<String>,
-    pub rom: Rom,
+    pub chip: Chip,
     pub mcu: Mcu,
 }
 
@@ -231,7 +276,7 @@ where
         .ok_or_else(|| serde::de::Error::custom(format!("Invalid MCU family: {}", s)))
 }
 
-fn deserialize_rom_map<'de, D>(deserializer: D) -> Result<HashMap<String, u8>, D::Error>
+fn deserialize_chip_map<'de, D>(deserializer: D) -> Result<HashMap<String, u8>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -243,18 +288,46 @@ fn invalid_pin() -> u8 {
 }
 
 pub fn validate_config(name: &str, config: &HwConfigJson) {
-    // Check data pins are exactly 8
-    if config.mcu.pins.data.len() != 8 {
+    // Check data pins
+    let has8 = config.chip.bit_modes.contains(&BitMode::Bit8);
+    let has16 = config.chip.bit_modes.contains(&BitMode::Bit16);
+    if !has8 && !has16 {
+        panic!("{name}: ROM bit modes must include at least one of 8 or 16")
+    } else if has8 && !has16 && config.mcu.pins.data.len() != 8 {
         panic!(
-            "{}: data pins must be exactly 8, found {}",
-            name,
+            "{name}: data pins must be exactly 8 for 8-bit only ROM, found {}",
+            config.mcu.pins.data.len()
+        );
+    } else if has16 && !has8 && config.mcu.pins.data.len() != 16 {
+        panic!(
+            "{name}: data pins must be exactly 16 for 16-bit only ROM, found {}",
+            config.mcu.pins.data.len()
+        );
+    } else if has8 && has16 && config.mcu.pins.data.len() != 16 {
+        panic!(
+            "{name}: data pins must be exactly 16 for mixed 8/16-bit ROM, found {}",
             config.mcu.pins.data.len()
         );
     }
+    for bit_mode in &config.chip.bit_modes {
+        // Check we didn't add a mode
+        if !matches![bit_mode, BitMode::Bit8 | BitMode::Bit16] {
+            panic!(
+                "{}: unsupported bit mode {:?}, must be 8 or 16",
+                name, bit_mode
+            );
+        }
+    }
 
     // Validate pins consistent within pin arrays
-    validate_pin_array(&config.mcu, &config.mcu.pins.data, "data", name, 8);
-    validate_pin_array(&config.mcu, &config.mcu.pins.addr, "addr", name, 16);
+    let max_data_pins= if config.chip.bit_modes.contains(&BitMode::Bit16) {
+        16
+    } else {
+        8
+    };
+    validate_pin_array(&config.mcu, &config.mcu.pins.data, "data", name, max_data_pins);
+    let max_addr_pins = config.chip.max_addr_pins();
+    validate_pin_array(&config.mcu, &config.mcu.pins.addr, "addr", name, max_addr_pins);
     validate_pin_array(&config.mcu, &config.mcu.pins.sel, "sel", name, 7);
 
     // Validate values in pin arrays are within valid ranges
@@ -266,7 +339,7 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         config.mcu.family.max_valid_data_pin(),
     );
 
-    match config.rom.pins.quantity {
+    match config.chip.pins.quantity {
         24 => validate_pin_values(
             &config.mcu.pins.addr,
             "addr",
@@ -281,9 +354,16 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
             14,
             config.mcu.family.max_valid_addr_cs_pin(),
         ),
+        40 => validate_pin_values(
+            &config.mcu.pins.addr,
+            "addr",
+            name,
+            16,
+            config.mcu.family.max_valid_addr_cs_pin(),
+        ),
         _ => panic!(
             "{}: unsupported ROM type {}, expected 24 or 28-pin ROM",
-            name, config.rom.pins.quantity
+            name, config.chip.pins.quantity
         ),
     }
 
@@ -299,10 +379,15 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
             );
         }
 
-        if max_data_pin >= min_data_pin + 8 {
+        let data_pins_windows = if has16 {
+            16
+        } else {
+            8
+        };
+        if max_data_pin >= min_data_pin + data_pins_windows {
             panic!(
-                "{}: data pins must be within 8-bit window, got range {}-{}",
-                name, min_data_pin, max_data_pin
+                "{}: data pins must be within {}-bit window, got range {}-{}",
+                name, data_pins_windows, min_data_pin, max_data_pin
             );
         }
     }
@@ -322,10 +407,14 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
             );
         }
 
-        if max_addr_pin >= min_addr_pin + 16 {
+        let mut num_addr_pins = config.mcu.pins.addr.len() as u8;
+        if num_addr_pins < 16 {
+            num_addr_pins = 16;
+        }
+        if max_addr_pin >= min_addr_pin + num_addr_pins {
             panic!(
-                "{}: address pins must be within 16-bit window, got range {}-{}",
-                name, min_addr_pin, max_addr_pin
+                "{}: address pins must be within {}-bit window, got range {}-{}",
+                name, num_addr_pins, min_addr_pin, max_addr_pin
             );
         }
     }
@@ -565,9 +654,9 @@ pub fn validate_config(name: &str, config: &HwConfigJson) {
         ServeMode::Cpu => (),
         ServeMode::Pio => {
             // Only supported for RP2350
-            if config.mcu.family != McuFamily::Rp2350 {
+            if !matches!(config.mcu.family, McuFamily::Rp2350 | McuFamily::Rp2350B) {
                 panic!(
-                    "{}: serve_mode Pio is only supported for RP2350 family",
+                    "{}: serve_mode Pio is only supported for RP2350A/B family",
                     name
                 );
             }

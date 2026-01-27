@@ -118,7 +118,7 @@ git push origin v<x.y.z>
 
 ## WASM/Site/Images updates
 
-- Copy `rom-config/schema.json` to `one-rom-images/configs/schema.json` and commit/push.
+- Copy `onerom-config/schema.json` to `one-rom-images/configs/schema.json` and commit/push.
 - Update `onerom-wasm` to the new sdrr-fw-parser/sdrr-gen version if required and release.
   - Make sure to bump the wasm development version releasing
   - Check release appears in wasm/releases, and new dev version on homepage

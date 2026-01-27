@@ -945,7 +945,7 @@ static uint8_t get_lowest_addr_gpio(
         }
     }
 
-    if (info->pins->rom_pins == 24) {
+    if (info->pins->chip_pins == 24) {
         // Consider X pins
         if (info->pins->x1 < lowest) {
             lowest = info->pins->x1;
@@ -1013,7 +1013,7 @@ static void piorom_finish_config(
     // Figure out number of CS pins from ROM type
     const sdrr_rom_info_t *rom = set->roms[0];
     switch (rom->rom_type) {
-        case ROM_TYPE_2364:
+        case CHIP_TYPE_2364:
             if (set->serve != SERVE_ADDR_ON_ANY_CS) {
                 config->num_cs_pins = 1;
             } else {
@@ -1029,23 +1029,23 @@ static void piorom_finish_config(
             }
             break;
 
-        case ROM_TYPE_2332:
-        case ROM_TYPE_23256:
-        case ROM_TYPE_23512:
+        case CHIP_TYPE_2332:
+        case CHIP_TYPE_23256:
+        case CHIP_TYPE_23512:
             config->num_cs_pins = 2;
             break;
 
-        case ROM_TYPE_2316:
-        case ROM_TYPE_23128:
+        case CHIP_TYPE_2316:
+        case CHIP_TYPE_23128:
             config->num_cs_pins = 3;
             break;
 
-        case ROM_TYPE_2716:
-        case ROM_TYPE_2732:
-        case ROM_TYPE_2764:
-        case ROM_TYPE_27128:
-        case ROM_TYPE_27256:
-        case ROM_TYPE_27512:
+        case CHIP_TYPE_2716:
+        case CHIP_TYPE_2732:
+        case CHIP_TYPE_2764:
+        case CHIP_TYPE_27128:
+        case CHIP_TYPE_27256:
+        case CHIP_TYPE_27512:
             config->num_cs_pins = 2;
             break;
 
@@ -1060,7 +1060,7 @@ static void piorom_finish_config(
     uint8_t series_23 = 0;
     switch (rom->rom_type) {
         // 23 series ROMs - use CS lines
-        case ROM_TYPE_2364:
+        case CHIP_TYPE_2364:
             // Special case for handling multi-ROM serving
             if (config->multi_rom_mode) {
                 // For 2 ROMs, use CS and X1.  For 3 ROMs use CS, X1 and X2.
@@ -1095,11 +1095,11 @@ static void piorom_finish_config(
             }
             // GCC notices the following comment and allows compilation
             // fall through 
-        case ROM_TYPE_2316:
-        case ROM_TYPE_2332:
-        case ROM_TYPE_23128:
-        case ROM_TYPE_23256:
-        case ROM_TYPE_23512:
+        case CHIP_TYPE_2316:
+        case CHIP_TYPE_2332:
+        case CHIP_TYPE_23128:
+        case CHIP_TYPE_23256:
+        case CHIP_TYPE_23512:
             series_23 = 1;
             // Figure out base CS pin from SDRR info
 
@@ -1173,12 +1173,12 @@ static void piorom_finish_config(
             break;
 
         // 27 series ROMs - use OE/CE lines
-        case ROM_TYPE_2716:
-        case ROM_TYPE_2732:
-        case ROM_TYPE_2764:
-        case ROM_TYPE_27128:
-        case ROM_TYPE_27256:
-        case ROM_TYPE_27512:
+        case CHIP_TYPE_2716:
+        case CHIP_TYPE_2732:
+        case CHIP_TYPE_2764:
+        case CHIP_TYPE_27128:
+        case CHIP_TYPE_27256:
+        case CHIP_TYPE_27512:
             // Use OE/CE instead of CS pins
             config->cs_base_pin = info->pins->oe;
             if (info->pins->ce == (config->cs_base_pin + 1)) {

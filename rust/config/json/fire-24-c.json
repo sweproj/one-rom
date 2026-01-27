@@ -4,10 +4,11 @@
         "p24-c",
         "fire-24-usb-c"
     ],
-    "rom": {
+    "chip": {
         "pins": {
             "quantity": 24
-        }
+        },
+        "bit_modes": ["8"]
     },
     "mcu": {
         "family": "rp2350",

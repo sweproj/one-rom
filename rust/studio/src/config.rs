@@ -13,7 +13,7 @@ use crate::studio::Message as StudioMessage;
 use crate::{ManifestType, PathType};
 use crate::{app_manifest, internal_error};
 
-use onerom_config::rom::RomType;
+use onerom_config::chip::ChipType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectedConfig {
@@ -214,7 +214,7 @@ pub enum Config {
 
     /// User has built their own config in the app
     Built {
-        rom_type: RomType,
+        rom_type: ChipType,
         chip_select: Vec<u8>,
         data: Vec<u8>,
     },

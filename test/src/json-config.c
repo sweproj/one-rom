@@ -184,7 +184,7 @@ json_config_t* load_json_config(const char* hw_rev) {
     char *error = NULL;
 
     json_object* rom_obj;
-    if (json_object_object_get_ex(root, "rom", &rom_obj)) {
+    if (json_object_object_get_ex(root, "chip", &rom_obj)) {
         json_object* pins_obj;
         if (json_object_object_get_ex(rom_obj, "pins", &pins_obj)) {
             json_object* quantity_obj;

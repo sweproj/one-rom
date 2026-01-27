@@ -12,9 +12,9 @@ use alloc::vec::Vec;
 
 use onerom_config::fw::{FirmwareProperties, FirmwareVersion, ServeAlg};
 use onerom_config::mcu::Family;
-use onerom_config::rom::RomType;
+use onerom_config::chip::{ChipFunction, ChipType};
 
-use crate::image::{CsConfig, CsLogic, Location, Rom, RomSet, RomSetType, SizeHandling};
+use crate::image::{CsConfig, CsLogic, Location, Chip, ChipSet, ChipSetType, SizeHandling};
 use crate::meta::Metadata;
 use crate::{Error, FIRMWARE_SIZE, MAX_METADATA_LEN, MIN_FIRMWARE_OVERRIDES_VERSION, Result};
 
@@ -49,9 +49,9 @@ pub(crate) use crate::firmware::*;
 /// let json = r#"{
 ///     "version": 1,
 ///     "description": "Example ROM configuration",
-///     "rom_sets": [{
+///     "chip_sets": [{
 ///         "type": "single",
-///         "roms": [{
+///         "chips": [{
 ///             "file": "http://example.com/kernal.bin",
 ///             "type": "2764",
 ///             "cs1": 0
@@ -166,10 +166,10 @@ impl Builder {
         }
 
         // Validate each rom set has roms
-        let mut rom_num = 0;
-        for set in config.rom_sets.iter() {
-            if set.roms.is_empty() {
-                return Err(Error::NoRoms);
+        let mut chip_num = 0;
+        for set in config.chip_sets.iter() {
+            if set.chips.is_empty() {
+                return Err(Error::NoChips);
             }
 
             // FirmwareConfig only supported from 0.6.0 firmware onwards
@@ -183,102 +183,103 @@ impl Builder {
                 }
             }
 
-            if set.roms.len() > 1 {
-                if set.set_type == RomSetType::Single {
-                    return Err(Error::TooManyRoms {
+            if set.chips.len() > 1 {
+                if set.set_type == ChipSetType::Single {
+                    return Err(Error::TooManyChips {
                         expected: 1,
-                        actual: set.roms.len(),
+                        actual: set.chips.len(),
                     });
                 }
 
-                if set.roms.len() > 3 && set.set_type == RomSetType::Multi {
-                    return Err(Error::TooManyRoms {
+                if set.chips.len() > 3 && set.set_type == ChipSetType::Multi {
+                    return Err(Error::TooManyChips {
                         expected: 3,
-                        actual: set.roms.len(),
+                        actual: set.chips.len(),
                     });
                 }
 
-                if set.roms.len() > 4 && set.set_type == RomSetType::Banked {
-                    return Err(Error::TooManyRoms {
+                if set.chips.len() > 4 && set.set_type == ChipSetType::Banked {
+                    return Err(Error::TooManyChips {
                         expected: 4,
-                        actual: set.roms.len(),
+                        actual: set.chips.len(),
                     });
                 }
             }
 
-            for rom in set.roms.iter() {
-                let rom0 = &set.roms[0];
+            for chip in set.chips.iter() {
+                let chip0 = &set.chips[0];
 
-                // Check filename specified
-                if rom.file.is_empty() {
+                // Check filename specified for ROMs
+                if chip.file.is_empty() && chip.chip_type.chip_function() != ChipFunction::Ram {
                     return Err(Error::InvalidConfig {
-                        error: format!("ROM {} file name is empty", rom_num),
+                        error: format!("Chip {} file name is empty", chip_num),
                     });
                 }
 
-                // Check all ROMs in a bank are same type
-                if set.set_type == RomSetType::Banked && rom.rom_type != rom0.rom_type {
+                // Check all Chips in a bank are same type
+                if set.set_type == ChipSetType::Banked && chip.chip_type != chip0.chip_type {
                     return Err(Error::InvalidConfig {
                         error: format!(
-                            "All ROMs in a banked set must be of the same type ({} != {})",
-                            rom.rom_type.name(),
-                            rom0.rom_type.name()
+                            "All Chips in a banked set must be of the same type ({} != {})",
+                            chip.chip_type.name(),
+                            chip0.chip_type.name()
                         ),
                     });
                 }
 
                 // Check that required CS lines are specified
-                for line in rom.rom_type.control_lines() {
-                    if line.name != "ce" && line.name != "oe" {
-                        let cs = match line.name {
-                            "cs1" => &rom.cs1,
-                            "cs2" => &rom.cs2,
-                            "cs3" => &rom.cs3,
-                            _ => {
-                                return Err(Error::InvalidConfig {
-                                    error: format!("Unknown control line {}", line.name),
-                                });
-                            }
-                        };
-                        if cs.is_none() {
-                            return Err(Error::MissingCsConfig { line: line.name });
+                for line in chip.chip_type.control_lines() {
+                    let cs = match line.name {
+                        "cs1" => chip.cs1,
+                        "cs2" => chip.cs2,
+                        "cs3" => chip.cs3,
+                        // Clumsy code to ignore these
+                        "ce"|"oe" => Some(CsLogic::Ignore),
+                        "write"|"byte" => Some(CsLogic::Ignore),
+                        _ => {
+                            return Err(Error::InvalidConfig {
+                                error: format!("Unknown control line {}", line.name),
+                            });
                         }
+                    };
+                    if cs.is_none() {
+                        return Err(Error::MissingCsConfig { line: line.name });
                     }
                 }
 
                 // Check that invalid CS lines are NOT specified
-                let has_cs2 = rom
-                    .rom_type
+                let has_cs2 = chip
+                    .chip_type
                     .control_lines()
                     .iter()
                     .any(|line| line.name == "cs2");
-                let has_cs3 = rom
-                    .rom_type
+                let has_cs3 = chip
+                    .chip_type
                     .control_lines()
                     .iter()
                     .any(|line| line.name == "cs3");
 
-                if rom.cs2.is_some() && !has_cs2 {
+                if chip.cs2.is_some() && !has_cs2 {
                     return Err(Error::InvalidConfig {
                         error: format!(
-                            "CS2 specified for ROM type {} which does not use CS2",
-                            rom.rom_type.name()
+                            "CS2 specified for Chip type {} which does not use CS2",
+                            chip.chip_type.name()
                         ),
                     });
                 }
 
-                if rom.cs3.is_some() && !has_cs3 {
+                if chip.cs3.is_some() && !has_cs3 {
                     return Err(Error::InvalidConfig {
                         error: format!(
-                            "CS3 specified for ROM type {} which does not use CS3",
-                            rom.rom_type.name()
+                            "CS3 specified for Chip type {} which does not use CS3",
+                            chip.chip_type.name()
                         ),
                     });
                 }
 
-                let cs1_active = rom.cs1.is_some() && rom.cs1.unwrap() != CsLogic::Ignore;
-                let cs2_active = rom.cs2.is_some() && rom.cs2.unwrap() != CsLogic::Ignore;
-                let cs3_active = rom.cs3.is_some() && rom.cs3.unwrap() != CsLogic::Ignore;
+                let cs1_active = chip.cs1.is_some() && chip.cs1.unwrap() != CsLogic::Ignore;
+                let cs2_active = chip.cs2.is_some() && chip.cs2.unwrap() != CsLogic::Ignore;
+                let cs3_active = chip.cs3.is_some() && chip.cs3.unwrap() != CsLogic::Ignore;
 
                 // Check that CS1 cannot be ignore if other CS lines are active
                 if !cs1_active && (cs2_active || cs3_active) {
@@ -294,25 +295,25 @@ impl Builder {
                     });
                 }
 
-                // Check that the correct CS lines are specified for the ROM
+                // Check that the correct CS lines are specified for the Chip
                 // type
-                let required_cs_lines: BTreeSet<&str> = rom
-                    .rom_type
+                let required_cs_lines: BTreeSet<&str> = chip
+                    .chip_type
                     .control_lines()
                     .iter()
-                    .filter(|line| line.name != "ce" && line.name != "oe")
+                    .filter(|line| matches!(line.name, "cs1" | "cs2" | "cs3"))
                     .map(|line| line.name)
                     .collect();
 
                 let specified_cs_lines: BTreeSet<&str> = {
                     let mut lines = BTreeSet::new();
-                    if rom.cs1.is_some() {
+                    if chip.cs1.is_some() {
                         lines.insert("cs1");
                     }
-                    if rom.cs2.is_some() {
+                    if chip.cs2.is_some() {
                         lines.insert("cs2");
                     }
-                    if rom.cs3.is_some() {
+                    if chip.cs3.is_some() {
                         lines.insert("cs3");
                     }
                     lines
@@ -321,8 +322,8 @@ impl Builder {
                 if required_cs_lines != specified_cs_lines {
                     return Err(Error::InvalidConfig {
                         error: format!(
-                            "ROM type {} requires CS lines {:?}, but specified CS lines are {:?}",
-                            rom.rom_type.name(),
+                            "Chip type {} requires CS lines {:?}, but specified CS lines are {:?}",
+                            chip.chip_type.name(),
                             required_cs_lines,
                             specified_cs_lines
                         ),
@@ -334,21 +335,21 @@ impl Builder {
                     if !required_cs_lines.contains(line) && specified_cs_lines.contains(line) {
                         return Err(Error::InvalidConfig {
                             error: format!(
-                                "ROM type {} does not use {}, but it is specified",
-                                rom.rom_type.name(),
+                                "Chip type {} does not use {}, but it is specified",
+                                chip.chip_type.name(),
                                 line
                             ),
                         });
                     }
                 }
 
-                if set.roms.len() == 1 {
+                if set.chips.len() == 1 {
                     // Check none are ignore
                     for line in &["cs1", "cs2", "cs3"] {
                         let cs = match *line {
-                            "cs1" => &rom.cs1,
-                            "cs2" => &rom.cs2,
-                            "cs3" => &rom.cs3,
+                            "cs1" => &chip.cs1,
+                            "cs2" => &chip.cs2,
+                            "cs3" => &chip.cs3,
                             _ => unreachable!(),
                         };
                         #[allow(clippy::collapsible_if)]
@@ -356,9 +357,9 @@ impl Builder {
                             if *cs_logic == CsLogic::Ignore {
                                 return Err(Error::InvalidConfig {
                                     error: format!(
-                                        "{} cannot be ignore for single-ROM sets (ROM {})",
+                                        "{} cannot be ignore for single-ROM sets (Chip {})",
                                         line.to_uppercase(),
-                                        rom_num
+                                        chip_num
                                     ),
                                 });
                             }
@@ -369,44 +370,44 @@ impl Builder {
                     if !cs1_active {
                         return Err(Error::InvalidConfig {
                             error: format!(
-                                "CS1 cannot be ignore for multi-ROM sets (ROM {})",
-                                rom_num
+                                "CS1 cannot be ignore for multi-ROM sets (Chip {})",
+                                chip_num
                             ),
                         });
                     }
                 }
 
                 // Validate location if present
-                if let Some(location) = &rom.location {
+                if let Some(location) = &chip.location {
                     // Check length is non-zero
                     if location.length == 0 {
                         return Err(Error::InvalidConfig {
-                            error: format!("ROM {} location length must be non-zero", rom_num),
+                            error: format!("Chip {} location length must be non-zero", chip_num),
                         });
                     }
 
                     // Check for overflowing a usize (!)
                     if location.start.checked_add(location.length).is_none() {
                         return Err(Error::InvalidConfig {
-                            error: format!("ROM {} location start + length overflows", rom_num),
+                            error: format!("Chip {} location start + length overflows", chip_num),
                         });
                     }
                 }
 
-                rom_num += 1;
+                chip_num += 1;
             }
 
             // After the loop: validate CS consistency for multi/banked sets
             #[allow(clippy::collapsible_if)]
-            if set.set_type == RomSetType::Multi || set.set_type == RomSetType::Banked {
-                if set.roms.len() > 1 {
+            if set.set_type == ChipSetType::Multi || set.set_type == ChipSetType::Banked {
+                if set.chips.len() > 1 {
                     // Get CS configuration from first ROM
-                    let first_cs1 = set.roms[0].cs1;
-                    let first_cs2 = set.roms[0].cs2;
-                    let first_cs3 = set.roms[0].cs3;
+                    let first_cs1 = set.chips[0].cs1;
+                    let first_cs2 = set.chips[0].cs2;
+                    let first_cs3 = set.chips[0].cs3;
 
                     // Check all other ROMs have the same CS configuration
-                    for (idx, rom) in set.roms.iter().enumerate().skip(1) {
+                    for (idx, rom) in set.chips.iter().enumerate().skip(1) {
                         if rom.cs1 != first_cs1 || rom.cs2 != first_cs2 || rom.cs3 != first_cs3 {
                             if (rom.cs2 != first_cs2)
                                 && let Some(cs) = rom.cs2
@@ -443,11 +444,17 @@ impl Builder {
     fn build_file_id_map(&mut self) {
         let mut seen_files: BTreeMap<(String, Option<String>), usize> = BTreeMap::new();
         let mut file_id = 0;
-        let mut rom_id = 0;
+        let mut chip_id = 0;
 
-        for rom_set in self.config.rom_sets.iter() {
-            for rom in &rom_set.roms {
-                let key = (rom.file.clone(), rom.extract.clone());
+        for chip_set in self.config.chip_sets.iter() {
+            for chip in &chip_set.chips {
+                // Skip chips with no file (e.g., RAM)
+                if chip.file.is_empty() {
+                    chip_id += 1;
+                    continue;
+                }
+                
+                let key = (chip.file.clone(), chip.extract.clone());
 
                 let assigned_file_id = if let Some(&existing_id) = seen_files.get(&key) {
                     existing_id
@@ -458,8 +465,8 @@ impl Builder {
                     id
                 };
 
-                self.file_id_map.insert(rom_id, assigned_file_id);
-                rom_id += 1;
+                self.file_id_map.insert(chip_id, assigned_file_id);
+                chip_id += 1;
             }
         }
     }
@@ -470,8 +477,13 @@ impl Builder {
         let mut seen_files: BTreeMap<(String, Option<String>), usize> = BTreeMap::new();
         let mut rom_id = 0;
 
-        for (rom_set_num, rom_set) in self.config.rom_sets.iter().enumerate() {
-            for rom in &rom_set.roms {
+        for (chip_set_num, chip_set) in self.config.chip_sets.iter().enumerate() {
+            for rom in &chip_set.chips {
+                if rom.file.is_empty() {
+                    // No file to load for this ROM
+                    rom_id += 1;
+                    continue;
+                }
                 let key = (rom.file.clone(), rom.extract.clone());
                 let file_id = *self.file_id_map.get(&rom_id).unwrap();
 
@@ -482,14 +494,14 @@ impl Builder {
                         source: rom.file.clone(),
                         extract: rom.extract.clone(),
                         size_handling: rom.size_handling.clone(),
-                        rom_type: rom.rom_type,
-                        rom_size: rom.rom_type.size_bytes(),
+                        chip_type: rom.chip_type,
+                        rom_size: rom.chip_type.size_bytes(),
                         cs1: rom.cs1,
                         cs2: rom.cs2,
                         cs3: rom.cs3,
-                        set_id: rom_set_num,
-                        set_type: rom_set.set_type.clone(),
-                        set_description: rom_set.description.clone(),
+                        set_id: chip_set_num,
+                        set_type: chip_set.set_type.clone(),
+                        set_description: chip_set.description.clone(),
                     });
                     file_id
                 });
@@ -528,8 +540,8 @@ impl Builder {
 
         let mut license_id = 0;
         let mut rom_id = 0;
-        for rom_set in self.config.rom_sets.iter() {
-            for rom in &rom_set.roms {
+        for chip_set in self.config.chip_sets.iter() {
+            for rom in &chip_set.chips {
                 if let Some(ref url) = rom.license {
                     let license = License::new(license_id, rom_id, url.clone());
                     licenses.push(license.clone());
@@ -576,11 +588,11 @@ impl Builder {
 
         // Validate all ROM types are supported by this board
         let board = props.board();
-        for set in self.config.rom_sets.iter() {
-            for rom in set.roms.iter() {
-                if !board.supports_rom_type(rom.rom_type) {
-                    return Err(Error::UnsupportedRomType {
-                        rom_type: rom.rom_type,
+        for set in self.config.chip_sets.iter() {
+            for rom in set.chips.iter() {
+                if !board.supports_chip_type(rom.chip_type) {
+                    return Err(Error::UnsupportedChipType {
+                        chip_type: rom.chip_type,
                     });
                 }
             }
@@ -591,7 +603,7 @@ impl Builder {
 
     /// Generate metadata and ROM images once all files loaded
     ///
-    /// Returns (metadata, Rom images)
+    /// Returns (metadata, Chip images)
     pub fn build(&self, props: FirmwareProperties) -> Result<(Vec<u8>, Vec<u8>)> {
         if props.version() > MAX_SUPPORTED_FIRMWARE_VERSION {
             return Err(Error::FirmwareTooNew {
@@ -603,54 +615,60 @@ impl Builder {
         // Validate ready to build
         self.build_validation(&props)?;
 
-        // Build Rom and RomSet objects together
-        let mut rom_sets = Vec::new();
-        let mut rom_id = 0;
+        // Build Chip and ChipSet objects together
+        let mut chip_sets = Vec::new();
+        let mut chip_id = 0;
 
-        for (set_id, rom_set_config) in self.config.rom_sets.iter().enumerate() {
+        for (set_id, chip_set_config) in self.config.chip_sets.iter().enumerate() {
             let mut set_roms = Vec::new();
 
-            for rom_config in &rom_set_config.roms {
-                let file_id = self.file_id_map.get(&rom_id).unwrap();
-                let data = self.files.get(file_id).unwrap();
+            for chip_config in &chip_set_config.chips {
+                let data = if let Some(&file_id) = self.file_id_map.get(&chip_id) {
+                    // Has a file - use loaded data
+                    Some(self.files.get(&file_id).unwrap())
+                } else {
+                    // No file (RAM chip) - use empty slice
+                    None
+                };
 
-                let filename = rom_config.filename();
+                let filename = chip_config.filename();
 
-                let rom = Rom::from_raw_rom_image(
-                    rom_id,
+                let rom = Chip::from_raw_rom_image(
+                    chip_id,
                     filename,
-                    rom_config.label.clone(),
-                    data,
-                    vec![0u8; rom_config.rom_type.size_bytes()],
-                    &rom_config.rom_type,
-                    CsConfig::new(rom_config.cs1, rom_config.cs2, rom_config.cs3),
-                    &rom_config.size_handling,
-                    rom_config.location,
+                    chip_config.label.clone(),
+                    data.map(|v| &**v),
+                    vec![0u8; chip_config.chip_type.size_bytes()],
+                    &chip_config.chip_type,
+                    CsConfig::new(chip_config.cs1, chip_config.cs2, chip_config.cs3),
+                    &chip_config.size_handling,
+                    chip_config.location,
                 )?;
                 set_roms.push(rom);
-                rom_id += 1;
+                chip_id += 1;
             }
 
-            let serve_alg = if let Some(alg) = rom_set_config.serve_alg {
+            let serve_alg = if let Some(alg) = chip_set_config.serve_alg {
                 alg
             } else {
                 props.serve_alg()
             };
-            let rom_set = RomSet::new(
+            let chip_set = ChipSet::new(
                 set_id,
-                rom_set_config.set_type.clone(),
+                chip_set_config.set_type.clone(),
                 serve_alg,
                 set_roms,
-                rom_set_config.firmware_overrides.clone(),
+                chip_set_config.firmware_overrides.clone(),
             )?;
-            rom_sets.push(rom_set);
+            chip_sets.push(chip_set);
         }
 
         // Build Metadata
         let metadata = Metadata::new(
             props.board(),
-            rom_sets,
+            chip_sets,
             props.boot_logging(),
+            props.board().mcu_pio(),
             props.version(),
         );
 
@@ -690,12 +708,12 @@ impl Builder {
         Ok((metadata_buf, rom_data_buf))
     }
 
-    fn num_rom_sets(&self) -> usize {
-        self.config.rom_sets.len()
+    fn num_chip_sets(&self) -> usize {
+        self.config.chip_sets.len()
     }
 
     fn num_roms(&self) -> usize {
-        self.config.rom_sets.iter().map(|set| set.roms.len()).sum()
+        self.config.chip_sets.iter().map(|set| set.chips.len()).sum()
     }
 
     /// Build config description
@@ -748,7 +766,7 @@ impl Builder {
             desc.push_str("\n\n");
         }
 
-        let multi_rom_sets = if self.num_rom_sets() == self.num_roms() {
+        let multi_chip_sets = if self.num_chip_sets() == self.num_roms() {
             desc.push_str("Images:");
             false
         } else {
@@ -758,10 +776,10 @@ impl Builder {
         desc.push('\n');
 
         let mut none = true;
-        for (ii, set) in self.config.rom_sets.iter().enumerate() {
+        for (ii, set) in self.config.chip_sets.iter().enumerate() {
             none = false;
             desc.push_str(&format!("{ii}:"));
-            if multi_rom_sets {
+            if multi_chip_sets {
                 desc.push_str(&format!(" {:?}", set.set_type));
                 if let Some(ref set_desc) = set.description {
                     desc.push_str(&format!(", {set_desc}"));
@@ -771,8 +789,8 @@ impl Builder {
                 desc.push(' ');
             }
 
-            for (jj, rom) in set.roms.iter().enumerate() {
-                if multi_rom_sets {
+            for (jj, rom) in set.chips.iter().enumerate() {
+                if multi_chip_sets {
                     desc.push_str(&format!("  {jj}: "));
                 }
                 if let Some(rom_desc) = &rom.description {
@@ -862,8 +880,8 @@ pub struct FileSpec {
     /// only.
     pub size_handling: SizeHandling,
 
-    /// Type of ROM.  Provided for information only.
-    pub rom_type: RomType,
+    /// Type of Chip.  Provided for information only.
+    pub chip_type: ChipType,
 
     /// Size of the ROM in bytes.  Provided for information only.
     pub rom_size: usize,
@@ -884,7 +902,7 @@ pub struct FileSpec {
     pub set_id: usize,
 
     /// ROM Set type that this file belongs to.  Provided for information only.
-    pub set_type: RomSetType,
+    pub set_type: ChipSetType,
 
     /// Optional ROM Set description that this file belongs to.  Provided for
     /// information only.
@@ -901,9 +919,15 @@ pub struct FileData {
     pub data: Vec<u8>,
 }
 
-/// Top level configuration structure
+/// One ROM chip configuration format.
+/// 
+/// Used to indicate:
+/// - What ROM chips, RAM chips and any other devices to emulate
+/// - What ROM images to include
+/// - Any overrides for the firmware build-time setting
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(title = "One ROM Configuration"))]
 pub struct Config {
     /// Configuration format version.
     #[cfg_attr(feature = "schemars", schemars(schema_with = "version_schema"))]
@@ -922,12 +946,14 @@ pub struct Config {
     /// description.
     pub detail: Option<String>,
 
-    /// Array of ROM set configurations.  Note that even if not using complex
-    /// features like dynamic banking and multi-ROM sets, each ROM image is in
-    /// its own set.
+    /// Array of chip set configurations.  Note that even if not using complex
+    /// features like dynamic banking and multi-ROM sets, each ROM image, or
+    /// other chip types is in its own set.
+    /// 
     /// The builder description output lists either "Images" or "Sets"
     /// depending on whether there are any multi-set or banked sets in use.
-    pub rom_sets: Vec<RomSetConfig>,
+    #[serde(alias = "rom_sets")]
+    pub chip_sets: Vec<ChipSetConfig>,
 
     /// Optional notes for this configuration.  This is included in the
     /// description output by the builder, following the list of images/sets.
@@ -945,38 +971,41 @@ fn version_schema(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
     })
 }
 
-/// ROM Set configuration structure
+/// Chip Set configuration structure
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct RomSetConfig {
+pub struct ChipSetConfig {
     /// Type of ROM set
     #[serde(rename = "type")]
     #[cfg_attr(feature = "schemars", schemars(default))]
-    pub set_type: RomSetType,
+    pub set_type: ChipSetType,
 
-    /// Optional description for this ROM set.  This is included in the
+    /// Optional description for this chip set.  This is included in the
     /// description output by the builder.
     pub description: Option<String>,
 
-    /// Array of ROM configurations in this set.  Contains 1 member for single
-    /// ROM sets, and multiple members for multi-ROM and banked ROM sets.
-    pub roms: Vec<RomConfig>,
+    /// Array of chip configurations in this set.  Contains 1 member for single
+    /// chip sets, and multiple members for multi-ROM and banked ROM sets.
+    #[serde(alias = "roms")]
+    pub chips: Vec<ChipConfig>,
 
-    /// Optional serving algorithm override for this ROM set
+    /// Optional serving algorithm override for this chip set.  Only valid
+    /// when using CPU serving - Ice boards and Fire 24 A/B by default.
     pub serve_alg: Option<ServeAlg>,
 
-    /// Optional firmware overrides when serving this ROM set.  Takes
+    /// Optional firmware overrides when serving this chip set.  Takes
     /// precedence over any global configuration firmware overrides.
     pub firmware_overrides: Option<FirmwareConfig>,
 }
 
-/// ROM configuration structure
+/// Chip configuration structure
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct RomConfig {
-    /// Filename or URL of the ROM image - filename is only valid if using a
+pub struct ChipConfig {
+    /// Filename or URL of any ROM image - filename is only valid if using a
     /// generator tool with local file access.  This is passed to the generator
     /// tool to retrieve the ROM image.
+    #[serde(default)]
     pub file: String,
 
     /// Optional license URL/identifier for the ROM.  This is passed to the
@@ -989,19 +1018,19 @@ pub struct RomConfig {
 
     /// Type of ROM
     #[serde(rename = "type")]
-    pub rom_type: RomType,
+    pub chip_type: ChipType,
 
-    /// Optional Chip Select 1 logic - only valid for ROM Types that have CS1
+    /// Optional Chip Select 1 logic - only valid for Chip Types that have CS1
     pub cs1: Option<CsLogic>,
 
-    /// Optional Chip Select 2 logic - only valid for ROM Types that have CS2
+    /// Optional Chip Select 2 logic - only valid for Chip Types that have CS2
     pub cs2: Option<CsLogic>,
 
-    /// Optional Chip Select 3 logic - only valid for ROM Types that have CS3
+    /// Optional Chip Select 3 logic - only valid for Chip Types that have CS3
     pub cs3: Option<CsLogic>,
 
-    /// Optional size handling configuration for this ROM.  Used to specify
-    /// handling when the image supplied isn't the correct size for this ROM
+    /// Optional size handling configuration for this Chip.  Used to specify
+    /// handling when the image supplied isn't the correct size for this Chip
     /// type.
     #[serde(default)]
     pub size_handling: SizeHandling,
@@ -1021,7 +1050,7 @@ pub struct RomConfig {
     pub location: Option<Location>,
 }
 
-impl RomConfig {
+impl ChipConfig {
     // Constructs the filename string for metadata.  Note label will be used
     // in metadata instead if specified.
     fn filename(&self) -> String {

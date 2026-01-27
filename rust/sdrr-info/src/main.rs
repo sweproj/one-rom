@@ -263,11 +263,6 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
     };
     let usb_dfu = info.extra_info.as_ref().map(|e| e.usb_dfu).unwrap_or(false);
     println!("USB DFU:          {usb_dfu}",);
-    if usb_dfu {
-        let port = info.extra_info.as_ref().map(|e| e.usb_port).unwrap();
-        let vbus_pin = info.extra_info.as_ref().map(|e| e.vbus_pin).unwrap();
-        println!("VBUS Pin:         P{port}:{vbus_pin}");
-    }
     println!("SWD enabled:      {}", info.swd_enabled);
     println!("Boot logging:     {}", info.boot_logging_enabled);
     println!("Status LED:       {}", info.status_led_enabled);
@@ -291,7 +286,6 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
 
         let pins = &info.pins;
         if let Some(pins) = pins {
-            println!();
             println!("Data pin mapping:");
             for (ii, &pin) in pins.data.iter().enumerate() {
                 if pin != 0xFF {
@@ -302,6 +296,21 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
                         pins.data_port,
                         pin
                     );
+                }
+            }
+            // Print additional data pins for 16-bit ROMs
+            if let Some(ref data2) = pins.data2 {
+                for (ii, &pin) in data2.iter().enumerate() {
+                    if pin != 0xFF {
+                        let bit_num = pins.data.len() + ii;
+                        println!(
+                            "  D{}: {}P{}:{}",
+                            bit_num,
+                            if bit_num < 10 { " " } else { "" },
+                            pins.data_port,
+                            pin
+                        );
+                    }
                 }
             }
             println!();
@@ -315,6 +324,20 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
                         pins.addr_port,
                         pin
                     );
+                }
+            }
+            if let Some(ref addr2) = pins.addr2 {
+                for (ii, &pin) in addr2.iter().enumerate() {
+                    if pin != 0xFF {
+                        let bit_num = pins.addr.len() + ii;
+                        println!(
+                            "  A{}: {}P{}:{}",
+                            bit_num,
+                            if bit_num < 10 { " " } else { "" },
+                            pins.addr_port,
+                            pin
+                        );
+                    }
                 }
             }
             println!();
@@ -377,11 +400,16 @@ fn print_sdrr_info(fw_data: &FirmwareData, args: &Args) {
                 println!("  SWDIO Pin: P{}:{}", pins.sel_port, pins.swdio_sel);
             }
             println!();
-            println!("Status LED pin:");
+            println!("Control pins:");
+            if usb_dfu {
+                let port = info.extra_info.as_ref().map(|e| e.usb_port).unwrap();
+                let vbus_pin = info.extra_info.as_ref().map(|e| e.vbus_pin).unwrap();
+                println!("  VBUS Pin:   P{port}:{vbus_pin}");
+            }
             if pins.status_port == SdrrMcuPort::None {
-                println!("  Pin: None");
+                println!("  Status LED: None");
             } else {
-                println!("  Pin: P{}:{}", pins.status_port, pins.status);
+                println!("  Status LED: P{}:{}", pins.status_port, pins.status);
             }
             println!();
         } else {

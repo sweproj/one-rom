@@ -29,7 +29,7 @@ Each zip firmware with a selection of ROM images for multiple system configurati
 - IEEE disk drives
 - And more...
 
-Firmware for ROM image configurations that require explicit licence acceptance (for example ['c64'](/config/c64.mk)) are not included in the release.  You can build them yourself, by following instructions in the [README](/README.md) and [INSTALL](/INSTALL.md).
+Firmware for ROM image configurations that require explicit licence acceptance (for example ['c64'](/old-config/c64.mk)) are not included in the release.  You can build them yourself, by following instructions in the [README](/README.md) and [INSTALL](/INSTALL.md).
 
 There are more hardware, MCU and other build configurations options supported by One ROM than are included in the release artifacts.  You can build them yourself, by following instructions in the [README](/README.md) and [INSTALL](/INSTALL.md).
 

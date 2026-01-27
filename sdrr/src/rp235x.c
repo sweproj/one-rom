@@ -11,6 +11,12 @@
 
 #include "roms.h"
 
+#if defined(RP2350A) && defined(RP2350B)
+#error "Cannot define both RP2350A and RP2350B"
+#elif !defined(RP2350A) && !defined(RP2350B)
+#error "Must define either RP2350A or RP2350B" 
+#endif // RP2350A && RP2350B
+
 // Internal function prototypes
 uint8_t calculate_pll_settings(
     rp235x_clock_config_t *clock_config,
@@ -201,16 +207,16 @@ void get_clock_config(rp235x_clock_config_t *config) {
     } else if (sdrr_runtime_info.fire_freq < RP235X_MAX_CONFIGURABLE_MHZ) {
         config->sys_clock_freq_mhz = sdrr_runtime_info.fire_freq;
     } else {
-        LOG("!!! Fire frequency set to more than absolute maximum %0d/%0d - using stock", sdrr_runtime_info.fire_freq, RP235X_MAX_CONFIGURABLE_MHZ);
+        LOG("!!! Freq too high %d/%dMHz - using default", sdrr_runtime_info.fire_freq, RP235X_MAX_CONFIGURABLE_MHZ);
         config->sys_clock_freq_mhz = RP235X_STOCK_CLOCK_SPEED_MHZ;
     }
 
     // Check for overclocking enabled
     if (config->sys_clock_freq_mhz > RP235X_STOCK_CLOCK_SPEED_MHZ) {
         if (sdrr_runtime_info.overclock_enabled) {
-            LOG("Overclocking enabled - allowing %dMHz", config->sys_clock_freq_mhz);
+            LOG("OC - %dMHz", config->sys_clock_freq_mhz);
         } else {
-            LOG("!!! Overclocking disabled - capping at stock %dMHz", RP235X_STOCK_CLOCK_SPEED_MHZ);
+            LOG("!!! No OC - cap %dMHz", RP235X_STOCK_CLOCK_SPEED_MHZ);
             config->sys_clock_freq_mhz = RP235X_STOCK_CLOCK_SPEED_MHZ;
         }
     }
@@ -221,7 +227,7 @@ void get_clock_config(rp235x_clock_config_t *config) {
         config,
         sdrr_runtime_info.overclock_enabled
     )) {
-        LOG("!!! Could not calculate PLL settings - using compile time settings %dMHz", TARGET_FREQ_MHZ);
+        LOG("!!! No valid PLL - using CT %dMHz", TARGET_FREQ_MHZ);
         config->sys_clock_freq_mhz = TARGET_FREQ_MHZ;  
         config->pll_refdiv = PLL_SYS_REFDIV;
         config->pll_sys_fbdiv = PLL_SYS_FBDIV;
@@ -238,7 +244,7 @@ void get_clock_config(rp235x_clock_config_t *config) {
         config->vreg = get_vreg_from_target_mhz(config->sys_clock_freq_mhz);
     }
 
-    LOG("Setting clock to %dMHz: refdiv=%d, fbdiv=%d, postdiv1=%d, postdiv2=%d, vreg=%d",
+    DEBUG("Clock to %dMHz: refdiv=%d, fbdiv=%d, postdiv1=%d, postdiv2=%d, vreg=%d",
         config->sys_clock_freq_mhz,
         config->pll_refdiv,
         config->pll_sys_fbdiv,
@@ -251,8 +257,6 @@ void get_clock_config(rp235x_clock_config_t *config) {
 }
 
 void setup_clock(void) {
-    LOG("Setting up clock");
-
     rp235x_clock_config_t config;
     get_clock_config(&config);
 
@@ -285,7 +289,7 @@ void setup_gpio(void) {
             GPIO_PAD(sdrr_info.pins->data[ii]) |= PAD_DRIVE(PAD_DRIVE_8MA) | PAD_SLEW_FAST;
             GPIO_CTRL(pin) = GPIO_CTRL_FUNC_SIO;
         } else {
-            LOG("!!! Data pin %d out of range", pin);
+            LOG("!!! Invalid data pin %d", pin);
         }
     }
 
@@ -295,10 +299,10 @@ void setup_gpio(void) {
         if (pin < MAX_USED_GPIOS) {
             GPIO_PAD(pin) &= ~(PAD_OUTPUT_DISABLE | PAD_INPUT);
             GPIO_PAD(pin) |= PAD_DRIVE(PAD_DRIVE_4MA);
-            SIO_GPIO_OE_SET = (1 << pin);
-            SIO_GPIO_OUT_SET = (1 << pin);
+            SIO_GPIO_OE_SET_PIN(pin);
+            SIO_GPIO_OUT_SET_PIN(pin);
         } else {
-            LOG("!!! Status LED pin %d out of range", pin);
+            LOG("!!! Invalid LED %d", pin);
         }
     } else {
         DEBUG("No status LED pin defined");
@@ -312,7 +316,7 @@ void setup_qmi(rp235x_clock_config_t *config) {
 #endif
     uint16_t target_flash_freq_mhz = config->sys_clock_freq_mhz;
     if (target_flash_freq_mhz > MAX_FLASH_CLOCK_FREQ_MHZ) {
-        DEBUG("Target clock speed exceeds max flash speed %dMHz vs %dHz", target_flash_freq_mhz, MAX_FLASH_CLOCK_FREQ_MHZ);
+        DEBUG("Target freq > max flash %dv%dMHz", target_flash_freq_mhz, MAX_FLASH_CLOCK_FREQ_MHZ);
 
         // Calculate the divider
         uint8_t divider = target_flash_freq_mhz / MAX_FLASH_CLOCK_FREQ_MHZ;
@@ -321,14 +325,13 @@ void setup_qmi(rp235x_clock_config_t *config) {
         }
 
         uint32_t m0 = XIP_QMI_M0_TIMING;
-        DEBUG("Current QMI M0 TIMING: 0x%08X", m0);
+        DEBUG("Current QMI M0: 0x%08X", m0);
 
         m0 &= ~XIP_QMI_M0_CLKDIV_MASK;
         m0 |= (divider & XIP_QMI_M0_CLKDIV_MASK) << XIP_QMI_M0_CLKDIV_SHIFT;
 
-        LOG("Updating M0 clock divider to %d", divider);
-
-        DEBUG("Updating QMI M0 TIMING: 0x%08X", m0);
+        DEBUG("Update M0 clkdiv: %d", divider);
+        DEBUG("Update QMI M0: 0x%08X", m0);
 
         XIP_QMI_M0_TIMING = m0;
     }
@@ -344,7 +347,7 @@ void setup_vreg(rp235x_clock_config_t *config) {
     DEBUG("Target VREG setting: %d", voltage);
 
     if (voltage > 0b11111) {
-        LOG("!!! Invalid VREG setting %d - not changing", voltage);
+        LOG("!!! Invalid VREG %d - ignore", voltage);
         return;
     }
 
@@ -355,39 +358,39 @@ void setup_vreg(rp235x_clock_config_t *config) {
             unlimited_voltage = 1;
         }
 
-        DEBUG("Unlocking VREG");
+        DEBUG("Unlock VREG");
         vreg_ctrl |= POWMAN_PASSWORD |
                 POWMAN_VREG_CTRL_UNLOCK;
         POWMAN_VREG_CTRL = vreg_ctrl;
         while (!(POWMAN_VREG_CTRL & POWMAN_VREG_CTRL_UNLOCK));
 
         if (unlimited_voltage) {
-            LOG("!!! Disabling voltage limit for > 1.30V operation !!!");
+            LOG("!!! Disable voltage limit");
             vreg_ctrl |= POWMAN_VREG_CTRL_DISABLE_VOLTAGE_LIMIT;
             POWMAN_VREG_CTRL = vreg_ctrl;
             while (!(POWMAN_VREG_CTRL & POWMAN_VREG_CTRL_DISABLE_VOLTAGE_LIMIT));
         }
 
-        DEBUG("Setting VREG high temp to %d", high_temp);
+        DEBUG("Set VREG high temp %d", high_temp);
         vreg_ctrl &= ~(HT_TH_MASK << HT_TH_SHIFT);
         vreg_ctrl |= POWMAN_PASSWORD |
                         POWMAN_VREG_CTRL_HT_TH(high_temp);
         POWMAN_VREG_CTRL = vreg_ctrl;
         DEBUG("Current VREG_CTRL: 0x%08X", POWMAN_VREG_CTRL);
 
-        DEBUG("Setting VREG voltage to %d", voltage);
+        DEBUG("Set VREG to %d", voltage);
         while (POWMAN_VREG & POWMAN_VREG_UPDATE);
         vreg &= ~(VREG_MASK << VREG_SHIFT);
         vreg |= POWMAN_VREG_VOLTAGE(voltage) | POWMAN_PASSWORD;
         POWMAN_VREG = vreg;
         while (POWMAN_VREG & POWMAN_VREG_UPDATE);
 
-        LOG("Set voltage regulator - POWMAN_VREG: 0x%08X", POWMAN_VREG);
+        DEBUG("POWMAN_VREG: 0x%08X", POWMAN_VREG);
 
         for (volatile int ii = 0; ii < 5000; ii++) {
             // Wait a bit for the voltage to stabilise
             // 2,000 loops is too few at 540MHz, 5,000 seems like enough
-            // Not required if DEBUG logging is on
+            // Probabyl not required if DEBUG logging is on
         }
     } 
 }
@@ -519,7 +522,9 @@ void setup_mco(void) {
 //
 // As of 0.6.0 sel_jumper_pulls is a bit field indicating whether the
 // jumper pulls up (1) or down (0) each sel pin individually.
-uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
+//
+// As of 0.6.2 moved to uint64_t to cope with RP2350B.
+uint32_t setup_sel_pins(uint64_t *sel_mask, uint64_t *flip_bits) {
     uint32_t num;
     uint32_t pad;
 
@@ -538,16 +543,14 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
         
         if ((pin == sdrr_info.pins->swclk_sel) ||
             (pin == sdrr_info.pins->swdio_sel)) {
-            DEBUG("Sel pin %d connected to SWD pin - disabling SWD pad", pin);
+            DEBUG("Pin %d = SWD, disable", pin);
 
             SYSCFG_DBGFORCE |= SYSCFG_DBGFORCE_ATTACH_BIT;
             
             if (pin == sdrr_info.pins->swclk_sel) {
-                DEBUG("Current SWCLK pad: 0x%08X", GPIO_PAD(SWCLK_PAD));
                 GPIO_PAD(SWCLK_PAD) = (1 << PAD_ISO_BIT);
             }
             if (pin == sdrr_info.pins->swdio_sel) {
-                DEBUG("Current SWDIO pad: 0x%08X", GPIO_PAD(SWDIO_PAD));
                 GPIO_PAD(SWDIO_PAD) = (1 << PAD_ISO_BIT);
             }
         }
@@ -556,27 +559,27 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
             // Set the appropriate pad value based on the bit field
             if (sdrr_info.pins->sel_jumper_pull & (1 << ii)) {
                 // This pin pulls up, so we pull down
-                DEBUG("Sel pin %d configured as pull-down", pin);
+                DEBUG("Pin %d PD", pin);
                 pad = PAD_INPUT_PD;
             } else {
                 // This pin pulls down, so we pull up
-                DEBUG("Sel pin %d configured as pull-up", pin);
+                DEBUG("Pin %d PU", pin);
                 pad = PAD_INPUT_PU;
 
                 // Flip this bit when reading the SEL pins, as closing will
                 // pull the pin low, but that should read a
-                *flip_bits |= (1 << pin);
+                *flip_bits |= (1ULL << pin);
             }
 
             // Enable pull
             GPIO_PAD(pin) = pad;
 
             // Set the pin in our bit mask
-            *sel_mask |= (1 << pin);
+            *sel_mask |= (1ULL << pin);
 
             num += 1;
         } else if (pin != INVALID_PIN) {
-            LOG("!!! Sel pin %d >= %d - not using", pin, MAX_USED_GPIOS);
+            LOG("!!! Pin %d >= %d - ignore", pin, MAX_USED_GPIOS);
         }
     }
 
@@ -595,8 +598,8 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
 // value as is, as closed should indicate 1.  In the other case, where MCU
 // pulls are high (closing jumpers) pulls the pins low, we invert - so closed
 // still indicates 1.
-uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits) {
-    uint32_t gpio_value = 0;
+uint64_t get_sel_value(uint64_t sel_mask, uint64_t flip_bits) {
+    uint64_t gpio_value = 0;
 
     // Read GPIO input register.  We read multiple times to allow for any
     // spurious "highs", as some pins that the sel pin connected to might
@@ -604,6 +607,10 @@ uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits) {
     // with QSPI_SS.  This will mostly be low, as it is the main external
     // flash chip select, and seems to always read low, but could go high
     // if, for some reason, flash isn't busy.
+    //
+    // The logic below is as it is because in this case the spurious high
+    // ends up being a spuripous low after flipping (cos closing that jumper
+    // pulls the pin low).
     //
     // This isn't totally robust.  Scoping One ROM during this stage shows
     // that QSPI_SS is almost always low, but it does glitch high every 40us,
@@ -616,7 +623,10 @@ uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits) {
     // Take 10-20 samples spread over ~1us to avoid any single glitch.
     // At 150MHz, this is negligible cost (<150 cycles total).
     for (int i = 0; i < 15; i++) {
-        gpio_value |= (SIO_GPIO_IN ^ flip_bits);
+        uint32_t low_gpios = SIO_GPIO_IN;
+        uint32_t high_gpios = SIO_GPIO_HI_IN;
+        uint64_t gpios = ((uint64_t)high_gpios << 32) | low_gpios;
+        gpio_value |= (gpios ^ flip_bits);
     }
 
     // Mask to just the sel pins
@@ -634,15 +644,16 @@ void disable_sel_pins(void) {
 
             SYSCFG_DBGFORCE &= ~SYSCFG_DBGFORCE_ATTACH_BIT;
 
-            if (pin == sdrr_info.pins->swclk_sel) {
-                // Use measured value to restore SWCLK function
-                DEBUG("Restoring SWCLK pad settings %d", pin);
-                GPIO_PAD(SWCLK_PAD) = 0x5A;
-            }
-            if (pin == sdrr_info.pins->swdio_sel) {
-                // Use measured value to restore SWDIO function
-                DEBUG("Restoring SWDIO pad settings %d", pin);
-                GPIO_PAD(SWDIO_PAD) = 0x5A;
+            if ((pin == sdrr_info.pins->swclk_sel) ||
+                (pin == sdrr_info.pins->swdio_sel)) {
+                DEBUG("Restore pin %d", pin);
+
+                // Use measured value to restore function
+                if (pin == sdrr_info.pins->swclk_sel) {
+                    GPIO_PAD(SWCLK_PAD) = 0x5A;
+                } else {
+                    GPIO_PAD(SWDIO_PAD) = 0x5A;
+                }
             }
         }
     }
@@ -653,7 +664,7 @@ void setup_status_led(void) {
 }
 
 void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats) {
-    if (sdrr_info.status_led_enabled && sdrr_info.pins->status_port == PORT_0 && sdrr_info.pins->status <= 29) {
+    if (sdrr_info.status_led_enabled && sdrr_info.pins->status_port == PORT_0 && sdrr_info.pins->status <= MAX_USED_GPIOS) {
         uint8_t pin = sdrr_info.pins->status;
         for(uint8_t i = 0; i < repeats; i++) {
             status_led_on(pin);
@@ -711,13 +722,13 @@ void check_config(
     const sdrr_rom_set_t *set
 ) {
     uint8_t failed = 0;
-    const uint8_t rom_pins = info->pins->rom_pins;
-    if ((rom_pins != 24) && (rom_pins != 28)) {
-        LOG("!!! Unsupported number of ROM pins: %d", rom_pins);
+    const uint8_t chip_pins = info->pins->chip_pins;
+    if ((chip_pins != 24) && (chip_pins != 28) && (chip_pins != 40)) {
+        LOG("!!! Invalid ROM pins: %d", chip_pins);
         failed = 1;
-    } else if (rom_pins == 28) {
-        if (runtime->fire_pio_mode == 0) {
-            LOG("!!! 28-bit ROM mode requires PIO support");
+    } else if (chip_pins >= 28) {
+        if (runtime->fire_serve_mode == FIRE_SERVE_CPU) {
+            LOG("!!! ROM requires PIO support");
             failed = 1;
         }
     }
@@ -740,8 +751,8 @@ void check_config(
         failed = 1;
     }
 
-    if (rom_pins == 24) {
-        if (!runtime->fire_pio_mode) {
+    if (chip_pins == 24) {
+        if (runtime->fire_serve_mode == FIRE_SERVE_CPU) {
             // Checks on valid for CPU serving mode
 
             // We expect to use pins 0-15 or 8-23 for address lines
@@ -834,35 +845,42 @@ void check_config(
 
 void platform_logging(void) {
 #if defined(BOOT_LOGGING)
-    LOG("%s", log_divider);
-    LOG("Detected hardware info ...");
-
     // Reset the SysInfo registers
     RESET_RESET &= ~RESET_SYSINFO;
 
-    // Output hardware information
-    LOG("MCU: RP235X");
-    LOG("Chip ID: 0x%08X", SYSINFO_CHIP_ID);
-    char *package;
-    if (SYSINFO_PACKAGE_SEL & 0b1) {
-        package = "QFN60";
+#if defined(RP2350A) 
+    if (SYSINFO_IS_QFN60()) {
+        LOG("%s RP2350A", sdrr_info.hw_rev);
+#if defined(DEBUG_LOGGING)
+#endif // DEBUG_LOGGING
     } else {
-        package = "QFN80";
+        LOG("!!! %s RP2350B but built for RP2350A", sdrr_info.hw_rev);
+        limp_mode(LIMP_MODE_INVALID_BUILD);
     }
-    LOG("Package: %s", package);
-    LOG("Chip gitref: 0x%08X", SYSINFO_GITREF_RP2350);
-    LOG("Running on core: %d", SIO_CPUID);
-    LOG("PCB rev %s", sdrr_info.hw_rev);
-    LOG("Firmware configured flash size: %dKB", MCU_FLASH_SIZE_KB);
-    if ((MCU_RAM_SIZE_KB != RP2350_RAM_SIZE_KB) || (MCU_RAM_SIZE != RP2350_RAM_SIZE_KB * 1024)) {
-        LOG("!!! RAM size mismatch: actual %dKB (%d bytes), firmware expected: %dKB (%d bytes)", MCU_RAM_SIZE_KB, MCU_RAM_SIZE, RP2350_RAM_SIZE_KB, RP2350_RAM_SIZE_KB * 1024);
+#elif defined(RP2350B)
+    if (!SYSINFO_IS_QFN60()) {
+        LOG("%s RP2350B", sdrr_info.hw_rev);
     } else {
-        LOG("Firmware configured RAM size: %dKB (default)", MCU_RAM_SIZE_KB);
+        LOG("!!! %s RP2350A but built for RP2350B", sdrr_info.hw_rev);
+        limp_mode(LIMP_MODE_INVALID_BUILD);
     }
-    LOG("Flash configured RAM: %dKB (%d bytes)", MCU_RAM_SIZE_KB, MCU_RAM_SIZE);
-
-    LOG("Target freq: %dMHz", TARGET_FREQ_MHZ);
-    LOG("PLL values: %d/%d/%d/%d (refdiv/fbdiv/postdiv1/postdiv2)", PLL_SYS_REFDIV, PLL_SYS_FBDIV, PLL_SYS_POSTDIV1, PLL_SYS_POSTDIV2);
+#else 
+#error "MCU variant not specified"
+#endif
+    DEBUG("Chip ID: 0x%08X", SYSINFO_CHIP_ID);
+    DEBUG("Chip commit: 0x%08X", SYSINFO_GITREF_RP2350);
+    DEBUG("Core: %d", SIO_CPUID);
+    if ((MCU_RAM_SIZE_KB != RP2350_RAM_SIZE_KB) || (MCU_RAM_SIZE != (RP2350_RAM_SIZE_KB * 1024))) {
+        LOG("!!! RAM error: actual %dKB, expected: %dKB",
+            MCU_RAM_SIZE_KB,
+            RP2350_RAM_SIZE_KB);
+        limp_mode(LIMP_MODE_INVALID_BUILD);
+    } else {
+        LOG("RAM: %dKB", MCU_RAM_SIZE_KB);
+    }
+    LOG("Flash: %dKB", MCU_FLASH_SIZE_KB);
+    LOG("Freq: %dMHz", TARGET_FREQ_MHZ);
+    LOG("PLL: %d/%d/%d/%d", PLL_SYS_REFDIV, PLL_SYS_FBDIV, PLL_SYS_POSTDIV1, PLL_SYS_POSTDIV2);
 
 #endif // BOOT_LOGGING
 }
@@ -879,7 +897,7 @@ void setup_xosc(void) {
     XOSC_STARTUP = 47;
     XOSC_CTRL = XOSC_ENABLE | XOSC_RANGE_1_15MHz;
     while (!(XOSC_STATUS & XOSC_STATUS_STABLE));
-    LOG("XOSC enabled and stable");
+    DEBUG("XOSC enabled");
 
     // Switch CLK_REF to use XOSC instead of the ROSC
     CLOCK_REF_CTRL = CLOCK_REF_SRC_XOSC;

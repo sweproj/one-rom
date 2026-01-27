@@ -137,6 +137,7 @@ pub const MCU_VARIANTS: &[Variant] = &[
     Variant::F446RC,
     Variant::F446RE,
     Variant::RP2350,
+    Variant::RP2350B,
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -150,6 +151,7 @@ pub enum Variant {
     F401RB, // STM32F401RB (6 or 7), 64-pins, 64KB SRAM, 128KB Flash
     F401RC, // STM32F401RC (6 or 7), 64-pins, 96KB SRAM, 256KB Flash
     RP2350, // RP2350A, 60-pin, 2MB flash
+    RP2350B, // RP2350B, 80-pin, 2MB flash
 }
 
 impl core::fmt::Display for Variant {
@@ -164,6 +166,7 @@ impl core::fmt::Display for Variant {
             Variant::F401RB => write!(f, "F401RB"),
             Variant::F401RC => write!(f, "F401RC"),
             Variant::RP2350 => write!(f, "RP2350"),
+            Variant::RP2350B => write!(f, "RP2350B"),
         }
     }
 }
@@ -188,6 +191,8 @@ impl Variant {
             Some(Variant::F401RC)
         } else if s.eq_ignore_ascii_case("rp2350") {
             Some(Variant::RP2350)
+        } else if s.eq_ignore_ascii_case("rp2350b") {
+            Some(Variant::RP2350B)
         } else {
             None
         }
@@ -201,6 +206,7 @@ impl Variant {
             Variant::F401RE => "F401DE",
             Variant::F401RB | Variant::F401RC => "F401BC",
             Variant::RP2350 => "RP2350_LINE",
+            Variant::RP2350B => "RP2350_LINE",
         }
     }
 
@@ -215,6 +221,7 @@ impl Variant {
             Variant::F401RB => "STORAGE_B",
             Variant::F401RC => "STORAGE_C",
             Variant::RP2350 => "STORAGE_2MB",
+            Variant::RP2350B => "STORAGE_2MB",
         }
     }
 
@@ -233,6 +240,7 @@ impl Variant {
             Variant::F401RC => 256,
             Variant::F401RE => 512,
             Variant::RP2350 => 2048,
+            Variant::RP2350B => 2048,
         }
     }
 
@@ -248,6 +256,7 @@ impl Variant {
             Variant::F401RB | Variant::F401RC => 64,
             Variant::F401RE => 96,
             Variant::RP2350 => 520,
+            Variant::RP2350B => 520,
         }
     }
 
@@ -291,6 +300,7 @@ impl Variant {
             Variant::F401RE => "#define STM32F401DE    1",
             Variant::F401RB | Variant::F401RC => "#define STM32F401BC    1",
             Variant::RP2350 => "#define RP2350A        1",
+            Variant::RP2350B => "#define RP2350B        1",
         }
     }
 
@@ -305,6 +315,7 @@ impl Variant {
             | Variant::F401RB
             | Variant::F401RC => Family::Stm32f4,
             Variant::RP2350 => Family::Rp2350,
+            Variant::RP2350B => Family::Rp2350,
         }
     }
 
@@ -316,6 +327,7 @@ impl Variant {
             Variant::F401RE => Processor::F401DE,
             Variant::F401RB | Variant::F401RC => Processor::F401BC,
             Variant::RP2350 => Processor::RP2350,
+            Variant::RP2350B => Processor::RP2350,
         }
     }
 
@@ -337,6 +349,7 @@ impl Variant {
             Variant::F401RB => "#define MCU_VARIANT    \"F401RB\"",
             Variant::F401RC => "#define MCU_VARIANT    \"F401RC\"",
             Variant::RP2350 => "#define MCU_VARIANT    \"RP2350\"",
+            Variant::RP2350B => "#define MCU_VARIANT    \"RP2350B\"",
         }
     }
 
@@ -352,6 +365,7 @@ impl Variant {
             Variant::F401RB => "stm32f401rb",
             Variant::F401RC => "stm32f401rc",
             Variant::RP2350 => "rp2350",
+            Variant::RP2350B => "rp2350",
         }
     }
 
@@ -367,6 +381,7 @@ impl Variant {
             Variant::F401RB => "STM32F401RBTx",
             Variant::F401RC => "STM32F401RCTx",
             Variant::RP2350 => "RP235X",
+            Variant::RP2350B => "RP235X",
         }
     }
 }

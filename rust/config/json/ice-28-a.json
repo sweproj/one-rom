@@ -1,9 +1,10 @@
 {
   "description": "One ROM Ice 28 (rev A)",
-  "rom": {
+  "chip": {
     "pins": {
       "quantity": 28
-    }
+    },
+    "bit_modes": ["8"]
   },
   "mcu": {
     "family": "f4",

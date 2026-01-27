@@ -1,0 +1,21 @@
+{
+    "$schema": "https://images.onerom.org/configs/schema.json",
+    "version": 1,
+    "name": "6116/2016 SRAM",
+    "description": "2KB 24-pin 8-bit SRAM",
+    "categories": [
+        "computer",
+        "ram"
+    ],
+    "rom_sets": [
+        {
+            "type": "single",
+            "roms": [
+                {
+                    "description": "2KB 24-pin SRAM",
+                    "type": "6116"
+                }
+            ]
+        }
+    ]
+}

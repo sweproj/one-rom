@@ -7,6 +7,82 @@
 #ifndef ENUMS_H
 #define ENUMS_H
 
+// ROM type enumeration
+typedef enum {
+    CHIP_TYPE_2316 = 0,
+    CHIP_TYPE_2332 = 1,
+    CHIP_TYPE_2364 = 2,
+    CHIP_TYPE_23128 = 3,
+    CHIP_TYPE_23256 = 4,
+    CHIP_TYPE_23512 = 5,
+    CHIP_TYPE_2704 = 6,
+    CHIP_TYPE_2708 = 7,
+    CHIP_TYPE_2716 = 8,
+    CHIP_TYPE_2732 = 9,
+    CHIP_TYPE_2764 = 10,
+    CHIP_TYPE_27128 = 11,
+    CHIP_TYPE_27256 = 12,
+    CHIP_TYPE_27512 = 13,
+    CHIP_TYPE_231024 = 14,
+    CHIP_TYPE_27C010 = 15,
+    CHIP_TYPE_27C020 = 16,
+    CHIP_TYPE_27C040 = 17,
+    CHIP_TYPE_27C080 = 18,
+    CHIP_TYPE_27C400 = 19,
+    CHIP_TYPE_6116 = 20,
+    NUM_CHIP_TYPES
+} sdrr_rom_type_t;
+_Static_assert(sizeof(sdrr_rom_type_t) == 1, "sdrr_rom_type_t must be 1 byte");
+
+extern const char* const chip_type_strings[NUM_CHIP_TYPES];
+#if defined(ONEROM_CONSTANTS)
+const char * const chip_type_strings[NUM_CHIP_TYPES] = {
+    "2316",
+    "2332",
+    "2364",
+    "23128",
+    "23256",
+    "23512",
+    "2704",
+    "2708",
+    "2716",
+    "2732",
+    "2764",
+    "27128",
+    "27256",
+    "27512",
+    "231024",
+    "27C010",
+    "27C020",
+    "27C040",
+    "27C080",
+    "27C400",
+    "6116"
+};
+_Static_assert(sizeof(chip_type_strings)/sizeof(chip_type_strings[0]) == NUM_CHIP_TYPES,
+               "chip_type_strings size doesn't match NUM_CHIP_TYPES");
+#endif
+
+// CS state enumeration
+typedef enum {
+    CS_ACTIVE_LOW,
+    CS_ACTIVE_HIGH,
+    CS_NOT_USED,
+} sdrr_cs_state_t;
+_Static_assert(sizeof(sdrr_cs_state_t) == 1, "sdrr_cs_state_t must be 1 byte");
+
+typedef enum {
+    BIT_MODE_8  = 0x01,
+    BIT_MODE_16 = 0x02,
+} bit_modes_t;
+_Static_assert(sizeof(bit_modes_t) == 1, "bit_modes_t must be 1 byte");
+
+typedef enum {
+    FIRE_SERVE_CPU = 0x00,
+    FIRE_SERVE_PIO = 0x01,
+} fire_serve_modes_t;
+_Static_assert(sizeof(fire_serve_modes_t) == 1, "fire_serve_modes_t must be 1 byte");
+
 typedef enum {
     F401DE = 0x0000,  // 96 KB RAM
     F405 = 0x0001,

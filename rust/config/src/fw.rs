@@ -89,7 +89,8 @@ impl FirmwareVersion {
     }
 }
 
-/// ROM serving algorithm
+/// Chip serving algorithm.  Only valid for firmwares serving via CPU.  By
+/// default this is Ice boards and Fire 24 A/B boards.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]

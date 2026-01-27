@@ -14,11 +14,11 @@ use std::path::PathBuf;
 use onerom_config::fw::ServeAlg;
 use onerom_config::hw::{BOARDS, Board};
 use onerom_config::mcu::{MCU_VARIANTS, Variant as McuVariant};
-use onerom_config::rom::RomType;
+use onerom_config::chip::ChipType;
 
 use onerom_gen::image::{CsConfig, CsLogic, SizeHandling};
 
-use crate::config::{Config, RomConfig};
+use crate::config::{Config, ChipConfig};
 use crate::file::{FileSource, check_output_dir, source_image_file};
 
 #[derive(Parser, Debug)]
@@ -29,10 +29,10 @@ use crate::file::{FileSource, check_output_dir, source_image_file};
 )]
 pub struct Args {
     /// ROM configuration (file=path,type=2364,cs1=0)
-    #[clap(long, alias = "rom-config")]
-    rom: Vec<String>,
+    #[clap(long, alias = "chip-config")]
+    chip: Vec<String>,
 
-    /// MCU variant (f446rc, f446re, f411rc, f411re, f405rg, f401re, f401rb, f401rc, rp2350)
+    /// MCU variant (f446rc, f446re, f411rc, f411re, f405rg, f401re, f401rb, f401rc, rp2350, rp2350b)
     #[clap(long, alias = "stm", required_unless_present = "list_hw_revs", value_parser = parse_mcu_variant)]
     mcu: Option<McuVariant>,
 
@@ -133,8 +133,8 @@ impl Args {
     }
 
     /// Returns the ROM configuration
-    fn rom_config(&self) -> &Vec<String> {
-        &self.rom
+    fn chip_config(&self) -> &Vec<String> {
+        &self.chip
     }
 
     /// Returns the STM variant desired
@@ -234,18 +234,18 @@ impl Args {
         Ok((stm_variant, freq))
     }
 
-    /// Parse the ROM configuration arguments into a vector of `RomConfig`.
-    pub fn parse_rom_args(&self) -> Result<Vec<RomConfig>, String> {
-        let mut roms = Vec::new();
+    /// Parse the ROM configuration arguments into a vector of `ChipConfig`.
+    pub fn parse_rom_args(&self) -> Result<Vec<ChipConfig>, String> {
+        let mut chips = Vec::new();
 
-        for (rom_num, rom_config_str) in self.rom_config().iter().enumerate() {
+        for (rom_num, rom_config_str) in self.chip_config().iter().enumerate() {
             let rom_config = self.parse_rom_arg(rom_num, rom_config_str).map_err(|e| {
                 format!("ROM #{rom_num} configuration error: {e} (config: {rom_config_str})")
             })?;
-            roms.push(rom_config);
+            chips.push(rom_config);
         }
 
-        Ok(roms)
+        Ok(chips)
     }
 
     /// Returns the entire sdrr-gen configuration object.
@@ -255,14 +255,14 @@ impl Args {
         check_output_dir(&self.output_dir, self.can_overwrite()).map_err(|e| e.to_string())?;
 
         // Parse the ROM arguments
-        let roms = self.parse_rom_args()?;
+        let chips = self.parse_rom_args()?;
 
         // Get the MCU variant and frequency
         let (mcu_variant, freq) = self.mcu_and_freq()?;
 
         // Return the config object
         Ok(Config {
-            roms,
+            chips,
             mcu_variant,
             output_dir: self.output_dir.clone(),
             swd: self.swd(),
@@ -298,7 +298,7 @@ impl Args {
             .ok_or_else(|| format!("Invalid {} value: {} (use 0, 1, or ignore)", name, parts[1]))
     }
 
-    fn parse_rom_arg(&self, rom_num: usize, s: &str) -> Result<RomConfig, String> {
+    fn parse_rom_arg(&self, rom_num: usize, s: &str) -> Result<ChipConfig, String> {
         let mut original_file_source = None;
         let mut extract = None;
         let mut licence = None;
@@ -372,7 +372,7 @@ impl Args {
                             "Invalid 'type' parameter format - must include type".to_string()
                         );
                     }
-                    rom_type = RomType::try_from_str(parts[1])
+                    rom_type = ChipType::try_from_str(parts[1])
                         .map(Some)
                         .ok_or_else(|| format!("Invalid ROM type: {}", parts[1]))?
                 }
@@ -502,7 +502,7 @@ impl Args {
             }
         }
 
-        Ok(RomConfig {
+        Ok(ChipConfig {
             file,
             original_source: source.to_string(),
             extract,

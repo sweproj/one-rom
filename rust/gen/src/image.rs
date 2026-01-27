@@ -7,12 +7,12 @@
 //! Used to create the images to be flashed to One ROM, pointed to by the
 //! metadata.
 //!
-//! Create one or more [`Rom`] instances, and group them into one or more
-//! [`RomSet`] instances.
+//! Create one or more [`Chip`] instances, and group them into one or more
+//! [`ChipSet`] instances.
 //!
-//! Then use [`RomSet::get_byte()`] to retrieve bytes from the ROM set, as the
+//! Then use [`ChipSet::get_byte()`] to retrieve bytes from the Chip set, as the
 //! MCU would address them, and needs to serve bytes - store these off in order
-//! into a final ROM image to be flashed to One ROM, at an offset pointed to by
+//! into a final Chip image to be flashed to One ROM, at an offset pointed to by
 //! the metadata.
 
 use alloc::format;
@@ -23,38 +23,41 @@ use core::cmp::Ordering;
 use onerom_config::fw::{FirmwareVersion, ServeAlg};
 use onerom_config::hw::Board;
 use onerom_config::mcu::Family as McuFamily;
-use onerom_config::rom::RomType;
+use onerom_config::chip::{ChipFunction, ChipType};
 
 use crate::{MIN_FIRMWARE_OVERRIDES_VERSION, PAD_METADATA_BYTE};
 use crate::meta::{
-    ROM_SET_FIRMWARE_OVERRIDES_METADATA_LEN, ROM_SET_METADATA_LEN, ROM_SET_METADATA_LEN_EXTRA_INFO,
+    CHIP_SET_FIRMWARE_OVERRIDES_METADATA_LEN, CHIP_SET_METADATA_LEN, CHIP_SET_METADATA_LEN_EXTRA_INFO,
 };
 use crate::{Error, Result, builder::FirmwareConfig};
 
-/// Value to use when told to pad a ROM image
+/// Value to use when told to pad a Chip image
 pub const PAD_BLANK_BYTE: u8 = 0xAA;
 
-/// Value to use when no ROM in portion of address space
-pub const PAD_NO_ROM_BYTE: u8 = 0xAA;
+/// Value to use when no Chip in portion of address space
+pub const PAD_NO_CHIP_BYTE: u8 = 0xAA;
 
-const ROM_METADATA_LEN_NO_FILENAME: usize = 4;
-const ROM_METADATA_LEN_WITH_FILENAME: usize = 8;
+/// Value to return when a RAM Chip is read
+pub const PAD_RAM_BYTE: u8 = 0x55;
 
-/// How to handle ROM images that are too small for the ROM type
+const CHIP_METADATA_LEN_NO_FILENAME: usize = 4;
+const CHIP_METADATA_LEN_WITH_FILENAME: usize = 8;
+
+/// How to handle Chip images that are too small for the Chip type
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum SizeHandling {
     /// No special handling.  Errors if the image size does not exactly match
-    /// the ROM size.
+    /// the Chip size.
     #[default]
     None,
 
-    /// Duplicates the image as many times as needed to fill the ROM.  Errors
-    /// if the image size is not an exact divisor of the ROM size.
+    /// Duplicates the image as many times as needed to fill the Chip.  Errors
+    /// if the image size is not an exact divisor of the Chip size.
     Duplicate,
 
-    /// Truncates the image to fit the ROM size.  Errors if the image is an
+    /// Truncates the image to fit the Chip size.  Errors if the image is an
     /// exact match size-wise.
     Truncate,
 
@@ -78,16 +81,16 @@ pub enum CsLogic {
     Ignore,
 }
 
-/// Location within a larger ROM image that the specific image to use resides
+/// Location within a larger Chip image that the specific image to use resides
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub struct Location {
-    /// Start of the image within the larger ROM image
+    /// Start of the image within the larger Chip image
     pub start: usize,
 
-    /// Length of the image within the larger ROM image.  Must match the
-    /// selected ROM type, or SizeHandling will be applied.
+    /// Length of the image within the larger Chip image.  Must match the
+    /// selected Chip type, or SizeHandling will be applied.
     pub length: usize,
 }
 
@@ -126,10 +129,10 @@ pub enum CsConfig {
         /// Where type is ChipSelect, CS1 is always required
         cs1: CsLogic,
 
-        /// Second chip select line, required for certain ROM Types
+        /// Second chip select line, required for certain Chip Types
         cs2: Option<CsLogic>,
 
-        /// Third chip select line, required for certain ROM Types
+        /// Third chip select line, required for certain Chip Types
         cs3: Option<CsLogic>,
     },
     /// Configuration using CE/OE instead of chip select
@@ -168,81 +171,103 @@ impl CsConfig {
     }
 }
 
-/// Single ROM image.  May be part of a ROM set
+/// Single Chip image.  May be part of a Chip set
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct Rom {
+pub struct Chip {
     index: usize,
 
     filename: String,
 
-    // Optional alternative label for the ROM, replacing filename
+    // Optional alternative label for the Chip, replacing filename
     label: Option<String>,
 
-    rom_type: RomType,
+    chip_type: ChipType,
 
     cs_config: CsConfig,
 
-    data: Vec<u8>,
+    data: Option<Vec<u8>>,
 
-    // Optional location within a larger ROM image
+    // Optional location within a larger Chip image
     location: Option<Location>,
 }
 
-impl Rom {
+impl Chip {
     fn new(
         index: usize,
         filename: String,
         label: Option<String>,
-        rom_type: &RomType,
+        chip_type: &ChipType,
         cs_config: CsConfig,
-        data: Vec<u8>,
+        data: Option<Vec<u8>>,
         location: Option<Location>,
     ) -> Self {
         Self {
             index,
             filename,
             label,
-            rom_type: *rom_type,
+            chip_type: *chip_type,
             cs_config,
             data,
             location,
         }
     }
 
-    /// Returns the index of the ROM in the configuration
+    /// Returns the index of the Chip in the configuration
     pub fn index(&self) -> usize {
         self.index
     }
 
-    /// Returns the chip select configuration for the ROM.
+    /// Returns the chip select configuration for the Chip.
     pub fn cs_config(&self) -> &CsConfig {
         &self.cs_config
     }
 
-    /// Returns the ROM filename to use in metadata.  Uses label if specified,
+    /// Returns the Chip filename to use in metadata.  Uses label if specified,
     /// otherwise the actual filename string.
     pub fn filename(&self) -> &str {
         self.label.as_deref().unwrap_or(&self.filename)
     }
 
-    /// Returns a [`Rom`] instance.
+    /// Returns the Chip type.
+    pub fn chip_type(&self) -> &ChipType {
+        &self.chip_type
+    }
+
+    pub fn has_data(&self) -> bool {
+        self.data.is_some()
+    }
+
+    /// Returns a [`Chip`] instance.
     ///
-    /// Takes a raw ROM image (binary data, loaded from file) and processes it
+    /// Takes a raw Chip image (binary data, loaded from file) and processes it
     /// according to the specified size handling (none, duplicate, pad) to
-    /// ensure it matches the expected size for the given ROM type.
+    /// ensure it matches the expected size for the given Chip type.
     #[allow(clippy::too_many_arguments)]
     pub fn from_raw_rom_image(
         index: usize,
         filename: String,
         label: Option<String>,
-        source: &[u8],
+        source: Option<&[u8]>,
         mut dest: Vec<u8>,
-        rom_type: &RomType,
+        chip_type: &ChipType,
         cs_config: CsConfig,
         size_handling: &SizeHandling,
         location: Option<Location>,
     ) -> Result<Self> {
+        if source.is_none() {
+            if chip_type.chip_function() == ChipFunction::Ram {
+                return Ok(Self::new(
+                    index, filename, label, chip_type, cs_config, None, location,
+                ))
+            } else {
+                // This is an internal error
+                return Err(Error::MissingFile { id: index });
+            }
+        }
+
+        let source = source.unwrap();
+
         // Slice source if location specified
         let source = if let Some(loc) = location {
             // Bounds check
@@ -258,7 +283,7 @@ impl Rom {
                 })?;
 
             if end > source.len() {
-                return Err(Error::RomTooSmall {
+                return Err(Error::ImageTooSmall {
                     index,
                     expected: end,
                     actual: source.len(),
@@ -270,10 +295,10 @@ impl Rom {
             source
         };
 
-        let expected_size = rom_type.size_bytes();
+        let expected_size = chip_type.size_bytes();
         if dest.len() < expected_size {
             return Err(Error::BufferTooSmall {
-                location: "Rom::from_raw_rom_image",
+                location: "Chip::from_raw_rom_image",
                 expected: expected_size,
                 actual: dest.len(),
             });
@@ -299,7 +324,7 @@ impl Rom {
                 // File too small - handle with dup/pad
                 match size_handling {
                     SizeHandling::None => {
-                        return Err(Error::RomTooSmall {
+                        return Err(Error::ImageTooSmall {
                             index,
                             expected: expected_size,
                             actual: source.len(),
@@ -308,7 +333,7 @@ impl Rom {
                     SizeHandling::Duplicate => {
                         if !expected_size.is_multiple_of(source.len()) {
                             return Err(Error::DuplicationNotExactDivisor {
-                                rom_size: source.len(),
+                                image_size: source.len(),
                                 expected_size,
                             });
                         }
@@ -329,8 +354,8 @@ impl Rom {
                         }
                     }
                     SizeHandling::Truncate => {
-                        return Err(Error::RomTooLarge {
-                            rom_size: source.len(),
+                        return Err(Error::ImageTooLarge {
+                            image_size: source.len(),
                             expected_size,
                         });
                     }
@@ -343,8 +368,8 @@ impl Rom {
                         dest[..expected_size].copy_from_slice(&source[..expected_size]);
                     }
                     _ => {
-                        return Err(Error::RomTooLarge {
-                            rom_size: source.len(),
+                        return Err(Error::ImageTooLarge {
+                            image_size: source.len(),
                             expected_size,
                         });
                     }
@@ -353,12 +378,12 @@ impl Rom {
         }
 
         Ok(Self::new(
-            index, filename, label, rom_type, cs_config, dest, location,
+            index, filename, label, chip_type, cs_config, Some(dest), location,
         ))
     }
 
     // Transforms from a physical address (based on the hardware pins) to
-    // a logical ROM address, so we store the physical ROM mapping, rather
+    // a logical Chip address, so we store the physical Chip mapping, rather
     // than the logical one.
     fn address_to_logical(
         phys_pin_to_addr_map: &[Option<usize>],
@@ -371,7 +396,7 @@ impl Rom {
         for (pin, item) in phys_pin_to_addr_map.iter().enumerate() {
             #[allow(clippy::collapsible_if)]
             if let Some(addr_bit) = item {
-                // Only use this mapping if it's within the ROM's address lines
+                // Only use this mapping if it's within the Chip's address lines
                 if *addr_bit < num_addr_lines {
                     if (address & (1 << pin)) != 0 {
                         result |= 1 << addr_bit;
@@ -449,33 +474,34 @@ impl Rom {
         address: usize,
         board: &Board,
     ) -> u8 {
+        let data = self.data.as_ref().expect("Shouldn't be called get_byte on empty image");
+
         // We have been passed a physical address based on the hardware pins,
-        // so we need to transform it to a logical address based on the ROM
+        // so we need to transform it to a logical address based on the Chip
         // image.
-        let num_addr_lines = self.rom_type.num_addr_lines();
+        let num_addr_lines = self.chip_type.num_addr_lines();
         let transformed_address =
             Self::address_to_logical(phys_pin_to_addr_map, address, board, num_addr_lines);
 
         // Sanity check that we did get a logical address, which must by
-        // definition fit within the actual ROM size.
-        if transformed_address >= self.data.len() {
+        // definition fit within the actual Chip size.
+        if transformed_address >= data.len() {
             panic!(
-                "Transformed address {} out of bounds for ROM image of size {}",
+                "Transformed address {} out of bounds for Chip image of size {}",
                 transformed_address,
-                self.data.len()
+                data.len()
             );
         }
 
-        // Get the byte from the logical ROM address.
-        let byte = self
-            .data
+        // Get the byte from the logical Chip address.
+        let byte = data
             .get(transformed_address)
             .copied()
             .unwrap_or_else(|| {
                 panic!(
-                    "Address {} out of bounds for ROM image of size {}",
+                    "Address {} out of bounds for Chip image of size {}",
                     transformed_address,
-                    self.data.len()
+                    data.len()
                 )
             });
 
@@ -484,100 +510,102 @@ impl Rom {
         Self::byte_mangled(byte, board)
     }
 
-    fn rom_type_c_enum_val(&self) -> u8 {
-        match self.rom_type {
-            RomType::Rom2316 => 0,
-            RomType::Rom2332 => 1,
-            RomType::Rom2364 => 2,
-            RomType::Rom23128 => 3,
-            RomType::Rom23256 => 4,
-            RomType::Rom23512 => 5,
-            RomType::Rom2704 => 6,
-            RomType::Rom2708 => 7,
-            RomType::Rom2716 => 8,
-            RomType::Rom2732 => 9,
-            RomType::Rom2764 => 10,
-            RomType::Rom27128 => 11,
-            RomType::Rom27256 => 12,
-            RomType::Rom27512 => 13,
-            RomType::Rom231024 => 14,
-            RomType::Rom27C010 => 15,
-            RomType::Rom27C020 => 16,
-            RomType::Rom27C040 => 17,
-            RomType::Rom27C080 => 18,
-            RomType::Rom27C400 => 19,
+    // See `sdrr/include/enums.h`
+    fn chip_type_c_enum_val(&self) -> u8 {
+        match self.chip_type {
+            ChipType::Chip2316 => 0,
+            ChipType::Chip2332 => 1,
+            ChipType::Chip2364 => 2,
+            ChipType::Chip23128 => 3,
+            ChipType::Chip23256 => 4,
+            ChipType::Chip23512 => 5,
+            ChipType::Chip2704 => 6,
+            ChipType::Chip2708 => 7,
+            ChipType::Chip2716 => 8,
+            ChipType::Chip2732 => 9,
+            ChipType::Chip2764 => 10,
+            ChipType::Chip27128 => 11,
+            ChipType::Chip27256 => 12,
+            ChipType::Chip27512 => 13,
+            ChipType::Chip231024 => 14,
+            ChipType::Chip27C010 => 15,
+            ChipType::Chip27C020 => 16,
+            ChipType::Chip27C040 => 17,
+            ChipType::Chip27C080 => 18,
+            ChipType::Chip27C400 => 19,
+            ChipType::Chip6116 => 20,
         }
     }
 }
 
-/// Type of ROM set
+/// Type of Chip set
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
-pub enum RomSetType {
-    /// Single ROM - the default
+pub enum ChipSetType {
+    /// Single Chip - the default
     #[default]
     Single,
 
-    /// Set of dynamically banked ROMs. Used to switch between active ROM at
+    /// Set of dynamically banked Chips. Used to switch between active Chip at
     /// runtime using jumpers
     Banked,
 
-    /// Set of multiple ROMs selected by CS lines.  This allows a single One
-    /// ROM to serve up to 3 ROM sockets simultaneously.
+    /// Set of multiple Chips selected by CS lines.  This allows a single One
+    /// Chip to serve up to 3 Chip sockets simultaneously.
     Multi,
 }
 
-/// A set of ROMs, where the set type is RomSetType
+/// A set of Chips, where the set type is ChipSetType
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct RomSet {
-    /// ID of the ROM set
+pub struct ChipSet {
+    /// ID of the Chip set
     pub id: usize,
 
-    /// Type of ROM set
-    pub set_type: RomSetType,
+    /// Type of Chip set
+    pub set_type: ChipSetType,
 
-    /// Serving algorithm for the ROM set
+    /// Serving algorithm for the Chip set
     pub serve_alg: ServeAlg,
 
-    /// ROMs in the set
-    pub roms: Vec<Rom>,
+    /// Chips in the set
+    pub chips: Vec<Chip>,
 
-    /// Optional firmware configuration overrides for this ROM set
+    /// Optional firmware configuration overrides for this Chip set
     pub firmware_overrides: Option<FirmwareConfig>,
 }
 
-impl RomSet {
-    /// Creates a new ROM set of the specified ID, type, and containing the
-    /// given ROMs.
+impl ChipSet {
+    /// Creates a new ChipM set of the specified ID, type, and containing the
+    /// given Chips.
     ///
     /// The ID is an arbitrary index, usually the set ID from the config,
     /// starting at 0.
     pub fn new(
         id: usize,
-        set_type: RomSetType,
+        set_type: ChipSetType,
         serve_alg: ServeAlg,
-        roms: Vec<Rom>,
+        chips: Vec<Chip>,
         firmware_overrides: Option<crate::builder::FirmwareConfig>,
     ) -> Result<Self> {
-        // Check some ROMs were supplied
-        if roms.is_empty() {
-            return Err(Error::NoRoms);
+        // Check some Chips were supplied
+        if chips.is_empty() {
+            return Err(Error::NoChips);
         }
 
-        // Check set type matches number of ROMs
-        if roms.len() > 1 && set_type == RomSetType::Single {
-            return Err(Error::TooManyRoms {
+        // Check set type matches number of Chips
+        if chips.len() > 1 && set_type == ChipSetType::Single {
+            return Err(Error::TooManyChips {
                 expected: 1,
-                actual: roms.len(),
+                actual: chips.len(),
             });
         }
 
-        if roms.len() == 1 && set_type != RomSetType::Single {
-            return Err(Error::TooFewRoms {
+        if chips.len() == 1 && set_type != ChipSetType::Single {
+            return Err(Error::TooFewChips {
                 expected: 2,
-                actual: roms.len(),
+                actual: chips.len(),
             });
         }
 
@@ -585,7 +613,7 @@ impl RomSet {
         // if a multi-rom set, and correct it.  But we don't accept an invalid
         // value for the other set types.
         let serve_alg = match set_type {
-            RomSetType::Single | RomSetType::Banked => {
+            ChipSetType::Single | ChipSetType::Banked => {
                 if !matches!(
                     serve_alg,
                     ServeAlg::Default | ServeAlg::AddrOnCs | ServeAlg::TwoCsOneAddr
@@ -595,7 +623,7 @@ impl RomSet {
                     serve_alg
                 }
             }
-            RomSetType::Multi => ServeAlg::AddrOnAnyCs,
+            ChipSetType::Multi => ServeAlg::AddrOnAnyCs,
         };
 
         // Validate firmware overrides if present
@@ -626,34 +654,38 @@ impl RomSet {
             id,
             set_type,
             serve_alg,
-            roms,
+            chips,
             firmware_overrides,
         })
     }
 
+    pub fn has_data(&self) -> bool {
+        self.chips[0].has_data()
+    }
+
     pub fn multi_cs_logic(&self) -> Result<CsLogic> {
-        let first_cs1 = self.roms[0].cs_config.cs1_logic();
-        if self.roms.len() == 1 {
+        let first_cs1 = self.chips[0].cs_config.cs1_logic();
+        if self.chips.len() == 1 {
             // Unused
             Ok(CsLogic::Ignore)
         } else {
-            // For multi and banked rom sets we need to check all CS1 logic is
+            // For multi and banked chip sets we need to check all CS1 logic is
             // the same
-            for rom in &self.roms {
-                if rom.cs_config.cs1_logic() != first_cs1 {
+            for chip in &self.chips {
+                if chip.cs_config.cs1_logic() != first_cs1 {
                     return Err(Error::InconsistentCsLogic {
                         first: first_cs1,
-                        other: rom.cs_config.cs1_logic(),
+                        other: chip.cs_config.cs1_logic(),
                     });
                 }
             }
 
-            // For multi-ROM sets we also need to check CS2 and CS3 are ignored
-            // for all ROMS
+            // For multi-Chip sets we also need to check CS2 and CS3 are ignored
+            // for all Chips
             #[allow(clippy::collapsible_if)]
-            if self.set_type == RomSetType::Multi {
-                for rom in &self.roms {
-                    if let Some(cs2) = rom.cs_config.cs2_logic() {
+            if self.set_type == ChipSetType::Multi {
+                for chip in &self.chips {
+                    if let Some(cs2) = chip.cs_config.cs2_logic() {
                         if cs2 != CsLogic::Ignore {
                             return Err(Error::InconsistentCsLogic {
                                 first: CsLogic::Ignore,
@@ -661,7 +693,7 @@ impl RomSet {
                             });
                         }
                     }
-                    if let Some(cs3) = rom.cs_config.cs3_logic() {
+                    if let Some(cs3) = chip.cs_config.cs3_logic() {
                         if cs3 != CsLogic::Ignore {
                             return Err(Error::InconsistentCsLogic {
                                 first: CsLogic::Ignore,
@@ -672,23 +704,28 @@ impl RomSet {
                 }
             }
 
-            Ok(self.roms[0].cs_config.cs1_logic())
+            Ok(self.chips[0].cs_config.cs1_logic())
         }
     }
 
-    /// Returns the size of the data required for this ROM set, in bytes.
-    pub fn image_size(&self, family: &McuFamily, rom_pins: u8) -> usize {
+    /// Returns the ChipFunction for this set
+    pub fn chip_function(&self) -> ChipFunction {
+        self.chips[0].chip_type.chip_function()
+    }
+
+    /// Returns the size of the data required for this Chip set, in bytes.
+    pub fn image_size(&self, family: &McuFamily, chip_pins: u8) -> usize {
         if family == &McuFamily::Rp2350 {
-            // RP2350 can address full 64KB space for each ROM set
+            // RP2350 can address full 64KB space for each Chip set
             65536
         } else {
             match self.set_type {
-                RomSetType::Single => {
-                    // STM32F4 uses 16KB images for single 24 pin ROMs, and
-                    // 64KB images for 28 pin ROMs.
-                    if rom_pins == 24 { 16384 } else { 65536 }
+                ChipSetType::Single => {
+                    // STM32F4 uses 16KB images for single 24 pin Chips, and
+                    // 64KB images for 28 pin Chips.
+                    if chip_pins == 24 { 16384 } else { 65536 }
                 }
-                RomSetType::Banked | RomSetType::Multi => 65536,
+                ChipSetType::Banked | ChipSetType::Multi => 65536,
             }
         }
     }
@@ -697,7 +734,7 @@ impl RomSet {
         phys_pin_to_addr_map: &mut [Option<usize>],
         num_addr_lines: usize,
     ) {
-        // Clear any address lines beyond the number of address lines the ROM supports
+        // Clear any address lines beyond the number of address lines the Chip supports
         for item in phys_pin_to_addr_map.iter_mut() {
             #[allow(clippy::collapsible_if)]
             if let Some(addr_bit) = item {
@@ -708,40 +745,44 @@ impl RomSet {
         }
     }
 
-    /// Gets a byte from the ROM set at the given address (as far as the MCU is
+    /// Gets a byte from the chip set at the given address (as far as the MCU is
     /// concerned) and returns the byte, ready for the MCU to serve.
     pub fn get_byte(&self, address: usize, board: &Board, invert_cs1_x: bool) -> u8 {
+        if (!self.has_data()) && (self.chip_function() == ChipFunction::Ram) {
+            return Chip::byte_mangled(PAD_RAM_BYTE, board)
+        }
+
         // Hard-coded assumption that X1/X2 (STM32F4) are pins 14/15 for
-        // single ROM sets and banked ROM sets.  However, for RP2350 they may
+        // single chip sets and banked chip sets.  However, for RP2350 they may
         // be other pins.
-        if (self.roms.len() == 1) || (self.set_type == RomSetType::Banked) {
-            let (rom_index, masked_address) = if self.set_type != RomSetType::Banked {
+        if (self.chips.len() == 1) || (self.set_type == ChipSetType::Banked) {
+            let (chip_index, masked_address) = if self.set_type != ChipSetType::Banked {
                 match board.mcu_family() {
                     McuFamily::Rp2350 => {
-                        // Single ROM set: uses entire 64KB space
+                        // Single Chip set: uses entire 64KB space
                         assert!(
                             address < 65536,
-                            "Address out of bounds for RP235X single ROM set"
+                            "Address out of bounds for RP235X single Chip set"
                         );
                     }
                     McuFamily::Stm32f4 => {
-                        if board.rom_pins() == 24 {
+                        if board.chip_pins() == 24 {
                             assert!(
                                 address < 16384,
-                                "Address out of bounds for STM32F4 single 24 pin ROM"
+                                "Address out of bounds for STM32F4 single 24 pin Chip"
                             );
                         } else {
                             assert!(
                                 address < 65536,
-                                "Address out of bounds for STM32F4 single 28 pin ROM"
+                                "Address out of bounds for STM32F4 single 28 pin Chip"
                             );
                         }
                     }
                 }
                 (0, address)
             } else {
-                // Banked mode: use X1/X2 to select ROM
-                assert!(address < 65536, "Address out of bounds for banked ROM set");
+                // Banked mode: use X1/X2 to select Chip
+                assert!(address < 65536, "Address out of bounds for banked Chip set");
                 let x1_pin = board.bit_x1();
                 let x2_pin = board.bit_x2();
                 let bank = if board.x_jumper_pull() == 1 {
@@ -752,43 +793,43 @@ impl RomSet {
                 };
                 let mask = !(1 << x1_pin) & !(1 << x2_pin);
                 let masked_address = address & mask;
-                let rom_index = bank % self.roms.len(); // Wrap around
-                (rom_index, masked_address)
+                let chip_index = bank % self.chips.len(); // Wrap around
+                (chip_index, masked_address)
 
-                // Note that this code fills sections of the overall 64KB image with the bank ROM
+                // Note that this code fills sections of the overall 64KB image with the bank Chip
                 // images even if the CS value is set to inactive
             };
 
-            let num_addr_lines = self.roms[rom_index].rom_type.num_addr_lines();
-            let mut phys_pin_to_addr_map = handle_snowflake_rom_types(
+            let num_addr_lines = self.chips[chip_index].chip_type.num_addr_lines();
+            let mut phys_pin_to_addr_map = handle_snowflake_chip_types(
                 board.phys_pin_to_addr_map(),
-                &self.roms[rom_index].rom_type,
+                &self.chips[chip_index].chip_type,
             );
             Self::truncate_phys_pin_to_addr_map(&mut phys_pin_to_addr_map, num_addr_lines);
 
-            return self.roms[rom_index].get_byte(&phys_pin_to_addr_map, masked_address, board);
+            return self.chips[chip_index].get_byte(&phys_pin_to_addr_map, masked_address, board);
         }
 
-        // Multiple ROMs: check CS line states to select responding ROM.  This
+        // Multiple Chips: check CS line states to select responding Chip.  This
         // code can handle any X1/X2 positions - but the above can't.
-        assert!(address < 65536, "Address out of bounds for multi-ROM set");
+        assert!(address < 65536, "Address out of bounds for multi-Chip set");
 
-        for (index, rom_in_set) in self.roms.iter().enumerate() {
+        for (index, chip_in_set) in self.chips.iter().enumerate() {
             // Get the physical addr and data pin mappings.  We have to
-            // retrieve this for each ROM in the set, as each ROM may be
+            // retrieve this for each Chip in the set, as each Chip may be
             // a different type (size).
-            let num_addr_lines = rom_in_set.rom_type.num_addr_lines();
+            let num_addr_lines = chip_in_set.chip_type.num_addr_lines();
             let mut phys_pin_to_addr_map =
-                handle_snowflake_rom_types(board.phys_pin_to_addr_map(), &rom_in_set.rom_type);
+                handle_snowflake_chip_types(board.phys_pin_to_addr_map(), &chip_in_set.chip_type);
             Self::truncate_phys_pin_to_addr_map(&mut phys_pin_to_addr_map, num_addr_lines);
 
             // All of CS1/X1/X2 have to have the same active low/high status
             // so we retrieve that from CS1 (as X1/X2 aren't specifically
-            // configured in the rom sets).
-            let pins_active_high = rom_in_set.cs_config.cs1_logic() == CsLogic::ActiveHigh;
+            // configured in the chip sets).
+            let pins_active_high = chip_in_set.cs_config.cs1_logic() == CsLogic::ActiveHigh;
 
-            // Get the CS pin that controls this ROM's selection
-            let cs_pin = board.cs_bit_for_rom_in_set(rom_in_set.rom_type, index);
+            // Get the CS pin that controls this chip's selection
+            let cs_pin = board.cs_bit_for_chip_in_set(chip_in_set.chip_type, index);
             assert!(cs_pin <= 15, "Internal error: CS pin is > 15");
 
             fn is_pin_active(
@@ -817,7 +858,7 @@ impl RomSet {
 
             if cs_active {
                 // Verify exactly one CS pin is active
-                let cs1_pin = board.bit_cs1(rom_in_set.rom_type);
+                let cs1_pin = board.bit_cs1(chip_in_set.chip_type);
                 let x1_pin = board.bit_x1();
                 let x2_pin = board.bit_x2();
 
@@ -830,19 +871,19 @@ impl RomSet {
                     .filter(|&&x| x)
                     .count();
 
-                if active_count == 1 && self.check_rom_cs_requirements(rom_in_set, address, board) {
-                    return rom_in_set.get_byte(&phys_pin_to_addr_map, address, board);
+                if active_count == 1 && self.check_chip_cs_requirements(chip_in_set, address, board) {
+                    return chip_in_set.get_byte(&phys_pin_to_addr_map, address, board);
                 }
             }
         }
 
-        // No ROM is selected, so this part of the address space is set to blank value
-        Rom::byte_mangled(PAD_NO_ROM_BYTE, board)
+        // No Chip is selected, so this part of the address space is set to blank value
+        Chip::byte_mangled(PAD_NO_CHIP_BYTE, board)
     }
 
-    fn check_rom_cs_requirements(&self, rom_in_set: &Rom, address: usize, board: &Board) -> bool {
-        let cs_config = &rom_in_set.cs_config;
-        let rom_type = rom_in_set.rom_type;
+    fn check_chip_cs_requirements(&self, chip_in_set: &Chip, address: usize, board: &Board) -> bool {
+        let cs_config = &chip_in_set.cs_config;
+        let chip_type = chip_in_set.chip_type;
 
         // Check CS2 if specified
         if let Some(cs2_logic) = cs_config.cs2_logic() {
@@ -851,14 +892,14 @@ impl RomSet {
                     // CS2 state doesn't matter
                 }
                 CsLogic::ActiveLow => {
-                    let cs2_pin = board.bit_cs2(rom_type);
+                    let cs2_pin = board.bit_cs2(chip_type);
                     let cs2_active = (address & (1 << cs2_pin)) == 0;
                     if !cs2_active {
                         return false;
                     }
                 }
                 CsLogic::ActiveHigh => {
-                    let cs2_pin = board.bit_cs2(rom_type);
+                    let cs2_pin = board.bit_cs2(chip_type);
                     let cs2_active = (address & (1 << cs2_pin)) != 0;
                     if cs2_active {
                         return false;
@@ -874,14 +915,14 @@ impl RomSet {
                     // CS3 state doesn't matter
                 }
                 CsLogic::ActiveLow => {
-                    let cs3_pin = board.bit_cs3(rom_type);
+                    let cs3_pin = board.bit_cs3(chip_type);
                     let cs3_active = (address & (1 << cs3_pin)) == 0;
                     if !cs3_active {
                         return false;
                     }
                 }
                 CsLogic::ActiveHigh => {
-                    let cs3_pin = board.bit_cs3(rom_type);
+                    let cs3_pin = board.bit_cs3(chip_type);
                     let cs3_active = (address & (1 << cs3_pin)) != 0;
                     if cs3_active {
                         return false;
@@ -894,14 +935,14 @@ impl RomSet {
     }
 
     #[allow(dead_code)]
-    fn mask_cs_selection_bits(&self, address: usize, rom_type: RomType, board: &Board) -> usize {
+    fn mask_cs_selection_bits(&self, address: usize, chip_type: ChipType, board: &Board) -> usize {
         let mut masked_address = address;
 
         // Remove the CS selection bits - only mask bits that exist on this hardware
-        masked_address &= !(1 << board.bit_cs1(rom_type));
+        masked_address &= !(1 << board.bit_cs1(chip_type));
 
         // Only mask X1/X2 on hardware that has them
-        if board.supports_multi_rom_sets() {
+        if board.supports_multi_chip_sets() {
             let x1 = board.bit_x1();
             let x2 = board.bit_x2();
             assert!(x1 < 15 && x2 < 15, "X1/X2 pins must be less than 15");
@@ -909,113 +950,113 @@ impl RomSet {
             masked_address &= !(1 << x2);
         }
 
-        // Remove CS2/CS3 bits based on ROM type
-        match rom_type {
-            RomType::Rom2332 => {
-                masked_address &= !(1 << board.bit_cs2(rom_type));
+        // Remove CS2/CS3 bits based on chip type
+        match chip_type {
+            ChipType::Chip2332 => {
+                masked_address &= !(1 << board.bit_cs2(chip_type));
             }
-            RomType::Rom2316 => {
-                masked_address &= !(1 << board.bit_cs2(rom_type));
-                masked_address &= !(1 << board.bit_cs3(rom_type));
+            ChipType::Chip2316 => {
+                masked_address &= !(1 << board.bit_cs2(chip_type));
+                masked_address &= !(1 << board.bit_cs3(chip_type));
             }
-            RomType::Rom2364 => {
+            ChipType::Chip2364 => {
                 // 2364 only uses CS1, no additional bits to remove
             }
-            RomType::Rom23128 => {
+            ChipType::Chip23128 => {
                 // No additional bits to remove
             }
             _ => {
                 panic!(
-                    "Internal error: unsupported ROM type {} in mask_cs_selection_bits",
-                    rom_type.name()
+                    "Internal error: unsupported chip type {} in mask_cs_selection_bits",
+                    chip_type.name()
                 );
             }
         }
 
-        // Ensure address fits within ROM size
+        // Ensure address fits within Chip size
         masked_address & ((1 << 13) - 1) // Mask to 13 bits max (8KB)
     }
 
-    /// Returns a slice of the ROMs in this set.
-    pub fn roms(&self) -> &[Rom] {
-        &self.roms
+    /// Returns a slice of the chips in this set.
+    pub fn chips(&self) -> &[Chip] {
+        &self.chips
     }
 
-    /// Returns the length of metadata required for all of the ROMs.  This
-    /// includes all ROM structs, plus the array of pointers to them.
-    pub fn roms_metadata_len(&self, include_filenames: bool) -> usize {
-        let num_roms = self.roms.len();
+    /// Returns the length of metadata required for all of the chips.  This
+    /// includes all chip structs, plus the array of pointers to them.
+    pub fn chips_metadata_len(&self, include_filenames: bool) -> usize {
+        let num_chips = self.chips.len();
 
-        // Size of all ROM metadata structs
-        let rom_metadata_len = if include_filenames {
-            ROM_METADATA_LEN_WITH_FILENAME
+        // Size of all chip metadata structs
+        let chip_metadata_len = if include_filenames {
+            CHIP_METADATA_LEN_WITH_FILENAME
         } else {
-            ROM_METADATA_LEN_NO_FILENAME
-        } * num_roms;
+            CHIP_METADATA_LEN_NO_FILENAME
+        } * num_chips;
 
         #[allow(clippy::let_and_return)]
-        rom_metadata_len
+        chip_metadata_len
     }
 
-    /// Writes ROM metadata structs for all ROMs in this set and store off
+    /// Writes chip metadata structs for all chips in this set and store off
     /// offsets to them.
     ///
     /// Returns the number of bytes written and also pointers to each, so
-    /// that the array of ROM pointers can be written.
-    pub fn write_rom_metadata(
+    /// that the array of chip pointers can be written.
+    pub fn write_chip_metadata(
         &self,
         buf: &mut [u8],
-        rom_filename_ptrs: &[u32],
-        rom_metadata_ptrs: &mut [u32],
+        chip_filename_ptrs: &[u32],
+        chip_metadata_ptrs: &mut [u32],
         include_filenames: bool,
     ) -> Result<usize> {
-        let num_roms = self.roms.len();
+        let num_chips = self.chips.len();
 
         // Check enough buffer space
-        let expected_len = self.roms_metadata_len(include_filenames);
+        let expected_len = self.chips_metadata_len(include_filenames);
         if buf.len() < expected_len {
             return Err(Error::BufferTooSmall {
-                location: "write_rom_metadata1",
+                location: "write_chip_metadata1",
                 expected: expected_len,
                 actual: buf.len(),
             });
         }
 
         // Check enough space for pointers
-        if rom_metadata_ptrs.len() < num_roms {
+        if chip_metadata_ptrs.len() < num_chips {
             return Err(Error::BufferTooSmall {
-                location: "write_rom_metadata2",
-                expected: num_roms,
-                actual: rom_metadata_ptrs.len(),
+                location: "write_chip_metadata2",
+                expected: num_chips,
+                actual: chip_metadata_ptrs.len(),
             });
         }
 
         let mut offset = 0;
 
-        // Write ROM metadata.
-        for (ii, rom) in self.roms.iter().enumerate() {
+        // Write chip metadata.
+        for (ii, chip) in self.chips.iter().enumerate() {
             // Set up the pointer to be returned first
-            rom_metadata_ptrs[ii] = offset as u32;
+            chip_metadata_ptrs[ii] = offset as u32;
 
-            // Write the rom_type
-            buf[offset] = rom.rom_type_c_enum_val();
+            // Write the chip_type
+            buf[offset] = chip.chip_type_c_enum_val();
             offset += 1;
 
             // Write the CS states
-            buf[offset] = rom.cs_config.cs1_logic().c_enum_val();
+            buf[offset] = chip.cs_config.cs1_logic().c_enum_val();
             offset += 1;
-            buf[offset] = rom.cs_config.cs2_logic().map_or(2, |cs| cs.c_enum_val());
+            buf[offset] = chip.cs_config.cs2_logic().map_or(2, |cs| cs.c_enum_val());
             offset += 1;
-            buf[offset] = rom.cs_config.cs3_logic().map_or(2, |cs| cs.c_enum_val());
+            buf[offset] = chip.cs_config.cs3_logic().map_or(2, |cs| cs.c_enum_val());
             offset += 1;
 
             // Add filename if required
             if include_filenames {
-                let rom_filename_ptr = rom_filename_ptrs
-                    .get(rom.index())
+                let chip_filename_ptr = chip_filename_ptrs
+                    .get(chip.index())
                     .copied()
-                    .ok_or_else(|| Error::MissingPointer { id: rom.index() })?;
-                buf[offset..offset + 4].copy_from_slice(&rom_filename_ptr.to_le_bytes());
+                    .ok_or_else(|| Error::MissingPointer { id: chip.index() })?;
+                buf[offset..offset + 4].copy_from_slice(&chip_filename_ptr.to_le_bytes());
                 offset += 4;
             }
         }
@@ -1023,36 +1064,36 @@ impl RomSet {
         Ok(offset)
     }
 
-    /// Writes the array of pointers to each ROM metadata struct.  Must be
-    /// called after [`Self::write_rom_metadata()`].
-    pub fn write_rom_pointer_array(
+    /// Writes the array of pointers to each chip metadata struct.  Must be
+    /// called after [`Self::write_chip_metadata()`].
+    pub fn write_chip_pointer_array(
         &self,
         buf: &mut [u8],
-        rom_metadata_ptrs: &[u32],
+        chip_metadata_ptrs: &[u32],
     ) -> Result<usize> {
-        let num_roms = self.roms.len();
+        let num_chips = self.chips.len();
 
         // Check enough buffer space
-        let expected_len = 4 * num_roms;
+        let expected_len = 4 * num_chips;
         if buf.len() < expected_len {
             return Err(Error::BufferTooSmall {
-                location: "write_rom_pointer_array",
+                location: "write_chip_pointer_array",
                 expected: expected_len,
                 actual: buf.len(),
             });
         }
 
         // Check enough pointers
-        if rom_metadata_ptrs.len() < num_roms {
+        if chip_metadata_ptrs.len() < num_chips {
             return Err(Error::MissingPointer {
-                id: rom_metadata_ptrs.len(),
+                id: chip_metadata_ptrs.len(),
             });
         }
 
         let mut offset = 0;
 
         // Write the array of pointers
-        for ii in rom_metadata_ptrs.iter() {
+        for ii in chip_metadata_ptrs.iter() {
             buf[offset..offset + 4].copy_from_slice(&ii.to_le_bytes());
             offset += 4;
         }
@@ -1068,15 +1109,15 @@ impl RomSet {
         &self,
         buf: &mut [u8],
         data_ptr: u32,
-        rom_array_ptr: u32,
+        chip_array_ptr: u32,
         family: &McuFamily,
-        rom_pins: u8,
+        chip_pins: u8,
         version: &FirmwareVersion,
         serve_config_ptr: Option<u32>,
         firmware_overrides_ptr: Option<u32>,
     ) -> Result<usize> {
         // Check enough buffer space
-        let expected_len = Self::rom_set_metadata_len(version);
+        let expected_len = Self::chip_set_metadata_len(version);
         if buf.len() < expected_len {
             return Err(Error::BufferTooSmall {
                 location: "write_set_metadata",
@@ -1087,22 +1128,22 @@ impl RomSet {
 
         let mut offset = 0;
 
-        // Write the ROM image(s) data pointer
+        // Write the chip image(s) data pointer
         buf[offset..offset + 4].copy_from_slice(&data_ptr.to_le_bytes());
         offset += 4;
 
-        // Write the ROM data size
-        let data_size = self.image_size(family, rom_pins) as u32;
+        // Write the chip data size
+        let data_size = self.image_size(family, chip_pins) as u32;
         buf[offset..offset + 4].copy_from_slice(&data_size.to_le_bytes());
         offset += 4;
 
-        // Write the ROM data pointer
-        buf[offset..offset + 4].copy_from_slice(&rom_array_ptr.to_le_bytes());
+        // Write the chip metadata pointer
+        buf[offset..offset + 4].copy_from_slice(&chip_array_ptr.to_le_bytes());
         offset += 4;
 
-        // Write the nubmer of ROMs in this set
-        let num_roms = self.roms.len() as u8;
-        buf[offset] = num_roms;
+        // Write the nubmer of chips in this set
+        let num_chips = self.chips.len() as u8;
+        buf[offset] = num_chips;
         offset += 1;
 
         // Write the serving algorithm
@@ -1110,7 +1151,7 @@ impl RomSet {
         buf[offset] = algorithm;
         offset += 1;
 
-        // Write the multi-ROM CS state
+        // Write the multi-chip CS state
         let multi_cs_state = self.multi_cs_logic()?.c_enum_val();
         buf[offset] = multi_cs_state;
         offset += 1;
@@ -1141,7 +1182,7 @@ impl RomSet {
             offset += 40;
 
             assert_eq!(
-                offset, ROM_SET_FIRMWARE_OVERRIDES_METADATA_LEN,
+                offset, CHIP_SET_FIRMWARE_OVERRIDES_METADATA_LEN,
                 "Total should be 64 bytes for 0.6.0+"
             );
         }
@@ -1154,11 +1195,11 @@ impl RomSet {
         Ok(offset)
     }
 
-    pub fn rom_set_metadata_len(version: &FirmwareVersion) -> usize {
+    pub fn chip_set_metadata_len(version: &FirmwareVersion) -> usize {
         if *version >= MIN_FIRMWARE_OVERRIDES_VERSION {
-            ROM_SET_METADATA_LEN_EXTRA_INFO
+            CHIP_SET_METADATA_LEN_EXTRA_INFO
         } else {
-            ROM_SET_METADATA_LEN
+            CHIP_SET_METADATA_LEN
         }
     }
 
@@ -1167,16 +1208,16 @@ impl RomSet {
     }
 }
 
-// Handle ROM Types which do not have a standard address layout.  Currently,
-// the only know ROM type needing special handling is the 2732, which has
+// Handle Chip Types which do not have a standard address layout.  Currently,
+// the only know Chip type needing special handling is the 2732, which has
 // swapped A11 and A12 lines.
-fn handle_snowflake_rom_types(
+fn handle_snowflake_chip_types(
     phys_pin_to_addr_map: &[Option<usize>],
-    rom_type: &RomType,
+    chip_type: &ChipType,
 ) -> Vec<Option<usize>> {
     let mut modified_map = phys_pin_to_addr_map.to_vec();
-    match rom_type {
-        RomType::Rom2732 => {
+    match chip_type {
+        ChipType::Chip2732 => {
             // Swap A11 and A12
             let a11_index = modified_map.iter().position(|&x| x == Some(11));
             let a12_index = modified_map.iter().position(|&x| x == Some(12));

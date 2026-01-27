@@ -273,7 +273,7 @@ typedef struct {
 #define NUM_ICE_MCU_CLOCK_CONFIGS 5
 
 #if defined(STM32F4_INCLUDES)
-ice_mcu_clock_config_t ice_mcu_clock_config[NUM_ICE_MCU_CLOCK_CONFIGS] = {
+const ice_mcu_clock_config_t ice_mcu_clock_config[NUM_ICE_MCU_CLOCK_CONFIGS] = {
     {
         .freq_mhz = 84,
         .max_freq_mhz = 84,  // F401DE

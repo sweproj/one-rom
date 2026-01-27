@@ -8,7 +8,7 @@ use iced::Task;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use onerom_config::rom::RomType;
+use onerom_config::chip::ChipType;
 
 use crate::app::AppMessage;
 use crate::config::Config;
@@ -99,7 +99,7 @@ pub fn build_image_result(
     Task::none()
 }
 
-pub fn select_rom_type(create: &mut Create, rom_type: RomType) -> Task<AppMessage> {
+pub fn select_rom_type(create: &mut Create, rom_type: ChipType) -> Task<AppMessage> {
     debug!("User selected ROM type: {}", rom_type.name());
     if !create.is_building() && !create.is_flashing() && !create.is_saving() {
         create.state = State::UserBuilding {
@@ -118,7 +118,7 @@ pub fn select_rom_type(create: &mut Create, rom_type: RomType) -> Task<AppMessag
             rom_type.name()
         ));
     } else {
-        warn!("Ignoring BuildingSelectRomType while busy");
+        warn!("Ignoring BuildingSelectChipType while busy");
     }
     Task::none()
 }

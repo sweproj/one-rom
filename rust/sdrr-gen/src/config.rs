@@ -8,15 +8,15 @@ use std::path::PathBuf;
 use onerom_config::fw::ServeAlg;
 use onerom_config::hw::Board;
 use onerom_config::mcu::{Port, Variant as McuVariant};
-use onerom_config::rom::RomType;
+use onerom_config::chip::ChipType;
 
-use onerom_gen::image::{CsConfig, Rom, RomSet, RomSetType, SizeHandling};
+use onerom_gen::image::{CsConfig, Chip, ChipSet, ChipSetType, SizeHandling};
 
 use crate::fw::PllConfig;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub roms: Vec<RomConfig>,
+    pub chips: Vec<ChipConfig>,
     pub mcu_variant: McuVariant,
     pub output_dir: PathBuf,
     pub swd: bool,
@@ -40,12 +40,12 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone)]
-pub struct RomConfig {
+pub struct ChipConfig {
     pub file: PathBuf,
     pub original_source: String,
     pub extract: Option<String>,
     pub licence: Option<String>,
-    pub rom_type: RomType,
+    pub rom_type: ChipType,
     pub cs_config: CsConfig,
     pub size_handling: SizeHandling,
     pub set: Option<usize>,
@@ -108,8 +108,8 @@ impl Config {
         }
 
         // Check all ROMs are compatible with the selected board
-        for rom in &self.roms {
-            if self.board.rom_pins() != rom.rom_type.rom_pins() {
+        for rom in &self.chips {
+            if self.board.chip_pins() != rom.rom_type.chip_pins() {
                 return Err(format!(
                     "ROM type {} is not supported on selected hardware revision {}",
                     rom.rom_type.name(),
@@ -119,12 +119,12 @@ impl Config {
         }
 
         // Validate ROM sets (basic validation that doesn't need ROM images)
-        let mut sets: Vec<usize> = self.roms.iter().filter_map(|rom| rom.set).collect();
+        let mut sets: Vec<usize> = self.chips.iter().filter_map(|rom| rom.set).collect();
 
         if !sets.is_empty() {
             // Check if all ROMs have sets specified
-            let roms_with_sets = self.roms.iter().filter(|rom| rom.set.is_some()).count();
-            if roms_with_sets != self.roms.len() {
+            let roms_with_sets = self.chips.iter().filter(|rom| rom.set.is_some()).count();
+            if roms_with_sets != self.chips.len() {
                 return Err("When using sets, all ROMs must specify a set number".to_string());
             }
 
@@ -144,7 +144,7 @@ impl Config {
             // Enhanced set validation for banking and multi-ROM modes
             for &set_id in &sets {
                 let roms_in_set: Vec<_> = self
-                    .roms
+                    .chips
                     .iter()
                     .filter(|rom| rom.set == Some(set_id))
                     .collect();
@@ -235,7 +235,7 @@ impl Config {
                     // Multi-ROM mode validation
 
                     // Check hardware variant supports multi-rom sets
-                    if !self.board.supports_multi_rom_sets() {
+                    if !self.board.supports_multi_chip_sets() {
                         return Err(
                             "Multi-ROM sets of ROMs are only supported on hardware revision F onwards".to_string(),
                         );
@@ -280,24 +280,24 @@ impl Config {
 
     pub fn create_rom_sets(
         &self,
-        roms: Vec<Rom>,
+        roms: Vec<Chip>,
         serve_alg: ServeAlg,
-    ) -> Result<Vec<RomSet>, String> {
-        let sets: Vec<usize> = self.roms.iter().filter_map(|rom| rom.set).collect();
+    ) -> Result<Vec<ChipSet>, String> {
+        let sets: Vec<usize> = self.chips.iter().filter_map(|rom| rom.set).collect();
 
         if sets.is_empty() {
-            let rom_sets: Vec<RomSet> = roms
+            let rom_sets: Vec<ChipSet> = roms
                 .into_iter()
                 .enumerate()
-                .map(|(ii, rom)| RomSet::new(ii, RomSetType::Single, serve_alg, vec![rom], None))
+                .map(|(ii, rom)| ChipSet::new(ii, ChipSetType::Single, serve_alg, vec![rom], None))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| format!("Error creating ROM sets: {:?}", e))?;
             return Ok(rom_sets);
         }
 
-        let mut sets_map: BTreeMap<usize, Vec<(usize, &RomConfig, Rom)>> = BTreeMap::new();
+        let mut sets_map: BTreeMap<usize, Vec<(usize, &ChipConfig, Chip)>> = BTreeMap::new();
 
-        for (ii, (rom_config, rom)) in self.roms.iter().zip(roms.into_iter()).enumerate() {
+        for (ii, (rom_config, rom)) in self.chips.iter().zip(roms.into_iter()).enumerate() {
             if let Some(set_id) = rom_config.set {
                 sets_map
                     .entry(set_id)
@@ -306,7 +306,7 @@ impl Config {
             }
         }
 
-        let mut rom_sets: Vec<RomSet> = Vec::new();
+        let mut rom_sets: Vec<ChipSet> = Vec::new();
 
         for (set_id, mut roms_in_set) in sets_map {
             let num_roms = roms_in_set.len();
@@ -319,18 +319,18 @@ impl Config {
                 roms_in_set.sort_by_key(|(_, config, _)| config.bank.unwrap());
             }
 
-            let rom_vec: Vec<Rom> = roms_in_set.into_iter().map(|(_, _, rom)| rom).collect();
+            let rom_vec: Vec<Chip> = roms_in_set.into_iter().map(|(_, _, rom)| rom).collect();
 
-            let rom_set = RomSet::new(
+            let rom_set = ChipSet::new(
                 set_id,
                 if is_banked {
-                    RomSetType::Banked
+                    ChipSetType::Banked
                 } else if num_roms > 1 {
-                    RomSetType::Multi
+                    ChipSetType::Multi
                 } else {
                     // Single ROM sets are dealt with here if there are also
                     // multi-ROM or banked sets in the config
-                    RomSetType::Single
+                    ChipSetType::Single
                 },
                 serve_alg,
                 rom_vec,

@@ -643,7 +643,8 @@ pub(crate) async fn read_pins<R: Reader>(
         return Err(format!("Invalid pins pointer: 0x{:08X}", ptr));
     }
 
-    let mut pins_buf = [0u8; SdrrPins::size()];
+    const MAX_PINS_SIZE: usize = SdrrPins::base_size() + SdrrPins::extra_size();
+    let mut pins_buf = [0u8; MAX_PINS_SIZE];
     reader
         .read(ptr, &mut pins_buf)
         .await

@@ -68,7 +68,7 @@ pub fn view<'a>(
 
         // Add a ROM type picklist row
         let pick_list = Style::pick_list_small(rom_types.as_slice(), rom_type.clone(), |rt| {
-            Message::BuildingSelectRomType(rt).into()
+            Message::BuildingSelectChipType(rt).into()
         });
 
         // Build the CS picker(s)

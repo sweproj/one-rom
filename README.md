@@ -6,13 +6,15 @@ The most flexible ROM replacement for your retro computer.  It is highly configu
 
 Based on a Raspberry Pi RP2350 (One ROM Fire 🔥) or STM32F4 (One ROM Ice ❄️).
 
-One ROM is available as 24 pin and 28 pin versions, emulating nearly all systems' 24 and 28 pin ROMs, including any possible chip select configurations, and can serve different images to multiple ROM sockets simultaneously.
+One ROM is available as 24 pin and 28 pin versions, emulating nearly all systems' 24 and 28 pin ROMs, including any possible chip select configurations with a single hardware variants, and can serve different images to multiple ROM sockets simultaneously.
 
-Replaces failed ROMs in Commodore 64s, VIC-20s, PETs, Ataris, BBC, TIs, disk drives and many other types of systems.
+Replaces failed ROMs in Commodore 64s, VIC-20s, PETs, Ataris, BBC, TIs, disk drives and many other types of systems, like pinball machines and music synthesizers.
 
 ROM types replaced:
 - 24 pin: 2704, 2708, 2716, 2732, 2316, 2332, 2364
 - 28 pin: 2764, 27128, 27256, 27512, 23128, 23256, 23512
+
+As of the latest firmware, One ROM also supports RAM chips of the correct footprint, including the 6116 and 2016 2K SRAM chips.
 
 One ROM was formerly known as Software Defined Retro ROM (SDRR).
 

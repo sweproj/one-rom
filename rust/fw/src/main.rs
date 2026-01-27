@@ -52,7 +52,9 @@ async fn sub_main() -> Result<(), Error> {
     let rom_config_filename = args.rom.as_ref();
 
     // Get firmware releases
-    let firmware_data = if args.fw_image.is_none() {
+    let firmware_data = if let Some(image) = args.fw_image {
+        std::fs::read(image).map_err(Error::read)?
+    } else {
         let releases = Releases::from_network()?;
         if releases.release(&version).is_none() {
             return Err(Error::release_not_found());
@@ -60,9 +62,6 @@ async fn sub_main() -> Result<(), Error> {
 
         // Get the blank firmware image
         releases.download_firmware(&version, &board, &mcu)?
-    } else {
-        // Use the provided image
-        std::fs::read(args.fw_image.as_ref().unwrap()).map_err(Error::read)?
     };
 
     // Build firmware properties
@@ -73,7 +72,7 @@ async fn sub_main() -> Result<(), Error> {
         debug!("Using ROM config file: {}", rom_config_filename);
 
         // Read ROM config file
-        let config = read_rom_config(&rom_config_filename)?;
+        let config = read_rom_config(rom_config_filename)?;
 
         // Create builder
         let mut builder =
@@ -92,9 +91,9 @@ async fn sub_main() -> Result<(), Error> {
 
         // Generate metadata/ROM images
         let (m, i) = builder.build(fw_props).map_err(Error::build)?;
-        if i.len() > 0 {
+        if !i.is_empty() {
             // Cannot have ROM image data without metadata
-            assert!(m.len() > 0);
+            assert!(!m.is_empty());
         }
 
         (Some(m), Some(i), Some(builder.description()))
@@ -107,7 +106,7 @@ async fn sub_main() -> Result<(), Error> {
     validate_sizes(&fw_props, &firmware_data, &metadata, &image_data)?;
 
     // Create the firmware file
-    let size = create_firmware(&out_filename, firmware_data, metadata, image_data)?;
+    let size = create_firmware(out_filename, firmware_data, metadata, image_data)?;
 
     // Output success
     println!("---");

@@ -1,5 +1,5 @@
 /* Stack size */
-_Min_Stack_Size = 0x400;    /* 1KB */
+_Min_Stack_Size = 0x800;    /* 2KB, 1KB for each core */
 
 /* Space for storing functions in RAM */
 _Ram_Func_Size = 0x1000; /* 4KB */

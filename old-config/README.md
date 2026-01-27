@@ -1,5 +1,9 @@
 # Config
 
+January 2026.  This configurations int hs directory are now considered old-style, having seen superceded by the new JSON-based configuration system in ['onerom-config'](/onerom-config/README.md).  They are retained here for reference and backward compatibility.  Newer features, like firmware overrides and chips other than ROMs (like RAM), cannot be configured using these configurations.
+
+---
+
 Contains configuration files for various sample ROM collections.
 
 ## Usage

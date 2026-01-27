@@ -2,6 +2,8 @@
 
 The One ROM build system is a multi-stage pipeline that transforms ROM images and configuration into flashable STM32 firmware. This document explains how the build process works internally.
 
+As of January 2026 it's a little out of date, but still a good high level overview of the key steps required to build One ROM firmware and flash it, for both Ice (STM32F4) and Fire (RP2350) variants.
+
 ## Build Pipeline Overview
 
 ```ascii
@@ -37,7 +39,7 @@ The build process involves six main components:
 
 ```bash
 # User can override via config file or command line
-CONFIG=config/c64.mk MCU=f411re make run
+CONFIG=old-config/c64.mk MCU=f411re make run
 
 # Makefile processes ROM_CONFIGS like:
 ROM_CONFIGS=file=kernel.rom,type=2364,cs1=0 file=basic.rom,type=2364,cs1=0
@@ -158,7 +160,7 @@ This is a complex process when testing rom sets, as the appropriate chip select 
 ### Variable Hierarchy
 
 1. **Makefile defaults** - Safe baseline settings
-2. **Config file** - Project-specific collections (e.g., `config/c64.mk`)
+2. **Config file** - Project-specific collections (e.g., `old-config/c64.mk`)
 3. **Command line** - Override specific settings
 
 ### Key Configuration

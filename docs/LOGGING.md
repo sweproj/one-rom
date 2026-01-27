@@ -8,7 +8,7 @@ This logs the boot process to the SWD interface, using RTT.  It is enabled by de
 
 In general, you should be able to leave `BOOT_LOGGING` on, as this only adds around 1.5ms to One ROM's startup time, increasing it to roughly 3ms total.  This is substantially below most retro systems' reset circuit timers, so One ROM should boot and be ready to serve the configured ROM image well before it is required.
 
-Sample boot logs from a startup of firmware built with [`c64-no-destestmax.mk`](/config/c64-no-destestmax.mk), are shown below:
+Sample boot logs from a startup of firmware built with [`c64-no-destestmax.mk`](/old-config/c64-no-destestmax.mk), are shown below:
 
 ```log
 13:49:28.943: -----

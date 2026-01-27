@@ -37,68 +37,68 @@ static void init_address_mangler(
 
     // Set CS pins b ased on ROM type
     switch (rom_type) {
-        case ROM_TYPE_2316:
+        case CHIP_TYPE_2316:
             mangler->cs1_pin = config->mcu.pins.cs1.pin_2316;
             mangler->cs2_pin = config->mcu.pins.cs2.pin_2316;
             mangler->cs3_pin = config->mcu.pins.cs3.pin_2316;
             break;
 
-        case ROM_TYPE_2332:
+        case CHIP_TYPE_2332:
             mangler->cs1_pin = config->mcu.pins.cs1.pin_2332;
             mangler->cs2_pin = config->mcu.pins.cs2.pin_2332;
             mangler->cs3_pin = config->mcu.pins.cs3.pin_2332;
             break;
 
-        case ROM_TYPE_2364:
+        case CHIP_TYPE_2364:
             mangler->cs1_pin = config->mcu.pins.cs1.pin_2364;
             mangler->cs2_pin = config->mcu.pins.cs2.pin_2364;
             mangler->cs3_pin = config->mcu.pins.cs3.pin_2364;
             break;
 
-        case ROM_TYPE_23128:
+        case CHIP_TYPE_23128:
             mangler->cs1_pin = config->mcu.pins.cs1.pin_23128;
             mangler->cs2_pin = config->mcu.pins.cs2.pin_23128;
             mangler->cs3_pin = config->mcu.pins.cs3.pin_23128;
             break;
 
-        case ROM_TYPE_23256:
+        case CHIP_TYPE_23256:
             mangler->cs1_pin = config->mcu.pins.cs1.pin_23256;
             mangler->cs2_pin = config->mcu.pins.cs2.pin_23256;
             mangler->cs3_pin = config->mcu.pins.cs3.pin_23256;
             break;
 
-        case ROM_TYPE_23512:
+        case CHIP_TYPE_23512:
             mangler->cs1_pin = config->mcu.pins.cs1.pin_23512;
             mangler->cs2_pin = config->mcu.pins.cs2.pin_23512;
             mangler->cs3_pin = config->mcu.pins.cs3.pin_23512;
             break;
 
-        case ROM_TYPE_2716:
+        case CHIP_TYPE_2716:
             mangler->cs1_pin = config->mcu.pins.ce.pin_2716;
             mangler->cs2_pin = config->mcu.pins.oe.pin_2716;
             break;
 
-        case ROM_TYPE_2732:
+        case CHIP_TYPE_2732:
             mangler->cs1_pin = config->mcu.pins.ce.pin_2732;
             mangler->cs2_pin = config->mcu.pins.oe.pin_2732;
             break;
 
-        case ROM_TYPE_2764:
+        case CHIP_TYPE_2764:
             mangler->cs1_pin = config->mcu.pins.ce.pin_2764;
             mangler->cs2_pin = config->mcu.pins.oe.pin_2764;
             break;
 
-        case ROM_TYPE_27128:
+        case CHIP_TYPE_27128:
             mangler->cs1_pin = config->mcu.pins.ce.pin_27128;
             mangler->cs2_pin = config->mcu.pins.oe.pin_27128;
             break;
 
-        case ROM_TYPE_27256:
+        case CHIP_TYPE_27256:
             mangler->cs1_pin = config->mcu.pins.ce.pin_27256;
             mangler->cs2_pin = config->mcu.pins.oe.pin_27256;
             break;
 
-        case ROM_TYPE_27512:
+        case CHIP_TYPE_27512:
             mangler->cs1_pin = config->mcu.pins.ce.pin_27512;
             mangler->cs2_pin = config->mcu.pins.oe.pin_27512;
             break;
@@ -115,7 +115,7 @@ static void init_address_mangler(
     // There is a special case for 24 pin ROMs - the 2732.  It has A11 as pin
     // 21, whereas the other ROM types have it at pin 18.  For the 2732
     // therefore we swap the A11 and A12 pins.
-    if (rom_type == ROM_TYPE_2732) {
+    if (rom_type == CHIP_TYPE_2732) {
         // Find logical A11 and A12 pins
         uint8_t pin_a11 = address_mangler.addr_pins[11];
         uint8_t pin_a12 = address_mangler.addr_pins[12];
@@ -290,39 +290,39 @@ uint8_t demangle_byte(uint8_t mangled_byte) {
 // Convert ROM type number to string
 const char* rom_type_to_string(sdrr_rom_type_t rom_type) {
     switch (rom_type) {
-        case ROM_TYPE_2316: return "2316";
-        case ROM_TYPE_2332: return "2332";  
-        case ROM_TYPE_2364: return "2364";
-        case ROM_TYPE_23128: return "23128";
-        case ROM_TYPE_23256: return "23256";
-        case ROM_TYPE_23512: return "23512";
-        case ROM_TYPE_2716: return "2716";
-        case ROM_TYPE_2732: return "2732";
-        case ROM_TYPE_2764: return "2764";
-        case ROM_TYPE_27128: return "27128";
-        case ROM_TYPE_27256: return "27256";
-        case ROM_TYPE_27512: return "27512";
+        case CHIP_TYPE_2316: return "2316";
+        case CHIP_TYPE_2332: return "2332";  
+        case CHIP_TYPE_2364: return "2364";
+        case CHIP_TYPE_23128: return "23128";
+        case CHIP_TYPE_23256: return "23256";
+        case CHIP_TYPE_23512: return "23512";
+        case CHIP_TYPE_2716: return "2716";
+        case CHIP_TYPE_2732: return "2732";
+        case CHIP_TYPE_2764: return "2764";
+        case CHIP_TYPE_27128: return "27128";
+        case CHIP_TYPE_27256: return "27256";
+        case CHIP_TYPE_27512: return "27512";
         default: return "unknown";
     }
 }
 
 uint8_t get_num_cs(sdrr_rom_type_t rom_type) {
     switch (rom_type) {
-        case ROM_TYPE_2316:
-        case ROM_TYPE_23128:
+        case CHIP_TYPE_2316:
+        case CHIP_TYPE_23128:
             return 3;
-        case ROM_TYPE_2332:
-        case ROM_TYPE_23256:
-        case ROM_TYPE_23512:
-        case ROM_TYPE_2716:
-        case ROM_TYPE_2732:
-        case ROM_TYPE_2764:
-        case ROM_TYPE_27128:
-        case ROM_TYPE_27256:
-        case ROM_TYPE_27512:
+        case CHIP_TYPE_2332:
+        case CHIP_TYPE_23256:
+        case CHIP_TYPE_23512:
+        case CHIP_TYPE_2716:
+        case CHIP_TYPE_2732:
+        case CHIP_TYPE_2764:
+        case CHIP_TYPE_27128:
+        case CHIP_TYPE_27256:
+        case CHIP_TYPE_27512:
             return 2;
-        case ROM_TYPE_2364:
-        case ROM_TYPE_231024:
+        case CHIP_TYPE_2364:
+        case CHIP_TYPE_231024:
             return 1;
         default:
             assert(0 && "Unknown ROM type in num_cs");
@@ -366,37 +366,37 @@ const char* cs_state_to_string(int cs_state) {
 // Get expected ROM size for type
 size_t get_expected_rom_size(sdrr_rom_type_t rom_type) {
     switch (rom_type) {
-        case ROM_TYPE_2316: return 2048;
-        case ROM_TYPE_2332: return 4096;
-        case ROM_TYPE_2364: return 8192;
-        case ROM_TYPE_23128: return 16384;
-        case ROM_TYPE_23256: return 32768;
-        case ROM_TYPE_23512: return 65536;
-        case ROM_TYPE_2716: return 2048;
-        case ROM_TYPE_2732: return 4096;
-        case ROM_TYPE_2764: return 8192;
-        case ROM_TYPE_27128: return 16384;
-        case ROM_TYPE_27256: return 32768;
-        case ROM_TYPE_27512: return 65536;
+        case CHIP_TYPE_2316: return 2048;
+        case CHIP_TYPE_2332: return 4096;
+        case CHIP_TYPE_2364: return 8192;
+        case CHIP_TYPE_23128: return 16384;
+        case CHIP_TYPE_23256: return 32768;
+        case CHIP_TYPE_23512: return 65536;
+        case CHIP_TYPE_2716: return 2048;
+        case CHIP_TYPE_2732: return 4096;
+        case CHIP_TYPE_2764: return 8192;
+        case CHIP_TYPE_27128: return 16384;
+        case CHIP_TYPE_27256: return 32768;
+        case CHIP_TYPE_27512: return 65536;
         default: return 0;
     }
 }
 
 sdrr_rom_type_t rom_type_from_string(const char* type_str) {
-    if (strcmp(type_str, "2316") == 0) return ROM_TYPE_2316;
-    else if (strcmp(type_str, "2332") == 0) return ROM_TYPE_2332;
-    else if (strcmp(type_str, "2364") == 0) return ROM_TYPE_2364;
-    else if (strcmp(type_str, "23128") == 0) return ROM_TYPE_23128;
-    else if (strcmp(type_str, "23256") == 0) return ROM_TYPE_23256;
-    else if (strcmp(type_str, "23512") == 0) return ROM_TYPE_23512;
-    else if (strcmp(type_str, "2704") == 0) return ROM_TYPE_2704;
-    else if (strcmp(type_str, "2708") == 0) return ROM_TYPE_2708;
-    else if (strcmp(type_str, "2716") == 0) return ROM_TYPE_2716;
-    else if (strcmp(type_str, "2732") == 0) return ROM_TYPE_2732;
-    else if (strcmp(type_str, "2764") == 0) return ROM_TYPE_2764;
-    else if (strcmp(type_str, "27128") == 0) return ROM_TYPE_27128;
-    else if (strcmp(type_str, "27256") == 0) return ROM_TYPE_27256;
-    else if (strcmp(type_str, "27512") == 0) return ROM_TYPE_27512;
+    if (strcmp(type_str, "2316") == 0) return CHIP_TYPE_2316;
+    else if (strcmp(type_str, "2332") == 0) return CHIP_TYPE_2332;
+    else if (strcmp(type_str, "2364") == 0) return CHIP_TYPE_2364;
+    else if (strcmp(type_str, "23128") == 0) return CHIP_TYPE_23128;
+    else if (strcmp(type_str, "23256") == 0) return CHIP_TYPE_23256;
+    else if (strcmp(type_str, "23512") == 0) return CHIP_TYPE_23512;
+    else if (strcmp(type_str, "2704") == 0) return CHIP_TYPE_2704;
+    else if (strcmp(type_str, "2708") == 0) return CHIP_TYPE_2708;
+    else if (strcmp(type_str, "2716") == 0) return CHIP_TYPE_2716;
+    else if (strcmp(type_str, "2732") == 0) return CHIP_TYPE_2732;
+    else if (strcmp(type_str, "2764") == 0) return CHIP_TYPE_2764;
+    else if (strcmp(type_str, "27128") == 0) return CHIP_TYPE_27128;
+    else if (strcmp(type_str, "27256") == 0) return CHIP_TYPE_27256;
+    else if (strcmp(type_str, "27512") == 0) return CHIP_TYPE_27512;
     else return -1; // Unknown type
 }
 

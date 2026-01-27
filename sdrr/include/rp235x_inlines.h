@@ -44,19 +44,26 @@ static inline void __attribute__((always_inline)) set_x_pulls(
 // Inlined as used by main_loop (which may be in RAM)
 static inline void __attribute__((always_inline)) setup_data_masks(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime_info,
     uint32_t *data_output_mask_val,
     uint32_t *data_input_mask_val
 ) {
     // We use GPIO_OE register to set lines as inputs/outputs.  We are
     // therefore controlling all GPIOs at once on the RP235x.  This means we
     // need to correctly handle the status LED, if used.
-    if (info->pins->data[0] < 8) {
+    uint8_t data_bits = 8;
+    if (runtime_info->bit_mode == BIT_MODE_16) {
+        data_bits = 16;
+    }
+    if (info->pins->data[0] < data_bits) {
         *data_output_mask_val = 0xFF;
     } else {
         *data_output_mask_val = 0xFF << 16;
     }
     *data_input_mask_val = 0;
 
+    // This doesn't properly handle 16 bit mode with data lines, but this is
+    // for the CPU algorithm anyway, which isn't supported.
     if ((info->status_led_enabled) && (info->pins->status <= MAX_USED_GPIOS)) {
         uint8_t pin = info->pins->status;
         *data_output_mask_val |= (1 << pin);
@@ -67,13 +74,13 @@ static inline void __attribute__((always_inline)) setup_data_masks(
 // Inlined as may be used by main_loop (which may be in RAM)
 static inline void __attribute__((always_inline)) status_led_on(uint8_t pin) {
     // Set to 0 to turn on
-    SIO_GPIO_OUT_CLR = (1 << pin);
+    SIO_GPIO_OUT_CLR_PIN(pin);
 }
 
 // Inlined as may be used by main_loop (which may be in RAM)
 static inline void __attribute__((always_inline)) status_led_off(uint8_t pin) {
     // Set to 1 to turn on
-    SIO_GPIO_OUT_SET = (1 << pin);
+    SIO_GPIO_OUT_SET_PIN(pin);
 }
 
 #endif // STM32F4_INLINES_H

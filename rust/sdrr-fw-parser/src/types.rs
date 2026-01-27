@@ -10,7 +10,7 @@ use core::fmt;
 use deku::prelude::*;
 
 #[cfg(not(feature = "std"))]
-use alloc::{format, string::String};
+use alloc::string::String;
 
 use crate::SdrrInfo;
 

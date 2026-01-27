@@ -10,6 +10,8 @@ mod validation;
 
 use validation::{HwConfigJson, McuFamily, Port, ServeMode};
 
+use crate::hw::validation::Chip;
+
 pub const HW_CONFIG_DIRS: [&str; 1] = ["json"];
 pub const HW_CONFIG_SUB_DIRS: [&str; 2] = ["user", "third-party"];
 pub const HW_GENERATED_RS_FILENAME: &str = "hw/generated.rs";
@@ -20,7 +22,7 @@ struct HwConfigData {
     alt: Vec<String>,
     variant_name: String,
     config: HwConfigJson,
-    phys_pin_to_addr_map: [Option<usize>; 16],
+    phys_pin_to_addr_map: [Option<usize>; Chip::MAX_ADDR_PINS],
     phys_pin_to_data_map: [usize; 8],
 }
 
@@ -112,8 +114,8 @@ fn load_all_configs(config_dirs: &[std::path::PathBuf]) -> Vec<HwConfigData> {
                     .and_then(|s| s.to_str())
                     .unwrap_or_else(|| panic!("Invalid filename: {}", path.display()));
 
-                // Skip rom-types.json - it's for ROM chip definitions, not hardware configs
-                if filename == "rom-types" {
+                // Skip chip-types.json - it's for chip definitions, not hardware configs
+                if filename == "chip-types" {
                     continue;
                 }
 
@@ -190,7 +192,7 @@ fn load_all_configs(config_dirs: &[std::path::PathBuf]) -> Vec<HwConfigData> {
                 }
 
                 // If number of ROM pins is 24, we consider X1/X2 and CS pins to be address pins too.
-                if config.rom.pins.quantity == 24 {
+                if config.chip.pins.quantity == 24 {
                     if let Some(x1_pin) = config.mcu.pins.x1 {
                         if x1_pin < min_addr_pin {
                             min_addr_pin = x1_pin;
@@ -235,7 +237,7 @@ fn load_all_configs(config_dirs: &[std::path::PathBuf]) -> Vec<HwConfigData> {
                 }
 
                 // Compute pin maps
-                let mut phys_pin_to_addr_map = [None; 16];
+                let mut phys_pin_to_addr_map = [None; Chip::MAX_ADDR_PINS];
                 for (addr_line, &phys_pin) in config.mcu.pins.addr.iter().enumerate() {
                     let mut phys_pin = phys_pin as usize;
                     if config.mcu.serve_mode == ServeMode::Cpu {
@@ -315,7 +317,7 @@ fn generate_lib_rs(configs: &[HwConfigData]) -> String {
     code.push_str("//!\n");
     code.push_str("//! ```\n");
     code.push_str("//! use onerom_config::hw::Board;\n");
-    code.push_str("//! use onerom_config::rom::RomType;\n");
+    code.push_str("//! use onerom_config::chip::ChipType;\n");
     code.push_str("//!\n");
     code.push_str("//! // Parse from string\n");
     code.push_str("//! let hw = Board::try_from_str(\"24-d\").unwrap();\n");
@@ -325,7 +327,7 @@ fn generate_lib_rs(configs: &[HwConfigData]) -> String {
     code.push_str("//! let addr_pins = hw.addr_pins();\n");
     code.push_str("//! \n");
     code.push_str("//! // Check ROM-specific control pins\n");
-    code.push_str("//! let cs1_pin = hw.pin_cs1(RomType::Rom2364);\n");
+    code.push_str("//! let cs1_pin = hw.pin_cs1(ChipType::Chip2364);\n");
     code.push_str("//! \n");
     code.push_str("//! // Check capabilities\n");
     code.push_str("//! if hw.supports_banked_roms() {\n");
@@ -353,7 +355,7 @@ fn generate_rust_code(configs: &[HwConfigData]) -> String {
     code.push_str("// MIT License\n\n");
     code.push_str("#![allow(dead_code)]\n\n");
 
-    code.push_str("use crate::rom::RomType;\n");
+    code.push_str("use crate::chip::ChipType;\n");
     code.push_str("use crate::mcu::{Port, Family};\n\n");
 
     // Generate models
@@ -427,7 +429,7 @@ fn generate_hw_config_impl(configs: &[HwConfigData]) -> String {
     code.push_str(&generate_description_method(configs));
     code.push_str("\n\n");
 
-    code.push_str(&generate_rom_pins_method(configs));
+    code.push_str(&generate_chip_pins_method(configs));
     code.push_str("\n\n");
 
     code.push_str(&generate_mcu_family_method(configs));
@@ -454,7 +456,7 @@ fn generate_hw_config_impl(configs: &[HwConfigData]) -> String {
     code.push_str(&generate_pin_status_method(configs));
     code.push_str("\n\n");
 
-    code.push_str(&generate_rom_pin_methods(configs));
+    code.push_str(&generate_chip_pin_methods(configs));
     code.push_str("\n\n");
 
     code.push_str(&generate_jumper_methods(configs));
@@ -469,8 +471,11 @@ fn generate_hw_config_impl(configs: &[HwConfigData]) -> String {
     code.push_str(&generate_model_method(configs));
     code.push_str("\n\n");
 
-    code.push_str(&generate_supports_rom_type_method(configs));
-    code.push_str("}\n");
+    code.push_str(&generate_supports_chip_type_method(configs));
+    code.push_str("\n\n");
+
+    code.push_str(&generate_bit_modes_method(configs));
+    code.push_str("\n\n}\n");
 
     code
 }
@@ -544,17 +549,17 @@ fn generate_description_method(configs: &[HwConfigData]) -> String {
     code
 }
 
-fn generate_rom_pins_method(configs: &[HwConfigData]) -> String {
+fn generate_chip_pins_method(configs: &[HwConfigData]) -> String {
     let mut code = String::new();
 
     code.push_str("    /// Get the number of pins in supported ROM packages\n");
-    code.push_str("    pub const fn rom_pins(&self) -> u8 {\n");
+    code.push_str("    pub const fn chip_pins(&self) -> u8 {\n");
     code.push_str("        match self {\n");
 
     for config in configs {
         code.push_str(&format!(
             "            Board::{} => {},\n",
-            config.variant_name, config.config.rom.pins.quantity
+            config.variant_name, config.config.chip.pins.quantity
         ));
     }
 
@@ -574,6 +579,7 @@ fn generate_mcu_family_method(configs: &[HwConfigData]) -> String {
         let family = match config.config.mcu.family {
             McuFamily::Stm32f4 => "Family::Stm32f4",
             McuFamily::Rp2350 => "Family::Rp2350",
+            McuFamily::Rp2350B => "Family::Rp2350",
         };
         code.push_str(&format!(
             "            Board::{} => {},\n",
@@ -819,7 +825,7 @@ fn generate_pin_status_method(configs: &[HwConfigData]) -> String {
     code
 }
 
-fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
+fn generate_chip_pin_methods(configs: &[HwConfigData]) -> String {
     let mut code = String::new();
 
     let pin_methods = [
@@ -837,7 +843,7 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
             doc
         ));
         code.push_str(&format!(
-            "    pub const fn {}(&self, rom_type: RomType) -> u8 {{\n",
+            "    pub const fn {}(&self, chip_type: ChipType) -> u8 {{\n",
             pin_method_name
         ));
         code.push_str("        #[allow(clippy::match_single_binding)]\n");
@@ -846,7 +852,7 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
         for config in configs {
             code.push_str("            #[allow(clippy::match_single_binding)]\n");
             code.push_str(&format!(
-                "            Board::{} => match rom_type {{\n",
+                "            Board::{} => match chip_type {{\n",
                 config.variant_name
             ));
 
@@ -859,11 +865,11 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
                 _ => unreachable!(),
             };
 
-            // Generate matches for each ROM type
-            for (rom_name, pin) in pin_map {
+            // Generate matches for each Chip type
+            for (chip_name, pin) in pin_map {
                 code.push_str(&format!(
-                    "                RomType::Rom{} => {},\n",
-                    rom_name, pin
+                    "                ChipType::Chip{} => {},\n",
+                    chip_name, pin
                 ));
             }
 
@@ -880,7 +886,7 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
             doc
         ));
         code.push_str(&format!(
-            "    pub const fn {}(&self, rom_type: RomType) -> u8 {{\n",
+            "    pub const fn {}(&self, chip_type: ChipType) -> u8 {{\n",
             bit_method_name
         ));
         code.push_str("        match self {\n");
@@ -893,7 +899,7 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
                 config.config.mcu.family == McuFamily::Rp2350 && config.config.mcu.pins.data[0] < 8;
             code.push_str("            #[allow(clippy::match_single_binding)]\n");
             code.push_str(&format!(
-                "            Board::{} => match rom_type {{\n",
+                "            Board::{} => match chip_type {{\n",
                 config.variant_name
             ));
 
@@ -906,16 +912,16 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
                 _ => unreachable!(),
             };
 
-            // Generate matches for each ROM type with shift applied
-            for (rom_name, pin) in pin_map {
+            // Generate matches for each Chip type with shift applied
+            for (chip_name, pin) in pin_map {
                 let bit_pos = if shift_left_8 && *pin >= 8 {
                     pin - 8
                 } else {
                     *pin
                 };
                 code.push_str(&format!(
-                    "                RomType::Rom{} => {},\n",
-                    rom_name, bit_pos
+                    "                ChipType::Chip{} => {},\n",
+                    chip_name, bit_pos
                 ));
             }
 
@@ -1008,21 +1014,21 @@ fn generate_rom_pin_methods(configs: &[HwConfigData]) -> String {
     code.push_str("        }\n");
     code.push_str("    }\n\n");
 
-    // Add cs_pin_for_rom_in_set method
-    code.push_str("    /// Get chip select pin for ROM in set (0=CS1, 1=X1, 2=X2)\n");
-    code.push_str("    pub const fn cs_pin_for_rom_in_set(&self, rom_type: RomType, set_index: usize) -> u8 {\n");
+    // Add cs_pin_for_chip_in_set method
+    code.push_str("    /// Get chip select pin for Chip in set (0=CS1, 1=X1, 2=X2)\n");
+    code.push_str("    pub const fn cs_pin_for_chip_in_set(&self, chip_type: ChipType, set_index: usize) -> u8 {\n");
     code.push_str("        match set_index {\n");
-    code.push_str("            0 => self.pin_cs1(rom_type),\n");
+    code.push_str("            0 => self.pin_cs1(chip_type),\n");
     code.push_str("            1 => self.pin_x1(),\n");
     code.push_str("            2 => self.pin_x2(),\n");
     code.push_str("            _ => 255,\n");
     code.push_str("        }\n");
     code.push_str("    }\n\n");
 
-    code.push_str("    /// Get chip select bit position for ROM in set (0=CS1, 1=X1, 2=X2)\n");
-    code.push_str("    pub const fn cs_bit_for_rom_in_set(&self, rom_type: RomType, set_index: usize) -> u8 {\n");
+    code.push_str("    /// Get chip select bit position for Chip in set (0=CS1, 1=X1, 2=X2)\n");
+    code.push_str("    pub const fn cs_bit_for_chip_in_set(&self, chip_type: ChipType, set_index: usize) -> u8 {\n");
     code.push_str("        match set_index {\n");
-    code.push_str("            0 => self.bit_cs1(rom_type),\n");
+    code.push_str("            0 => self.bit_cs1(chip_type),\n");
     code.push_str("            1 => self.bit_x1(),\n");
     code.push_str("            2 => self.bit_x2(),\n");
     code.push_str("            _ => 255,\n");
@@ -1090,7 +1096,7 @@ fn generate_pin_map_methods(configs: &[HwConfigData]) -> String {
     code.push_str("    ///\n");
     code.push_str("    /// See onerom-gen src/image.rs handle_snowflake_rom_types() for an example\n");
     code.push_str(
-        "    pub const fn phys_pin_to_addr_map(&self) -> &'static [Option<usize>; 16] {\n",
+        &format!("    pub const fn phys_pin_to_addr_map(&self) -> &'static [Option<usize>; {}] {{\n", Chip::MAX_ADDR_PINS),
     );
     code.push_str("        match self {\n");
 
@@ -1131,7 +1137,7 @@ fn generate_pin_map_methods(configs: &[HwConfigData]) -> String {
     code
 }
 
-fn format_option_array(arr: &[Option<usize>; 16]) -> String {
+fn format_option_array(arr: &[Option<usize>; Chip::MAX_ADDR_PINS]) -> String {
     arr.iter()
         .map(|opt| match opt {
             Some(v) => format!("Some({})", v),
@@ -1146,13 +1152,13 @@ fn generate_capability_methods(configs: &[HwConfigData]) -> String {
 
     code.push_str("    /// Check if this board supports banked ROMs\n");
     code.push_str("    pub const fn supports_banked_roms(&self) -> bool {\n");
-    code.push_str("        self.supports_multi_rom_sets()\n");
+    code.push_str("        self.supports_multi_chip_sets()\n");
     code.push_str("    }\n\n");
 
     code.push_str(
         "    /// Check if this board supports multiple ROM sets (requires X1 and X2 pins)\n",
     );
-    code.push_str("    pub const fn supports_multi_rom_sets(&self) -> bool {\n");
+    code.push_str("    pub const fn supports_multi_chip_sets(&self) -> bool {\n");
     code.push_str("        match self {\n");
 
     for config in configs {
@@ -1237,14 +1243,42 @@ fn generate_model_method(configs: &[HwConfigData]) -> String {
     code
 }
 
-fn generate_supports_rom_type_method(_configs: &[HwConfigData]) -> String {
+fn generate_supports_chip_type_method(_configs: &[HwConfigData]) -> String {
     let mut code = String::new();
 
-    code.push_str("    /// Check if this board supports a given ROM type\n");
-    code.push_str("    pub const fn supports_rom_type(&self, rom_type: RomType) -> bool {\n");
-    code.push_str("        let board_pins = self.rom_pins();\n");
-    code.push_str("        let rom_pins = rom_type.rom_pins();\n");
-    code.push_str("        rom_pins == board_pins\n");
+    code.push_str("    /// Check if this board supports a given Chip type\n");
+    code.push_str("    pub const fn supports_chip_type(&self, chip_type: ChipType) -> bool {\n");
+    code.push_str("        let board_pins = self.chip_pins();\n");
+    code.push_str("        let chip_pins = chip_type.chip_pins();\n");
+    code.push_str("        chip_pins == board_pins\n");
+    code.push_str("    }");
+
+    code
+}
+
+fn generate_bit_modes_method(configs: &[HwConfigData]) -> String {
+    let mut code = String::new();
+
+    code.push_str("    /// Get supported bit modes for this board\n");
+    code.push_str("    pub const fn bit_modes(&self) -> &'static [usize] {\n");
+    code.push_str("        match self {\n");
+
+    for config in configs {
+        let modes_str = config
+            .config
+            .chip
+            .bit_modes
+            .iter()
+            .map(|mode| format!("{}", usize::from(*mode)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        code.push_str(&format!(
+            "            Board::{} => &[{}],\n",
+            config.variant_name, modes_str)
+        );
+    }
+
+    code.push_str("        }\n");
     code.push_str("    }");
 
     code

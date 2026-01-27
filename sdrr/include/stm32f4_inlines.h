@@ -82,9 +82,11 @@ static inline void __attribute__((always_inline)) set_x_pulls(
 // Inlined as used by main_loop (which may be in RAM)
 static inline void __attribute__((always_inline)) setup_data_masks(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime_info,
     uint32_t *data_output_mask_val,
     uint32_t *data_input_mask_val
 ) {
+    (void)runtime_info;
     if (info->mco_enabled) {
         // PA8 is AF, PA0-7 are inputs
         *data_output_mask_val = 0x00025555;

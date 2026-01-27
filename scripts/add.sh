@@ -48,9 +48,7 @@ INPUT_ELF="${INPUT_BASE}.elf"
 OUTPUT_BIN="${OUTPUT_BASE}.bin"
 OUTPUT_ELF="${OUTPUT_BASE}.elf"
 
-# Construct probe-rs chip ID from INPUT_BASE, which is expected to be of the
-# format sdrr-stm32fxxxyy pr sdrr-rp2350
-CHIP=""
+# Construct chip ID from INPUT_BASE
 BASE=$(basename "$INPUT_BASE")
 if [[ "$BASE" == sdrr-stm32f* ]]; then
     CHIP=$(echo "$BASE" | sed 's/sdrr-//' | tr '[:lower:]' '[:upper:]')
@@ -64,4 +62,3 @@ fi
 
 scripts/_append-metadata.sh "${INPUT_BIN}" "${OUTPUT_BIN}" "${ROM_CONFIG}"
 scripts/_bin-to-elf.sh "${INPUT_ELF}" "${OUTPUT_BIN}" "${OUTPUT_ELF}" "${CHIP}"
-scripts/_flash-and-run-elf.sh "${OUTPUT_ELF}" "$CHIP"

@@ -18,7 +18,7 @@ use log::{debug, error, info, trace, warn};
 
 use onerom_config::hw::{Board, Model};
 use onerom_config::mcu::{Family, MCU_VARIANTS, Variant as McuVariant};
-use onerom_config::rom::RomType;
+use onerom_config::chip::ChipType;
 use onerom_fw::net::{Release, Releases};
 
 use crate::app::{AppMessage, progress_tick_subscription};
@@ -40,8 +40,8 @@ enum State {
     Saving,
     Loading,
     UserBuilding {
-        valid_rom_types: Vec<RomType>,
-        rom_type: Option<RomType>,
+        valid_rom_types: Vec<ChipType>,
+        rom_type: Option<ChipType>,
         cs: Vec<Option<Active>>,
         data: Option<String>,
     },

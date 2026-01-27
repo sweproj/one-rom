@@ -89,7 +89,7 @@ fn list_hw_revs() -> Result<()> {
 
 fn confirm_licences(config: &Config) -> Result<()> {
     let licensed_roms: Vec<_> = config
-        .roms
+        .chips
         .iter()
         .filter(|rom| rom.licence.is_some())
         .collect();

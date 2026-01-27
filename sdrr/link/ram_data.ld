@@ -12,14 +12,4 @@ _sidata = LOADADDR(.data);
 
 _flash_firmware_end = LOADADDR(.data) + SIZEOF(.data);
 
-/* Uninitialized data */
-.bss :
-{
-    . = ALIGN(4);
-    _sbss = .;
-    *(.bss)
-    *(.bss*)
-    *(COMMON)
-    . = ALIGN(4);
-    _ebss = .;
-} >RAM
+/* Note data is assumed to be zero - size - asserted in common.ld */

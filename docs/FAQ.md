@@ -1,5 +1,7 @@
 # One ROM Frequently Asked Questions
 
+January 2026 - this FAQ is a little out of date.  For programming see [One ROM Studio](https://onerom.org/studio) and [One ROM Web](https://onerom.org/web).
+
 ## What is One ROM?
 
 **Q: What exactly is One ROM?**
@@ -126,12 +128,12 @@ See the [Pi Pico Programmer Guide](/docs/PI-PICO-PROGRAMMER.md) for detailed ins
 A: Connect your programmer's CLK, DIO, and GND lines to One ROM, then run a command like this:
 
 ```bash
-MCU=f411re CONFIG=config/c64.mk make run
+MCU=f411re CONFIG=old-config/c64.mk make run
 ```
 
 This automatically downloads ROMs, generates firmware, and flashes the device.
 
-There are other pre-collated collections of ROMs available in the [`config/`](/config/) directory, such as `vic20-pal.mk`, `pet-4-40-50.mk`, and `1541.mk`. You can also create your own custom configurations.
+There are other pre-collated collections of ROMs available in the [`old-config/`](/old-config/) directory, such as `vic20-pal.mk`, `pet-4-40-50.mk`, and `1541.mk`. You can also create your own custom configurations.
 
 **Q: Can I reprogram One ROM while it's installed in my retro system?**
 
@@ -171,7 +173,7 @@ A: Up to 16 images, limited by either flash size (smaller variants) or the physi
 
 **Q: Can I mix different ROM types in one firmware?**
 
-A: Yes! Each ROM image can be independently configured as 2364, 2332, or 2316 with different chip select configurations. See the [config files](/config/) for examples.
+A: Yes! Each ROM image can be independently configured as 2364, 2332, or 2316 with different chip select configurations. See the [config files](/old-config/) for examples.
 
 **Q: How do I create custom ROM configurations?**
 
@@ -181,7 +183,7 @@ A: Define `ROM_CONFIGS` with file paths, ROM types, and chip select settings:
 ROM_CONFIGS=file=kernal.rom,type=2364,cs1=0 file=basic.rom,type=2364,cs1=0
 ```
 
-Or create your own [config file](/config/).
+Or create your own [config file](/old-config/).
 
 ## Performance and Technical
 

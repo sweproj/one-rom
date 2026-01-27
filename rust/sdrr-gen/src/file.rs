@@ -20,7 +20,7 @@ use strum::EnumIter;
 use urlencoding::decode;
 use zip::ZipArchive;
 
-use onerom_gen::image::Rom;
+use onerom_gen::image::Chip;
 
 use crate::config::Config;
 
@@ -180,9 +180,9 @@ pub fn source_image_file(
 }
 
 // Load the ROM files based on the configuration
-pub fn load_rom_files(config: &Config) -> Result<Vec<Rom>> {
+pub fn load_rom_files(config: &Config) -> Result<Vec<Chip>> {
     let mut roms = Vec::new();
-    for (ii, rom_config) in config.roms.iter().enumerate() {
+    for (ii, rom_config) in config.chips.iter().enumerate() {
         // Read in the original ROM file
         let file = rom_config.file.clone();
         let src = fs::read(file.clone())
@@ -193,7 +193,7 @@ pub fn load_rom_files(config: &Config) -> Result<Vec<Rom>> {
         let image = vec![0xFF_u8; rom_size];
 
         // Process the ROM image data
-        let rom = Rom::from_raw_rom_image(
+        let rom = Chip::from_raw_rom_image(
             ii,
             rom_config
                 .original_source
@@ -203,7 +203,7 @@ pub fn load_rom_files(config: &Config) -> Result<Vec<Rom>> {
                 .unwrap_or("unknown")
                 .to_string(),
             None,
-            &src,
+            Some(&src),
             image,
             &rom_config.rom_type,
             rom_config.cs_config.clone(),

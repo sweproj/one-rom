@@ -4,7 +4,7 @@ This directory contains the One ROM PCB hardware configuration files, which tell
 
 This allows new hardware revisions (i.e. new PCB layouts with different pin mappings) to be supported without needing to modify the source code.
 
-It also contains the [supported ROM type hardware configuration file](rom-types.json), which tells One ROM what ROMs to support and how to support them.
+It also contains the [supported chip type hardware configuration file](chip-types.json), which tells One ROM what chips to support and how to support them.
 
 ## Usage
 

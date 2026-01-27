@@ -8,6 +8,12 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
+// Required for custom schemas implementations
+#[cfg(feature = "schemars")]
+use schemars::{Schema, SchemaGenerator, JsonSchema, json_schema};
+#[cfg(feature = "schemars")]
+use alloc::borrow::Cow;
+
 /// Top level configuration structure
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -212,7 +218,6 @@ pub struct ServeAlgParams {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct IceCpuFreq(u16);
 
 impl IceCpuFreq {
@@ -322,9 +327,26 @@ impl<'de> serde::Deserialize<'de> for IceCpuFreq {
     }
 }
 
+#[cfg(feature = "schemars")]
+impl JsonSchema for IceCpuFreq {
+    fn schema_name() -> Cow<'static, str> {
+        "IceCpuFreq".into()
+    }
+
+    fn json_schema(_gen: &mut SchemaGenerator) -> Schema {
+        json_schema!({
+            "type": "string",
+            "description": format!(
+                "CPU frequency: 'None', 'Stock', or '{{n}}MHz' where n is {}-{}",
+                Self::MIN_MHZ,
+                Self::MAX_MHZ
+            )
+        })
+    }
+}
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct FireCpuFreq(u16);
 
 impl FireCpuFreq {
@@ -440,6 +462,24 @@ impl<'de> serde::Deserialize<'de> for FireCpuFreq {
                 }
             }
         }
+    }
+}
+
+#[cfg(feature = "schemars")]
+impl JsonSchema for FireCpuFreq {
+    fn schema_name() -> Cow<'static, str> {
+        "FireCpuFreq".into()
+    }
+
+    fn json_schema(_gen: &mut SchemaGenerator) -> Schema {
+        schemars::json_schema!({
+            "type": "string",
+            "description": format!(
+                "CPU frequency: 'None', 'Stock', or '{{n}}MHz' where n is {}-{}",
+                Self::MIN_MHZ,
+                Self::MAX_MHZ
+            )
+        })
     }
 }
 

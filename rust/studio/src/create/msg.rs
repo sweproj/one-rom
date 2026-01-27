@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use onerom_config::hw::{Board, Model};
 use onerom_config::mcu::Variant as McuVariant;
-use onerom_config::rom::RomType;
+use onerom_config::chip::ChipType;
 use onerom_fw::net::Release;
 
 use crate::app::AppMessage;
@@ -74,7 +74,7 @@ pub enum Message {
     ProgressTick,
 
     // User building custom configuration
-    BuildingSelectRomType(RomType),
+    BuildingSelectChipType(ChipType),
     BuildingSelectCsActive(usize, Active),
     BuildingSelectDataVec(Vec<u8>),
     BuildingComplete,
@@ -155,7 +155,7 @@ pub fn message(create: &mut Create, runtime_info: &RuntimeInfo, msg: Message) ->
         }
 
         // User building custom configuration
-        Message::BuildingSelectRomType(rom_type) => select_rom_type(create, rom_type),
+        Message::BuildingSelectChipType(rom_type) => select_rom_type(create, rom_type),
         Message::BuildingSelectCsActive(index, active) => select_cs_active(create, index, active),
         Message::BuildingSelectDataVec(data) => select_data_vec(create, data),
         Message::BuildingComplete => {
@@ -218,8 +218,8 @@ impl std::fmt::Display for Message {
 
             Message::ProgressTick => write!(f, "ProgressTick"),
 
-            Message::BuildingSelectRomType(rom_type) => {
-                write!(f, "BuildingSelectRomType({rom_type})")
+            Message::BuildingSelectChipType(rom_type) => {
+                write!(f, "BuildingSelectChipType({rom_type})")
             }
             Message::BuildingSelectCsActive(index, active) => {
                 write!(f, "BuildingSelectCsActive({}, {})", index, active)

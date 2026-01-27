@@ -51,6 +51,8 @@
 #define SYSINFO_PACKAGE_SEL     (*((volatile uint32_t *)(SYSINFO_BASE + 0x04)))
 #define SYSINFO_GITREF_RP2350   (*((volatile uint32_t *)(SYSINFO_BASE + 0x14)))
 
+#define SYSINFO_IS_QFN60()      (SYSINFO_PACKAGE_SEL & 0b1)
+
 // SYSCFG Registers
 #define SYSCFG_DBGFORCE             (*((volatile uint32_t *)(SYSCFG_BASE + 0x0C)))
 #define SYSCFG_DBGFORCE_ATTACH_BIT  (1 << 3)
@@ -286,14 +288,38 @@
 // SIO Registers
 #define SIO_CPUID           (*((volatile uint32_t *)(SIO_BASE + 0x00)))
 #define SIO_GPIO_IN         (*((volatile uint32_t *)(SIO_BASE + 0x04)))
+#define SIO_GPIO_HI_IN      (*((volatile uint32_t *)(SIO_BASE + 0x08)))
 #define SIO_GPIO_OUT        (*((volatile uint32_t *)(SIO_BASE + 0x10)))
+#define SIO_GPIO_HI_OUT     (*((volatile uint32_t *)(SIO_BASE + 0x14)))
 #define SIO_GPIO_OUT_SET    (*((volatile uint32_t *)(SIO_BASE + 0x18)))
+#define SIO_GPIO_HI_OUT_SET (*((volatile uint32_t *)(SIO_BASE + 0x1C)))
 #define SIO_GPIO_OUT_CLR    (*((volatile uint32_t *)(SIO_BASE + 0x20)))
+#define SIO_GPIO_HI_OUT_CLR (*((volatile uint32_t *)(SIO_BASE + 0x24)))
 #define SIO_GPIO_OE         (*((volatile uint32_t *)(SIO_BASE + 0x30)))
+#define SIO_GPIO_HI_OE      (*((volatile uint32_t *)(SIO_BASE + 0x34)))
 #define SIO_GPIO_OE_SET     (*((volatile uint32_t *)(SIO_BASE + 0x38)))
+#define SIO_GPIO_HI_OE_SET  (*((volatile uint32_t *)(SIO_BASE + 0x3C)))
 #define SIO_GPIO_OE_CLR     (*((volatile uint32_t *)(SIO_BASE + 0x40)))
+#define SIO_GPIO_HI_OE_CLR  (*((volatile uint32_t *)(SIO_BASE + 0x44)))
 
-#define SIO_GPIO_READ(pin)  (((*(volatile uint32_t*)(SIO_BASE + 0x004)) >> pin) & 1)
+#define SIO_GPIO_READ(pin)          if (pin < 32) \
+                                        (((*(volatile uint32_t*)(SIO_BASE + 0x004)) >> pin) & 1) \
+                                    else \
+                                        (((*(volatile uint32_t*)(SIO_BASE + 0x008)) >> (pin - 32)) & 1)
+
+#define SIO_GPIO_OE_SET_PIN(pin)    if (pin < 32) \
+                                        (*(volatile uint32_t*)(SIO_BASE + 0x038) = (1 << pin)); \
+                                    else \
+                                        (*(volatile uint32_t*)(SIO_BASE + 0x03C) = (1 << (pin - 32)));
+#define SIO_GPIO_OUT_SET_PIN(pin)   if (pin < 32) \
+                                        (*(volatile uint32_t*)(SIO_BASE + 0x018) = (1 << pin)); \
+                                    else \
+                                        (*(volatile uint32_t*)(SIO_BASE + 0x01C) = (1 << (pin - 32)));
+#define SIO_GPIO_IN_PIN(pin)        SIO_GPIO_READ(pin)
+#define SIO_GPIO_OUT_CLR_PIN(pin)   if (pin < 32) \
+                                        (*(volatile uint32_t*)(SIO_BASE + 0x020) = (1 << pin)); \
+                                    else \
+                                        (*(volatile uint32_t*)(SIO_BASE + 0x024) = (1 << (pin - 32)));
 
 // PPB Registers
 #define NVIC_ISER0          (*((volatile uint32_t *)(PBB_BASE + 0x0E100)))
@@ -312,7 +338,13 @@
 #define RP2350_RAM_SIZE_KB  520
 
 // Maximum number of used GPIOs - those exposed on the QFN60 RP2350A
+#if defined(RP2350A)
 #define MAX_USED_GPIOS      30
+#elif defined(RP2350B)
+#define MAX_USED_GPIOS      48
+#else // Unknown variant
+#error "Unknown RP235X variant"
+#endif // RP2350A/B
 
 
 // Boot block structure
@@ -339,372 +371,5 @@ typedef struct {
 
 #define RP235X_STOCK_CLOCK_SPEED_MHZ 150
 #define RP235X_MAX_CONFIGURABLE_MHZ 800
-
-#if defined(RP235X_INCLUDES)
-#define RP235X_CLOCK_CONFIG_COUNT 45
-rp235x_clock_config_t rp235x_clock_config[RP235X_CLOCK_CONFIG_COUNT] = {
-    {
-        .sys_clock_freq_mhz = RP235X_STOCK_CLOCK_SPEED_MHZ,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 20,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 70,
-        .pll_sys_postdiv1 = 7,
-        .pll_sys_postdiv2 = 6,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 30,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 70,
-        .pll_sys_postdiv1 = 7,
-        .pll_sys_postdiv2 = 4,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 40,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 70,
-        .pll_sys_postdiv1 = 7,
-        .pll_sys_postdiv2 = 3,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 50,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 3,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 60,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 70,
-        .pll_sys_postdiv1 = 7,
-        .pll_sys_postdiv2 = 2,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 70,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 70,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 2,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 80,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 80,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 2,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 90,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 5,
-        .pll_sys_postdiv2 = 2,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 100,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 100,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 2,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 110,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 110,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 2,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 120,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 70,
-        .pll_sys_postdiv1 = 7,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 130,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 65,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 140,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 70,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 150,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 160,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 170,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 180,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 190,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 200,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 210,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 220,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 230,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 240,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 250,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 260,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 270,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 280,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 300,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_10V,
-    },
-    {
-        .sys_clock_freq_mhz = 320,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_15V,
-    },
-    {
-        .sys_clock_freq_mhz = 330,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_15V,
-    },
-    {
-        .sys_clock_freq_mhz = 340,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_20V,
-    },
-    {
-        .sys_clock_freq_mhz = 360,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_20V,
-    },
-    {
-        .sys_clock_freq_mhz = 380,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_25V,
-    },
-    {
-        .sys_clock_freq_mhz = 390,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_25V,
-    },
-    {
-        .sys_clock_freq_mhz = 400,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_30V,
-    },
-    {
-        .sys_clock_freq_mhz = 420,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_30V,
-    },
-    {
-        .sys_clock_freq_mhz = 440,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_40V,
-    },
-    {
-        .sys_clock_freq_mhz = 450,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_50V,
-    },
-    {
-        .sys_clock_freq_mhz = 460,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_50V,
-    },
-    {
-        .sys_clock_freq_mhz = 480,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_50V,
-    },
-    {
-        .sys_clock_freq_mhz = 500,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_60V,
-    },
-    {
-        .sys_clock_freq_mhz = 510,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_60V,
-    },
-    {
-        .sys_clock_freq_mhz = 520,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_60V,
-    },
-    {
-        .sys_clock_freq_mhz = 540,
-        .pll_refdiv = 1,
-        .pll_sys_fbdiv = 75,
-        .pll_sys_postdiv1 = 6,
-        .pll_sys_postdiv2 = 1,
-        .vreg = FIRE_VREG_1_60V,
-    },
-};
-_Static_assert(sizeof(rp235x_clock_config)/sizeof(rp235x_clock_config_t) == RP235X_CLOCK_CONFIG_COUNT, "Clock config count mismatch");
-#endif // RP235X_INCLUDES
 
 #endif // REG_RP235X_H

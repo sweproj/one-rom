@@ -28,7 +28,7 @@ pub mod fw;
 pub mod hw;
 //pub mod image;
 pub mod mcu;
-pub mod rom;
+pub mod chip;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Error {

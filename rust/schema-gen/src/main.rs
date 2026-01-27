@@ -11,7 +11,7 @@ use serde_json::ser::{PrettyFormatter, Serializer};
 use std::fs::write;
 use std::path::PathBuf;
 
-const ROM_CONFIG_DIRNAME: &str = "rom-config";
+const ROM_CONFIG_DIRNAME: &str = "onerom-config";
 const ROM_CONFIG_FILENAME: &str = "schema.json";
 
 fn main() {

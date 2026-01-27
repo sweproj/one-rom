@@ -4,7 +4,7 @@
 
 //! Generates firmware artifacts for One ROM.
 
-//#![no_std]
+#![no_std]
 
 extern crate alloc;
 
@@ -13,15 +13,15 @@ pub mod firmware;
 pub mod image;
 pub mod meta;
 
-pub use builder::{Builder, Config, FileData, FileSpec, License, RomConfig, RomSetConfig};
-pub use image::{CsConfig, CsLogic, Rom, RomSet, RomSetType, SizeHandling};
-pub use image::{PAD_BLANK_BYTE, PAD_NO_ROM_BYTE};
+pub use builder::{Builder, Config, FileData, FileSpec, License, ChipConfig, ChipSetConfig};
+pub use image::{CsConfig, CsLogic, Chip, ChipSet, ChipSetType, SizeHandling};
+pub use image::{PAD_BLANK_BYTE, PAD_NO_CHIP_BYTE};
 pub use meta::{MAX_METADATA_LEN, Metadata, PAD_METADATA_BYTE};
 
 use alloc::string::String;
 use onerom_config::fw::{FirmwareVersion, ServeAlg};
 use onerom_config::mcu::Family;
-use onerom_config::rom::RomType;
+use onerom_config::chip::ChipType;
 
 /// Version of metadata produced by this version of the crate
 pub const METADATA_VERSION: u32 = 1;
@@ -38,17 +38,17 @@ pub enum Error {
     RightSize {
         size: usize,
     },
-    RomTooSmall {
+    ImageTooSmall {
         index: usize,
         expected: usize,
         actual: usize,
     },
-    DuplicationNotExactDivisor {
-        rom_size: usize,
+    ImageTooLarge {
+        image_size: usize,
         expected_size: usize,
     },
-    RomTooLarge {
-        rom_size: usize,
+    DuplicationNotExactDivisor {
+        image_size: usize,
         expected_size: usize,
     },
     BufferTooSmall {
@@ -56,12 +56,12 @@ pub enum Error {
         expected: usize,
         actual: usize,
     },
-    NoRoms,
-    TooManyRoms {
+    NoChips,
+    TooManyChips {
         expected: usize,
         actual: usize,
     },
-    TooFewRoms {
+    TooFewChips {
         expected: usize,
         actual: usize,
     },
@@ -94,8 +94,8 @@ pub enum Error {
     MissingFile {
         id: usize,
     },
-    UnsupportedRomType {
-        rom_type: RomType,
+    UnsupportedChipType {
+        chip_type: ChipType,
     },
     InvalidLicense {
         id: usize,

@@ -181,6 +181,7 @@ impl Args {
         }
 
         // Check the file exists if specified
+        #[allow(clippy::collapsible_if)]
         if let Some(ref rom_file) = self.rom {
             if !std::path::Path::new(rom_file).exists() {
                 return Err(Error::config(format!(
@@ -237,7 +238,6 @@ fn board_values() -> String {
         .map(|b| b.name())
         .collect::<Vec<_>>()
         .join(", ")
-        .into()
 }
 
 fn mcu_values() -> String {
@@ -246,7 +246,6 @@ fn mcu_values() -> String {
         .map(|m| m.to_string().to_lowercase())
         .collect::<Vec<_>>()
         .join(", ")
-        .into()
 }
 
 async fn load_firmware_metadata(path: &str) -> Result<(FirmwareVersion, Board, McuVariant), Error> {

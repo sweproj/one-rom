@@ -63,18 +63,18 @@ Once connected, you can run the appropriate `make` command from the repository r
 One ROM rev G, STM32F405RG MCU, serving the standard set of C64 images:
 
 ```bash
-HW_REV=24-g MCU=f405rg CONFIG=config/c64.mk run
+HW_REV=24-g MCU=f405rg CONFIG=old-config/c64.mk run
 ```
 
 One ROM rev A, RP2350 MCU, serving the standard set of VIC20 PAL images:
 
 ```bash
-HW_REV=p24-a MCU=rp2350 CONFIG=config/vic20-pal.mk run
+HW_REV=p24-a MCU=rp2350 CONFIG=old-config/vic20-pal.mk run
 ```
 
 There are lots of other build configurations possible - see:
 - [Hardware Version Build Settings](#hardware-version-build-settings) for standard `HW_REV` and `MCU` settings
-- [config](/config/README.md) for a list of standard ROM image configurations
+- [old-config](/old-config/README.md) for a list of standard ROM image configurations
 - [Advanced Configuration](/docs/CONFIGURATION.md) for other configuration options.
 
 ### STM32 Revisions 24-D/E/F Programming Pins

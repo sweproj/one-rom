@@ -1,10 +1,10 @@
-# ROM Type Specifications
+# Chip Type Specifications
 
-This document provides detailed specifications for the different ROM types One ROM supports, and aims to support in future, including pinouts, control lines, and programming requirements.
+This document provides detailed specifications for the different Chip types One ROM supports, and aims to support in future, including pinouts, control lines, and programming requirements.
 
-The document is auto-generated from the [json/rom-types.json](/rust/config/json/rom-types.json) configuration file.  That file was created by researching datasheets for the various ROM types.
+The document is auto-generated from the [json/rom-types.json](/rust/config/json/rom-types.json) configuration file.  That file was created by researching datasheets for the various Chip types.
 
-Some of the pin names have been modified from the datasheet values for consistency beween ROM types:
+Some of the pin names have been modified from the datasheet values for consistency beween Chip types:
 
 - /OE on 2704/2408 is called Program, but serves as /OE when in read mode.  Other 27xx ROMs use /OE for that pin, hence the /OE name is used here. 
 - Similarly /CE on 2704/2708 ROMs is called /CS, but is called /CE for consistency with other ROM types.
@@ -21,12 +21,13 @@ There are also some other inconsistencies between types:
 - [28-pin Mask ROM Family (23xxx)](#28-pin-mask-rom-family-23xx)
 - [24-pin EPROM Family (27xx)](#24-pin-eprom-family-27xx)
 - [28-pin EPROM Family (2764 and 27xxx)](#28-pin-eprom-family-27xx)
+- [RAM Chips](#ram-chips)
 - [Pin Function Comparison](#pin-function-comparison)
 - [Detailed Pinouts](#detailed-pinouts)
 
 ## 24-pin Mask ROM Family (23xx)
 
-| ROM Type | Size | Address Lines | Control Lines | Programming |
+| Chip Type | Size | Address Lines | Control Lines | Programming |
 |----------|------|---------------|---------------|-------------|
 | 2316 | 2KB | 11 (A0-A10) | CS1 (pin 20), CS2 (pin 18), CS3 (pin 21) | None |
 | 2332 | 4KB | 12 (A0-A11) | CS1 (pin 20), CS2 (pin 21) | None |
@@ -34,7 +35,7 @@ There are also some other inconsistencies between types:
 
 ## 28-pin Mask ROM Family (23xx)
 
-| ROM Type | Size | Address Lines | Control Lines | Programming |
+| Chip Type | Size | Address Lines | Control Lines | Programming |
 |----------|------|---------------|---------------|-------------|
 | 23128 | 16KB | 14 (A0-A13) | CS1 (pin 20), CS2 (pin 22), CS3 (pin 27) | None |
 | 23256 | 32KB | 15 (A0-A14) | CS1 (pin 20), CS2 (pin 22) | None |
@@ -43,7 +44,7 @@ There are also some other inconsistencies between types:
 
 ## 24-pin EPROM Family (27xx)
 
-| ROM Type | Size | Address Lines | Control Lines | Programming |
+| Chip Type | Size | Address Lines | Control Lines | Programming |
 |----------|------|---------------|---------------|-------------|
 | 2704 | 512B | 9 (A0-A8) | /CE (pin 18), /OE (pin 20) | VPP: pin 18 (Low during read) |
 | 2708 | 1KB | 10 (A0-A9) | /CE (pin 18), /OE (pin 20) | VPP: pin 18 (Low during read) |
@@ -52,7 +53,7 @@ There are also some other inconsistencies between types:
 
 ## 28-pin EPROM Family (27xx)
 
-| ROM Type | Size | Address Lines | Control Lines | Programming |
+| Chip Type | Size | Address Lines | Control Lines | Programming |
 |----------|------|---------------|---------------|-------------|
 | 2764 | 8KB | 13 (A0-A12) | /CE (pin 20), /OE (pin 22) | VPP: pin 1 (VCC during read); /PGM: pin 27 (High during read) |
 | 27128 | 16KB | 14 (A0-A13) | /CE (pin 20), /OE (pin 22) | VPP: pin 1 (VCC during read); /PGM: pin 27 (High during read) |
@@ -61,39 +62,45 @@ There are also some other inconsistencies between types:
 | 27C010 | 128KB | 17 (A0-A16) | /CE (pin 22), /OE (pin 24) | VPP: pin 1 (x); /PGM: pin 31 (x) |
 | 27C020 | 256KB | 18 (A0-A17) | /CE (pin 22), /OE (pin 24) | VPP: pin 1 (x); /PGM: pin 31 (x) |
 | 27C040 | 512KB | 19 (A0-A18) | /CE (pin 22), /OE (pin 24) | VPP: pin 1 (x); /PGM: pin 22 (Acts as /OE) |
-| 27C400 | 512KB | 19 (A0-A18) | /CE (pin 10), /OE (pin 12) | VPP: pin 31 (word_size); /PGM: pin 10 (Acts as /OE) |
+| 27C400 | 512KB | 19 (A0-A18) | /BYTE (pin 31), /CE (pin 10), /OE (pin 12) | VPP: pin 31 (word_size); /PGM: pin 10 (Acts as /OE) |
 | 27C080 | 1024KB | 20 (A0-A19) | /CE (pin 22), /OE (pin 24) | VPP: pin 24 (Acts as /OE); /PGM: pin 22 (Acts as /OE) |
+
+## RAM Chips
+
+| Chip Type | Size | Address Lines | Control Lines | Programming |
+|----------|------|---------------|---------------|-------------|
+| 6116 | 2KB | 11 (A0-A10) | /CE (pin 18), /OE (pin 20), /WRITE (pin 21) | None |
 
 ## Pin Function Comparison
 
 ### 24-pin Package
 
-| Pin | 2316 | 2332 | 2364 | 2704 | 2708 | 2716 | 2732 |
-|-----|------|------|------|------|------|------|------|
-| 1 | A7 | A7 | A7 | A7 | A7 | A7 | A7 |
-| 2 | A6 | A6 | A6 | A6 | A6 | A6 | A6 |
-| 3 | A5 | A5 | A5 | A5 | A5 | A5 | A5 |
-| 4 | A4 | A4 | A4 | A4 | A4 | A4 | A4 |
-| 5 | A3 | A3 | A3 | A3 | A3 | A3 | A3 |
-| 6 | A2 | A2 | A2 | A2 | A2 | A2 | A2 |
-| 7 | A1 | A1 | A1 | A1 | A1 | A1 | A1 |
-| 8 | A0 | A0 | A0 | A0 | A0 | A0 | A0 |
-| 9 | D0 | D0 | D0 | D0 | D0 | D0 | D0 |
-| 10 | D1 | D1 | D1 | D1 | D1 | D1 | D1 |
-| 11 | D2 | D2 | D2 | D2 | D2 | D2 | D2 |
-| 12 | GND | GND | GND | GND | GND | GND | GND |
-| 13 | D3 | D3 | D3 | D3 | D3 | D3 | D3 |
-| 14 | D4 | D4 | D4 | D4 | D4 | D4 | D4 |
-| 15 | D5 | D5 | D5 | D5 | D5 | D5 | D5 |
-| 16 | D6 | D6 | D6 | D6 | D6 | D6 | D6 |
-| 17 | D7 | D7 | D7 | D7 | D7 | D7 | D7 |
-| 18 | CS2 | A11 | A11 | /CE+VPP | /CE+VPP | /CE | /CE+PE |
-| 19 | A10 | A10 | A10 | VDD | VDD | A10 | A10 |
-| 20 | CS1 | CS1 | CS1 | /OE+PE | /OE+PE | /OE+PE | /OE+VPP |
-| 21 | CS3 | CS2 | A12 | VBB | VBB | VPP | A11 |
-| 22 | A9 | A9 | A9 | GND | A9 | A9 | A9 |
-| 23 | A8 | A8 | A8 | A8 | A8 | A8 | A8 |
-| 24 | VCC | VCC | VCC | VCC | VCC | VCC | VCC |
+| Pin | 2316 | 2332 | 2364 | 2704 | 2708 | 2716 | 6116 | 2732 |
+|-----|------|------|------|------|------|------|------|------|
+| 1 | A7 | A7 | A7 | A7 | A7 | A7 | A7 | A7 |
+| 2 | A6 | A6 | A6 | A6 | A6 | A6 | A6 | A6 |
+| 3 | A5 | A5 | A5 | A5 | A5 | A5 | A5 | A5 |
+| 4 | A4 | A4 | A4 | A4 | A4 | A4 | A4 | A4 |
+| 5 | A3 | A3 | A3 | A3 | A3 | A3 | A3 | A3 |
+| 6 | A2 | A2 | A2 | A2 | A2 | A2 | A2 | A2 |
+| 7 | A1 | A1 | A1 | A1 | A1 | A1 | A1 | A1 |
+| 8 | A0 | A0 | A0 | A0 | A0 | A0 | A0 | A0 |
+| 9 | D0 | D0 | D0 | D0 | D0 | D0 | D0 | D0 |
+| 10 | D1 | D1 | D1 | D1 | D1 | D1 | D1 | D1 |
+| 11 | D2 | D2 | D2 | D2 | D2 | D2 | D2 | D2 |
+| 12 | GND | GND | GND | GND | GND | GND | GND | GND |
+| 13 | D3 | D3 | D3 | D3 | D3 | D3 | D3 | D3 |
+| 14 | D4 | D4 | D4 | D4 | D4 | D4 | D4 | D4 |
+| 15 | D5 | D5 | D5 | D5 | D5 | D5 | D5 | D5 |
+| 16 | D6 | D6 | D6 | D6 | D6 | D6 | D6 | D6 |
+| 17 | D7 | D7 | D7 | D7 | D7 | D7 | D7 | D7 |
+| 18 | CS2 | A11 | A11 | /CE+VPP | /CE+VPP | /CE | /CE | /CE+PE |
+| 19 | A10 | A10 | A10 | VDD | VDD | A10 | A10 | A10 |
+| 20 | CS1 | CS1 | CS1 | /OE+PE | /OE+PE | /OE+PE | /OE | /OE+VPP |
+| 21 | CS3 | CS2 | A12 | VBB | VBB | VPP | /WRITE | A11 |
+| 22 | A9 | A9 | A9 | GND | A9 | A9 | A9 | A9 |
+| 23 | A8 | A8 | A8 | A8 | A8 | A8 | A8 | A8 |
+| 24 | VCC | VCC | VCC | VCC | VCC | VCC | VCC | VCC |
 
 ### 28-pin Package
 
@@ -291,6 +298,22 @@ There are also some other inconsistencies between types:
 | VCC | 24 | +5V |
 | GND | 12 | 0V |
 
+### 6116 - 2KB (2048 x 8-bit) Static RAM with fixed active-low CE/OE/WE
+
+**Package:** 24-pin DIP  
+**Capacity:** 2048 bytes  
+**Control:** /CE, /OE, /WRITE  
+
+| Function | Pins | Notes |
+|----------|------|-------|
+| Address (A0-A10) | 8,7,6,5,4,3,2,1,23,22,19 | 11 address lines |
+| Data (D0-D7) | 9,10,11,13,14,15,16,17 | 8 data lines |
+| CE | 18 | Active low |
+| OE | 20 | Active low |
+| WRITE | 21 | Active low |
+| VCC | 24 | +5V |
+| GND | 12 | 0V |
+
 ### 2732 - 4KB EPROM with fixed active-low CE and shared OE/VPP
 
 **Package:** 24-pin DIP  
@@ -431,12 +454,13 @@ There are also some other inconsistencies between types:
 
 **Package:** 40-pin DIP  
 **Capacity:** 524288 bytes  
-**Control:** /CE, /OE  
+**Control:** /BYTE, /CE, /OE  
 
 | Function | Pins | Notes |
 |----------|------|-------|
 | Address (A0-A18) | 29,9,8,7,6,5,4,3,2,40,39,38,37,36,35,34,33,32,1 | 19 address lines |
 | Data (D0-D7) | 13,15,17,19,22,24,26,28,14,16,18,20,23,25,27,29 | 8 data lines |
+| BYTE | 31 | Active low |
 | CE | 10 | Active low |
 | OE | 12 | Active low |
 | VPP | 31 | word_size during read |

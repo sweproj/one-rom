@@ -34,11 +34,11 @@ sdrr_runtime_info_t sdrr_runtime_info __attribute__((section(".sdrr_runtime_info
     .fire_freq = FIRE_FREQ_NONE,
     .sysclk_mhz = TARGET_FREQ_MHZ,
 #if defined(RP_PIO) && (RP_PIO == 1)
-    .fire_pio_mode = 1,
+    .fire_serve_mode = FIRE_SERVE_PIO,
 #else // !RP_PIO
-    .fire_pio_mode = 0,
+    .fire_serve_mode = FIRE_SERVE_CPU,
 #endif // RP_PIO
-    .pad = {0},
+    .bit_mode = BIT_MODE_8
 };
 
 // This function checks the state of the image select pins, and returns an
@@ -46,14 +46,14 @@ sdrr_runtime_info_t sdrr_runtime_info __attribute__((section(".sdrr_runtime_info
 // that integer.  The first sel pin in the array is bit 0, the second bit 1, 
 // etc.
 uint32_t check_sel_pins(uint32_t *sel_mask) {
-    uint32_t num_sel_pins;
-    uint32_t orig_sel_mask, gpio_value, sel_value, sel_flip_bits;
+    uint32_t num_sel_pins, sel_value;
+    uint64_t orig_sel_mask, gpio_value, sel_flip_bits;
 
     // Setup the pins first.  Do this first to allow any pull-ups to settle
     // before reading.
     num_sel_pins = setup_sel_pins(&orig_sel_mask, &sel_flip_bits);
     if (num_sel_pins == 0) {
-        LOG("No image select pins");
+        DEBUG("No image select pins");
         disable_sel_pins();
         *sel_mask = 0;
         return 0;
@@ -62,8 +62,12 @@ uint32_t check_sel_pins(uint32_t *sel_mask) {
     // Read the actual GPIO value, masked appropriately
     gpio_value = get_sel_value(orig_sel_mask, sel_flip_bits);
 
-    (void)num_sel_pins;  // In case unused - no DEBUG logging 
-    DEBUG("Read SIO_GPIO_IN: 0x%08X, %d Sel pins, mask 0x%08X", gpio_value, num_sel_pins, orig_sel_mask);
+    // SEGGER doesn't cope well with 64-bit values, so split into two 32-bit
+    // parts for logging
+    DEBUG("Sel GPIO val: 0x%08lX%08lX #: %lu mask 0x%08lX%08lX", 
+        (uint32_t)(gpio_value >> 32), (uint32_t)gpio_value,
+        (unsigned long)num_sel_pins,
+        (uint32_t)(orig_sel_mask >> 32), (uint32_t)orig_sel_mask);
 
     disable_sel_pins();
 
@@ -76,14 +80,14 @@ uint32_t check_sel_pins(uint32_t *sel_mask) {
     for (int ii = 0; ii < MAX_IMG_SEL_PINS; ii++) {
         uint8_t pin = sdrr_info.pins->sel[ii];
         if (pin < MAX_USED_GPIOS) {
-            if (gpio_value & (1 << pin)) {
+            if (gpio_value & (1ULL << pin)) {
                 sel_value |= (1 << ii);
             }
-            *sel_mask |= (1 << ii);
+            *sel_mask |= (1ULL << ii);
         }
     }
 
-    LOG("Sel pin value: %d mask: 0x%08X", sel_value, *sel_mask);
+    DEBUG("Sel value: 0x%08X mask: 0x%08X", sel_value, *sel_mask);
 
     // Store the value of the pins in sdrr_runtime_info
     sdrr_runtime_info.image_sel = sel_value;
@@ -132,7 +136,7 @@ uint8_t metadata_present(const sdrr_info_t *info) {
 
     if (present) {
         if (metadata->version == 1) {
-            LOG("Metadata version 1 present, %d ROM sets", metadata->rom_set_count);
+            LOG("Metadata v%d", metadata->version);
         } else {
             LOG("!!! Unsupported metadata version: %d", metadata->version);
             present = 0;
@@ -145,37 +149,22 @@ uint8_t metadata_present(const sdrr_info_t *info) {
 }
 
 void limp_mode(limp_mode_pattern_t pattern) {
-    LOG("Entering limp mode with blink pattern %d", pattern);
+    LOG("Limp mode %d", pattern);
 
     uint32_t on_time, off_time;
 
     if (!sdrr_runtime_info.status_led_enabled && sdrr_info.status_led_enabled) {
-        LOG("Status LED disabled but present - enable for limp mode");
+        DEBUG("Enabled status LED");
         setup_status_led();
     }
 
-    switch (pattern) {
-        case LIMP_MODE_NO_ROMS:
-            // Slow blink - around 0.5s on, 2.5s off
-            // Running off HSI->PLL at this point. 
-            on_time = 5000000;
-            off_time = 25000000;
-            break;
-
-        case LIMP_MODE_INVALID_CONFIG:
-            // Faster blink - around 0.5s on, 0.5s off
-            // Running off 12MHz HSI clock at this point.
-            on_time = 1000000;
-            off_time = 1000000;
-            break;
-
-        default:
-            // Very fast blink
-            // Who knows what clock we're running off
-            on_time = 100000;
-            off_time = 500000;
-            break;
+    if (pattern >= NUM_LIMP_MODE_PATTERNS) {
+        DEBUG("!!! Invalid limp mode pattern");
+        pattern = LIMP_MODE_NONE;
     }
+
+    on_time = limp_mode_patterns[pattern].on_time;
+    off_time = limp_mode_patterns[pattern].off_time;
 
     while (1) {
         blink_pattern(on_time, off_time, 1);
@@ -225,8 +214,8 @@ void process_firmware_overrides(
             }
 #if defined(RP235X)
             if (overrides->override_present[0] & (1 << 7)) {
-                runtime_info->fire_pio_mode = overrides->override_value[0] & (1 << 4) ? 1 : 0;
-                LOG("Fire PIO mode override: %d", runtime_info->fire_pio_mode);
+                runtime_info->fire_serve_mode = overrides->override_value[0] & (1 << 4) ? FIRE_SERVE_PIO : FIRE_SERVE_CPU;
+                LOG("Fire serve mode override: %d", runtime_info->fire_serve_mode);
             }
 #endif
         }
@@ -259,7 +248,7 @@ int main(void) {
     platform_specific_init();
 
     // Initialize GPIOs.  Do it now before checking bootloader mode.
-    DEBUG("Setting up GPIO");
+    DEBUG("Init GPIO");
     setup_gpio();
 
     // Enable logging.  Done after GPIO setup, so SWD pins are configured.
@@ -270,7 +259,7 @@ int main(void) {
     // Set up VBUS detect interrupt.  Done next, so we can enter DFU mode as 
     // soon as USB plugged in
     if (sdrr_info.extra->usb_dfu) {
-        LOG("USB DFU supported - setting up VBUS detect");
+        DEBUG("Init VBUS det");
         setup_vbus_interrupt();
     }
 
@@ -289,6 +278,11 @@ int main(void) {
     // to be applied from the selected ROM set.
     const sdrr_rom_set_t *set = NULL;
     uint8_t md = metadata_present(&sdrr_info);
+#if defined(BOOT_LOGGING)
+    if (md) {
+        log_roms(sdrr_info.metadata_header);
+    }
+#endif
     if (md && (sdrr_info.metadata_header->rom_set_count > 0)) {
         // Find out if extra_info is set to 1 on the first set.  If it is, the
         // set structures are 0.6.0+ and are the size of sdrr_rom_set_t (64
@@ -296,13 +290,11 @@ int main(void) {
         // Studio/wasm version) and hence 16 bytes.
         uint8_t extra_info = sdrr_info.metadata_header->rom_sets[0].extra_info;
         DEBUG("First ROM set extra_info = %d", extra_info);
-#if defined(DEBUG_LOGGING)
         if (extra_info == 1) {
             DEBUG("ROM sets are 0.6.0+ format");
         } else {
             DEBUG("ROM sets are pre-0.6.0 format");
         }
-#endif // DEBUG_LOGGING
         uint8_t *base = (uint8_t *)sdrr_info.metadata_header->rom_sets;
         size_t stride = (extra_info == 1) ? sizeof(sdrr_rom_set_t) : 16;
 
@@ -317,12 +309,26 @@ int main(void) {
         // extra_info is 1.
         process_firmware_overrides(&sdrr_runtime_info, set);
     } else if (!md) {
-        LOG("No metadata present (valid state for fresh One ROM");
+        LOG("No metadata");
     } else {
-        LOG("!!! No ROM sets in this firmware");
+        LOG("!!! No ROM sets");
+    }
+
+    // Check the bit mode
+    if (sdrr_info.pins->data2[0] != 0xFF) {
+        sdrr_runtime_info.bit_mode = BIT_MODE_16;
+        LOG("16-bit mode");
+#if defined(STM32F4)
+        LOG("!!! 16-bit mode not supported on STM32F4");
+        limp_mode(LIMP_MODE_INVALID_BUILD);
+#endif // STM32F4
+    } else {
+        sdrr_runtime_info.bit_mode = BIT_MODE_8;
+        LOG("8-bit mode");
     }
 
     // Initialize clock
+    DEBUG("Init clock");
     setup_clock();
 
 #if !defined(TIMER_TEST) && !defined(TOGGLE_PA4)
@@ -342,24 +348,24 @@ int main(void) {
     // Startup MCO after preloading the ROM - this allows us to test (with a
     // scope), how long the startup takes.
     if (sdrr_info.mco_enabled) {
+        DEBUG("Init MCO");
         setup_mco();
     }
 
     // Setup status LED up now, so we don't need to call the function from the
     // main loop - which might be running from RAM.
     if (sdrr_runtime_info.status_led_enabled) {
+        DEBUG("Init LED");
         setup_status_led();
     }
 
-#if !defined(ONE_RAM)
+    // If we're in ROM mode, and no ROM set is selected, enter limp mode
     if (set == NULL) {
         // Brief blink pattern to indicate no ROM being served.  Stays off for
         // a fifth of the time as it is on.  Exact timings depend on clock
         // speed.  At 100MHz this is roughly 0.5s on 2.5s off.
-        LOG("No ROM set to serve - entering limp mode");
         limp_mode(LIMP_MODE_NO_ROMS);
     }
-#endif // !ONE_RAM
 
     // Do final checks before entering the main loop
     check_config(&sdrr_info, &sdrr_runtime_info, set);
@@ -367,13 +373,6 @@ int main(void) {
     // Startup - from a stable 5V supply to here - takes:
     // - ~3ms    F411 100MHz BOOT_LOGGING=1
     // - ~1.5ms  F411 100MHz BOOT_LOGGING=0
-
-#if defined(ONE_RAM)
-    // Serve RAM
-    LOG("!!! Experimental ONE_RAM mode enabled - serving RAM image");
-    status_led_on(sdrr_info.pins->status);
-    pioram(&sdrr_info, (uint32_t)sdrr_runtime_info.rom_table);
-#endif
 
 // Check for incompatible options
 #if defined(EXECUTE_FROM_RAM) && defined(XIP_CACHE_WARM)

@@ -101,12 +101,12 @@ At this point you can follow the instructions below to build and flash the firmw
 To build the firmware, you use a command like this:
 
 ```bash
-HW_REV=fire-24-d MCU=rp2350 CONFIG=config/vic20-pal.mk make
+scripts/onerom.sh fire-24-d onerom-config/vic20-pal.json
 ```
 
-You MUST include BOTH the `HW_REV` and `MCU` parameters.  This example builds the firmware for One ROM revision Fire board revision 24D, using the VIC20 PAL ROM set configuration (downloading the ROM images as part of that).
+To flash, use `-f`, to include regular and debug logging use `-l` and `-d` respectively.
 
-See [CONFIGURATION.md](/docs/CONFIGURATION.md) for details of the available configuration options.
+You can also use make commands as described below, but running make directly has been deprecated in favour of the `scripts/onerom.sh` script.
 
 ## Programming the Firmware
 

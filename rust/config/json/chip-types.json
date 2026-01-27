@@ -1,7 +1,9 @@
 {
-    "rom_types": {
+    "chip_types": {
         "2316": {
             "description": "2KB mask ROM with 3 configurable CS lines",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 24,
             "size": 2048,
             "address": [
@@ -56,6 +58,8 @@
         },
         "2332": {
             "description": "4KB mask ROM with 2 configurable CS lines",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 24,
             "size": 4096,
             "address": [
@@ -107,6 +111,8 @@
         },
         "2364": {
             "description": "8KB mask ROM with 1 configurable CS line",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 24,
             "size": 8192,
             "address": [
@@ -155,6 +161,8 @@
         },
         "23128": {
             "description": "16KB mask ROM with 3 configurable CS lines",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 16384,
             "address": [
@@ -212,6 +220,8 @@
         },
         "23256": {
             "description": "32KB mask ROM with 2 configurable CS lines",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 32768,
             "address": [
@@ -266,6 +276,8 @@
         },
         "23512": {
             "description": "64KB mask ROM with 2 configurable CS lines",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 65536,
             "address": [
@@ -321,6 +333,8 @@
         },
         "231024": {
             "description": "128KB mask ROM with 1 configurable CS line",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 131072,
             "address": [
@@ -373,6 +387,8 @@
         },
         "2704": {
             "description": "512B EPROM with multiple supply voltages",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 24,
             "size": 512,
             "address": [
@@ -446,6 +462,8 @@
         },
         "2708": {
             "description": "1KB EPROM with multiple supply voltages",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 24,
             "size": 1024,
             "address": [
@@ -515,6 +533,8 @@
         },
         "2716": {
             "description": "2KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 24,
             "size": 2048,
             "address": [
@@ -575,6 +595,8 @@
         },
         "2732": {
             "description": "4KB EPROM with fixed active-low CE and shared OE/VPP",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 24,
             "size": 4096,
             "address": [
@@ -636,6 +658,8 @@
         },
         "2764": {
             "description": "8KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 8192,
             "address": [
@@ -698,6 +722,8 @@
         },
         "27128": {
             "description": "16KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 16384,
             "address": [
@@ -761,6 +787,8 @@
         },
         "27256": {
             "description": "32KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 32768,
             "address": [
@@ -825,6 +853,8 @@
         },
         "27512": {
             "description": "64KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 28,
             "size": 65536,
             "address": [
@@ -890,6 +920,8 @@
         },
         "27C010": {
             "description": "128KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 32,
             "size": 131072,
             "address": [
@@ -956,6 +988,8 @@
         },
         "27C020": {
             "description": "256KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 32,
             "size": 262144,
             "address": [
@@ -1023,6 +1057,8 @@
         },
         "27C040": {
             "description": "512KB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 32,
             "size": 524288,
             "address": [
@@ -1091,6 +1127,8 @@
         },
         "27C080": {
             "description": "1MB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8],
             "pins": 32,
             "size": 1048576,
             "address": [
@@ -1160,6 +1198,8 @@
         },
         "27C400" : {
             "description": "0.5MB EPROM with fixed active-low CE/OE",
+            "function": "ROM",
+            "bit_modes": [8, 16],
             "pins": 40,
             "size": 524288,
             "address": [
@@ -1209,12 +1249,10 @@
                 "oe": {
                     "pin": 12,
                     "type": "fixed_active_low"
-                }
-            },
-            "word_size": {
+                },
                 "byte": {
                     "pin": 31,
-                    "type": "byte_low"
+                    "type": "fixed_active_low"
                 }
             },
             "programming": {
@@ -1241,6 +1279,65 @@
                 {
                     "name": "GND",
                     "pin": 30,
+                    "voltage": "0V"
+                }
+            ]
+        },
+        "6116": {
+            "description": "2KB (2048 x 8-bit) Static RAM with fixed active-low CE/OE/WE",
+            "function": "RAM",
+            "aliases": [
+                "2016"
+            ],
+            "bit_modes": [8],
+            "pins": 24,
+            "size": 2048,
+            "address": [
+                8,
+                7,
+                6,
+                5,
+                4,
+                3,
+                2,
+                1,
+                23,
+                22,
+                19
+            ],
+            "data": [
+                9,
+                10,
+                11,
+                13,
+                14,
+                15,
+                16,
+                17
+            ],
+            "control": {
+                "oe": {
+                    "pin": 20,
+                    "type": "fixed_active_low"
+                },
+                "ce": {
+                    "pin": 18,
+                    "type": "fixed_active_low"
+                },
+                "write": {
+                    "pin": 21,
+                    "type": "fixed_active_low"
+                }
+            },
+            "power": [
+                {
+                    "name": "VCC",
+                    "pin": 24,
+                    "voltage": "+5V"
+                },
+                {
+                    "name": "GND",
+                    "pin": 12,
                     "voltage": "0V"
                 }
             ]

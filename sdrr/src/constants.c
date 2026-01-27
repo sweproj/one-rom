@@ -4,12 +4,14 @@
 //
 // MIT License
 
+#define ONEROM_CONSTANTS
+
 #include "include.h"
 
 // Metadata strings to include in the binary
 const char mcu_variant[] = MCU_VARIANT;
 const char license[] = "MIT License";
-const char project_url[] = "https://piers.rocks/u/one";
+const char project_url[] = "https://onerom.org";
 const char copyright[] = "Copyright (c) 2026";
 const char author[] = "Piers Finlayson <piers@piers.rocks>";
 const char product[] = "One ROM";
@@ -30,6 +32,6 @@ const char disabled[] = "disabled";
 const char enabled[] = "enabled";
 const char oscillator[] = "Oscillator";
 #if defined(BOOT_LOGGING)
-const char *port_names[] = {"NONE", "A", "B", "C", "D"};
-const char *cs_values[] = {"Active Low", "Active High", "-"};
+const char * const port_names[] = {"NONE", "A", "B", "C", "D", "0"};
+const char * const cs_values[] = {"Active Low", "Active High", "-"};
 #endif // BOOT_LOGGING

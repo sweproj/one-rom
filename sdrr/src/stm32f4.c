@@ -264,7 +264,7 @@ void setup_clock(void) {
 //
 // As of 0.6.0 sel_jumper_pulls is a bit field indicating whether each
 // individual sel pin's jumper pulls up (1) or down (0).
-uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
+uint32_t setup_sel_pins(uint64_t *sel_mask, uint64_t *flip_bits) {
     uint32_t num;
     uint8_t pull;
 
@@ -319,7 +319,7 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
 
                 // Flip this bit when reading the SEL pins, as closing will
                 // pull the pin low, but that should read a 1
-                *flip_bits |= (1 << pin);
+                *flip_bits |= (1ULL << pin);
             }
 
             sel_1bit_mask |= 1 << pin;
@@ -352,7 +352,7 @@ uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits) {
 // value as is, as closed should indicate 1.  In the other case, where MCU
 // pulls are high (closing jumpers) pulls the pins low, we invert - so closed
 // still indicates 1.
-uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits) {
+uint64_t get_sel_value(uint64_t sel_mask, uint64_t flip_bits) {
     uint32_t gpio_value;
 
     // Read GPIO input register
@@ -577,7 +577,7 @@ void check_config(
     }
 
     // Check CS pins
-    if (info->pins->rom_pins == 24) {
+    if (info->pins->chip_pins == 24) {
         if (info->pins->cs1 > 15) {
             LOG("!!! CS1 pin invalid");
         }
@@ -703,13 +703,12 @@ void platform_logging(void) {
             idcode_mcu_variant = "Unknown";
             break;
     }
-    LOG("%s", log_divider);
     LOG("Detected hardware info ...");
     LOG("ID Code: %s", idcode_mcu_variant);
     uint16_t hw_flash_size = FLASH_SIZE;
     LOG("Flash: %dKB", hw_flash_size);
 
-    LOG("%s", log_divider);
+    LOG(log_divider);
     LOG("Firmware hardware info ...");
     LOG("%s", mcu_variant);
 

@@ -37,12 +37,14 @@
 #error "MAIN_LOOP_LOGGING cannot be used with EXECUTE_FROM_RAM"
 #endif // MAIN_LOOP && EXECUTE_FROM_RAM
 #if defined(MAIN_LOOP_LOGGING)
-ram_log_fn ROM_IMPL_LOG = do_log;
+// ROM_IMPL_LOG = do_log;
+#define ROM_IMPL_LOG LOG
 #else // !MAIN_LOOP_LOGGING
 #define ROM_IMPL_LOG(X, ...)
 #endif
 #if defined(DEBUG_LOGGING) && defined(MAIN_LOOP_LOGGING)
-ram_log_fn ROM_IMPL_DEBUG = do_log;
+//ram_log_fn ROM_IMPL_DEBUG = do_log;
+#define ROM_IMPL_DEBUG DEBUG
 #else // !DEBUG_LOGGING
 #define ROM_IMPL_DEBUG(X, ...)
 #endif // DEBUG_LOGGING
@@ -63,12 +65,16 @@ extern uint32_t _ram_rom_image_end[];
 // check CS/X state. 
 static inline void __attribute__((always_inline)) setup_cs_masks(
     const sdrr_info_t *info,
+    const sdrr_runtime_info_t *runtime_info,
     const sdrr_rom_set_t *set,
     sdrr_serve_t serve_mode,
     const sdrr_rom_info_t *rom,
     uint32_t *check_mask,
     uint32_t *invert_mask
 ) {
+#if !defined(RP235X)
+    (void)runtime_info;
+#endif // RP235X
     uint32_t cs_invert_mask = 0;
     uint32_t cs_check_mask;
 
@@ -81,30 +87,34 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
     uint8_t pin_oe = info->pins->oe;
 
 #if defined(RP235X)
-    if (info->pins->data[0] < 8) {
+    uint8_t data_bits = 8;
+    if (runtime_info->bit_mode == BIT_MODE_16) {
+        data_bits = 16;
+    }
+    if (info->pins->data[0] < data_bits) {
         // Data pins are at start, so need to remap CS lines to end up in 
         // the right locations after the serving algorithm's ubfx shift and
         // mask.  Ensure we don't shift below 0 in case of mis-configuration.
-        if (pin_cs1 >= 8) {
-            pin_cs1 -= 8;
+        if (pin_cs1 >= data_bits) {
+            pin_cs1 -= data_bits;
         }
-        if (pin_cs2 >= 8) {
-            pin_cs2 -= 8;
+        if (pin_cs2 >= data_bits) {
+            pin_cs2 -= data_bits;
         }
-        if (pin_cs3 >= 8) {
-            pin_cs3 -= 8;
+        if (pin_cs3 >= data_bits) {
+            pin_cs3 -= data_bits;
         }
-        if (pin_x1 >= 8) {
-            pin_x1 -= 8;
+        if (pin_x1 >= data_bits) {
+            pin_x1 -= data_bits;
         }
-        if (pin_x2 >= 8) {
-            pin_x2 -= 8;
+        if (pin_x2 >= data_bits) {
+            pin_x2 -= data_bits;
         }
-        if (pin_ce >= 8) {
-            pin_ce -= 8;
+        if (pin_ce >= data_bits) {
+            pin_ce -= data_bits;
         }
-        if (pin_oe >= 8) {
-            pin_oe -= 8;
+        if (pin_oe >= data_bits) {
+            pin_oe -= data_bits;
         }
     }
 #endif 
@@ -131,46 +141,46 @@ static inline void __attribute__((always_inline)) setup_cs_masks(
         uint8_t use_pin_cs3 = 255;
 
         switch (rom->rom_type) {
-            case ROM_TYPE_2316:
+            case CHIP_TYPE_2316:
                 num_cs_lines = 3;
                 use_pin_cs1 = pin_cs1;
                 use_pin_cs2 = pin_cs3; // Correctly transposed
                 use_pin_cs3 = pin_cs2; // Correctly transposed
                 break;
 
-            case ROM_TYPE_2332:
+            case CHIP_TYPE_2332:
                 num_cs_lines = 2;
                 use_pin_cs1 = pin_cs1;
                 use_pin_cs2 = pin_cs2;
                 break;
 
-            case ROM_TYPE_2364:
+            case CHIP_TYPE_2364:
                 num_cs_lines = 1;
                 use_pin_cs1 = pin_cs1;
                 break;
 
-            case ROM_TYPE_23128:
+            case CHIP_TYPE_23128:
                 num_cs_lines = 3;
                 use_pin_cs1 = pin_cs1;
                 use_pin_cs2 = pin_cs2;
                 use_pin_cs3 = pin_cs3;
                 break;
 
-            case ROM_TYPE_23256:
-            case ROM_TYPE_23512:
+            case CHIP_TYPE_23256:
+            case CHIP_TYPE_23512:
                 use_pin_cs1 = pin_cs1;
                 use_pin_cs2 = pin_cs2;
                 num_cs_lines = 2;
                 break;
 
-            case ROM_TYPE_2704:
-            case ROM_TYPE_2708:
-            case ROM_TYPE_2716:
-            case ROM_TYPE_2732:
-            case ROM_TYPE_2764:
-            case ROM_TYPE_27128:
-            case ROM_TYPE_27256:
-            case ROM_TYPE_27512:
+            case CHIP_TYPE_2704:
+            case CHIP_TYPE_2708:
+            case CHIP_TYPE_2716:
+            case CHIP_TYPE_2732:
+            case CHIP_TYPE_2764:
+            case CHIP_TYPE_27128:
+            case CHIP_TYPE_27256:
+            case CHIP_TYPE_27512:
                 num_cs_lines = 2;
                 use_pin_cs1 = pin_ce;
                 use_pin_cs2 = pin_oe;
@@ -291,7 +301,11 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     // instruction to shift before using.  It's easier to test if _any_ of 
     // the data lines is < 8 than to check the address lines.
     uint8_t use_ubfx = 1;
-    if (info->pins->data[0] < 8) {
+    uint8_t data_bits = 8;
+    if (runtime->bit_mode == BIT_MODE_16) {
+        data_bits = 16;
+    }
+    if (info->pins->data[0] < data_bits) {
         use_ubfx = 1;
     } else {
         use_ubfx = 0;
@@ -303,7 +317,7 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     // We don't copy filenames over in the RAM case, so this won't work - and
     // neither does MAIN_LOOP_LOGGING
     for (int ii = 0; ii < set->rom_count; ii++) {
-        ROM_IMPL_DEBUG("Serve ROM #%d: %s via mode: %d", ii, set->roms[ii]->filename, serve_mode);
+        ROM_IMPL_DEBUG("Serve Chip #%d: %s via mode: %d", ii, set->roms[ii]->filename, serve_mode);
     }
 #endif // EXECUTE_FROM_RAM
 
@@ -315,6 +329,7 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     const sdrr_rom_info_t *rom = set->roms[0];
     setup_cs_masks(
         info,
+        runtime,
         set,
         serve_mode,
         rom,
@@ -337,6 +352,7 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     uint32_t data_input_mask_val;
     setup_data_masks(
         info,
+        runtime,
         &data_output_mask_val,
         &data_input_mask_val
     );
@@ -354,7 +370,7 @@ void __attribute__((section(".main_loop"), used)) main_loop(
 #endif // defined(COUNT_ROM_ACCESS) && !defined(C_MAIN_LOOP)
 
 #if defined(RP235X)
-    if (!runtime->fire_pio_mode) {
+    if (runtime->fire_serve_mode == FIRE_SERVE_CPU) {
 #endif // RP235X
     // Now log current state, and items we're going to load to registers.
     ROM_IMPL_DEBUG("%s", log_divider);
@@ -399,9 +415,9 @@ void __attribute__((section(".main_loop"), used)) main_loop(
     }
 
 #if defined(RP235X)
-    if (runtime->fire_pio_mode) {
-        // If we are using PIO/DMA ROM serving, jump to that now
-        piorom(info, set, rom_table_val);
+    // If we are using PIO/DMA ROM serving, jump to that now
+    if (runtime->fire_serve_mode == FIRE_SERVE_PIO) {
+        pio(info, set, rom_table_val);
     }
 #endif // RP235X
 
@@ -701,6 +717,13 @@ void* preload_rom_image(const sdrr_rom_set_t *set) {
     // Find the start of this ROM image in the flash memory
     img_size = set->size;
     img_src = (uint32_t *)(set->data);
+
+    if ((set->roms[0]->rom_type == CHIP_TYPE_6116) && (img_src == (uint32_t *)0xFFFFFFFF)) {
+        LOG("No RAM image");
+        img_dst = _ram_rom_image_start;
+        return (void *)img_dst;
+    }
+
 #if defined(CCM_RAM_BASE) && !defined(DISABLE_CCM)
     if (sdrr_info.mcu_line == F405) {
         // Preload to CCM RAM
@@ -722,48 +745,7 @@ void* preload_rom_image(const sdrr_rom_set_t *set) {
         DEBUG("ROM filename: %s", set->roms[0]->filename);
     }
 #endif // BOOT_LOGGING
-    switch (set->roms[0]->rom_type) {
-        case ROM_TYPE_2364:
-            DEBUG("%s 2364", rom_type);
-            break;
-        case ROM_TYPE_2332:
-            DEBUG("%s 2332", rom_type);
-            break;
-        case ROM_TYPE_2316:
-            DEBUG("%s 2316", rom_type);
-            break;
-        case ROM_TYPE_23128:
-            DEBUG("%s 23128", rom_type);
-            break;
-        case ROM_TYPE_23256:
-            DEBUG("%s 23256", rom_type);
-            break;
-        case ROM_TYPE_23512:
-            DEBUG("%s 23512", rom_type);
-            break;
-        case ROM_TYPE_2716:
-            DEBUG("%s 2716", rom_type);
-            break;
-        case ROM_TYPE_2732:
-            DEBUG("%s 2732", rom_type);
-            break;
-        case ROM_TYPE_2764:
-            DEBUG("%s 2764", rom_type);
-            break;
-        case ROM_TYPE_27128:
-            DEBUG("%s 27128", rom_type);
-            break;
-        case ROM_TYPE_27256:
-            DEBUG("%s 27256", rom_type);
-            break;
-        case ROM_TYPE_27512:
-            DEBUG("%s 27512", rom_type);
-            break;
-        default:
-            DEBUG("%s %d %s", rom_type, set->roms[0]->rom_type, unknown);
-            break;
-    }
-    DEBUG("ROM size %d bytes", img_size);
+    DEBUG("Preloading %d bytes for %s", img_size, chip_type_strings[set->roms[0]->rom_type]);
 
     // Set image (either single ROM or multiple ROMs) has been fully pre-
     // processed before embedding in the flash.

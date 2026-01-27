@@ -4,10 +4,11 @@
     "d",
     "24-d"
   ],
-  "rom": {
+  "chip": {
     "pins": {
       "quantity": 24
-    }
+    },
+    "bit_modes": ["8"]
   },
   "mcu": {
     "family": "f4",
@@ -41,7 +42,6 @@
             "2716": 10,
             "2732": 10
         },
-
         "x_jumper_pull": 1,
         "sel": [0, 1, 2],
         "sel_jumper_pull": [1, 1, 1],

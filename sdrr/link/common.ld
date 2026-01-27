@@ -85,18 +85,25 @@ SECTIONS
     /* to a specific SRAM bank, to try and avoid bus contention. */
     INCLUDE "ram_rom_image.ld"
 
+    /* Next include space for any functions that may be copied to RAM. It */
+    /* doesn't really matter where these go. */
+    /* */
+    /* Remove, at least for now, to allow RP2350 access to 512KB RAM */
+    /* This will break the RAM function feature */
+    /* */
+    /* INCLUDE "ram_functions.ld" */
+
     /* This is sdrr_runtime_info_t.  This is pointed to by sdrr_info_t, */
     /* so that it is easy to analyse RAM and find it.  It contains useful */
     /* runtime information about One ROM, like what ROM is being served and, */
     /* if so configured, the number of ROM accesses. */
     INCLUDE "ram_sdrr_runtime_info.ld"
 
-    /* Next include space for any functions that may be copied to RAM. It */
-    /* doesn't really matter where these go. */
-    INCLUDE "ram_functions.ld"
-
     /* RAM data sections - data and bss */
     INCLUDE "ram_data.ld"
+
+    /* BSS section - RAM to be zeroed on startup */
+    INCLUDE "ram_bss.ld"
 
     /* Stack section */
     INCLUDE "stack.ld"
@@ -110,13 +117,28 @@ SECTIONS
     }
 }
 
-/* Set initial stack pointer to end of RAM */
 _ram_size = LENGTH(RAM);
-_estack = ORIGIN(RAM) + LENGTH(RAM);
+_end = ORIGIN(RAM) + _ram_size;
+
+_sdrr_runtime_info_location = _end - 8192;
+
+/* Set initial stack pointer to end of RAM, except for reserved space */
+_estack = _end;
 
 /* Check enough space for any RAM function */
 ASSERT((_main_loop_end - _main_loop_start) <= _Ram_Func_Size, 
     "Error: main_loop section too large for RAM buffer")
+
+/* Limit bss - this is all segger, and 4284 bytes as of adding this */
+/* 4096 is the UP buffer - reduce that and make clean-firmware; make */
+/* to reduce it */
+ASSERT(_bss_size <= 4284, "Error: BSS section too large")
+
+/* That leaves < 4K for stack, for both processors */
+
+/* Check data is zero */
+ASSERT(SIZEOF(.data) == 0, 
+    "Error: Data section is non zero - turn globals into const data")
 
 /* Check enough space for sdrr_runtime_info structure */
 ASSERT(SIZEOF(.sdrr_runtime_info) <= _Sdrr_Runtime_Info_Size, 

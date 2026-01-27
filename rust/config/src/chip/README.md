@@ -1,4 +1,4 @@
-# onerom_config::rom
+# onerom_config::chip
 
 .rs files in this directory are auto-generated as part of the crate build process, and not included in source control.
 

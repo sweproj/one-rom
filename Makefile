@@ -16,7 +16,7 @@
 
 VERSION_MAJOR := 0
 VERSION_MINOR := 6
-VERSION_PATCH := 1
+VERSION_PATCH := 2
 BUILD_NUMBER := 1
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 export VERSION_MAJOR VERSION_MINOR VERSION_PATCH BUILD_NUMBER GIT_COMMIT
@@ -625,7 +625,7 @@ ifneq ($(SUPPRESS_OUTPUT),1)
 $(info -----)
 endif
 
-# Convert ROM_CONFIGS to --rom arguments, adjusting local file paths only
+# Convert ROM_CONFIGS to --chip arguments, adjusting local file paths only
 #
 # HTTP/HTTPS URLs are used as-is
 # Absolute file paths (starting with /) are used as-is  
@@ -642,7 +642,7 @@ $(if $(findstring http://,$(1)),
     )
 )
 endef
-ROM_ARGS = $(foreach config,$(ROM_CONFIGS),--rom $(strip $(call process_rom_config,$(config))))
+ROM_ARGS = $(foreach config,$(ROM_CONFIGS),--chip $(strip $(call process_rom_config,$(config))))
 ifneq ($(SUPPRESS_OUTPUT),1)
 $(info Generated ROM_ARGS required by sdrr-gen:)
 $(info - ROM_ARGS=$(ROM_ARGS))

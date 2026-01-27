@@ -502,16 +502,30 @@ pub struct SdrrPins {
     pub sel6: u8,
     pub sel_jumper_pull: u8,
 
-    #[deku(pad_bytes_after = "3")]
+    #[deku(pad_bytes_after = "2")]
     pub status: u8,
+
+    pub extended: u8,
+
+    #[deku(cond = "*extended == 1", endian = "little")]
+    #[deku(count = "8")]
+    pub data2: Option<Vec<u8>>,
+
+    #[deku(cond = "*extended == 1", endian = "little")]
+    #[deku(count = "16")]
+    pub addr2: Option<Vec<u8>>,
 }
 
 impl SdrrPins {
-    const SDRR_PINS_SIZE: usize = 64;
-    pub(crate) const fn size() -> usize {
-        // Cannot assert this against SdrrPins size, as contains Vecs, which
-        // increase its size.
-        Self::SDRR_PINS_SIZE
+    const BASE_SIZE: usize = 64;
+    const EXTRA_SIZE: usize = 192;
+
+    pub(crate) const fn base_size() -> usize {
+        Self::BASE_SIZE
+    }
+
+    pub(crate) const fn extra_size() -> usize {
+        Self::EXTRA_SIZE
     }
 
     /// Rebases all address lines and, for 24 pin roms, ce/oe, cs and x lines

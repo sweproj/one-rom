@@ -47,7 +47,7 @@ int validate_all_rom_sets(json_config_t *json_config, loaded_rom_t *loaded_roms,
         if (num_roms == 1) {
             int loaded_rom_idx = overall_rom_idx;
             printf("- Single ROM set\n");
-            printf("  - Testing ROM %d in set %d\n", 0, set_idx);
+            printf("  - Testing ROM %d in set %d, pins %zu, CS combos %d\n", 0, set_idx, rom_pins, num_cs_combos);
             printf("    - Type: %d/%s, Name: %s\n", rom_type, configs[overall_rom_idx].type, configs[loaded_rom_idx].filename);
 
             if (rom_pins == 24) {
@@ -83,7 +83,6 @@ int validate_all_rom_sets(json_config_t *json_config, loaded_rom_t *loaded_roms,
                         {
                             {
 #endif // RP235X
-
                                 // Get expected value
                                 uint8_t expected_byte;
 #if defined(RP235X)

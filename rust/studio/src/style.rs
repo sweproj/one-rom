@@ -70,6 +70,12 @@ pub struct Style<'a> {
     _marker: std::marker::PhantomData<&'a ()>,
 }
 
+impl<'a> Default for Style<'a> {
+    fn default() -> Self {
+        Style::new()
+    }
+}
+
 #[allow(dead_code)]
 impl<'a> Style<'a> {
     /// #ffb700 - One ROM gold used for buttons and highlights
@@ -370,7 +376,7 @@ impl<'a> Style<'a> {
         scrollable::Style {
             vertical_rail: scrollable::Rail {
                 scroller: scrollable::Scroller {
-                    color: Self::scrollbar_colour(&status, false),
+                    color: Self::scrollbar_colour(status, false),
                     border: Self::SCROLLBAR_BORDER,
                 },
                 background: Some(Background::Color(Self::COLOUR_BACKGROUND)),
@@ -378,7 +384,7 @@ impl<'a> Style<'a> {
             },
             horizontal_rail: scrollable::Rail {
                 scroller: scrollable::Scroller {
-                    color: Self::scrollbar_colour(&status, true),
+                    color: Self::scrollbar_colour(status, true),
                     border: Self::SCROLLBAR_BORDER,
                 },
                 background: Some(Background::Color(Self::COLOUR_BACKGROUND)),
@@ -422,7 +428,6 @@ impl<'a> Style<'a> {
             .height(Length::Fixed(height))
             .width(Length::Fill)
             .direction(dirn)
-            .into()
     }
 
     pub fn blank_space() -> Space {
@@ -540,9 +545,7 @@ impl<'a> Style<'a> {
     }
 
     fn update_available_icon(&self) -> Option<Element<'a, AppMessage>> {
-        let Some(new_version) = app_manifest().update_available() else {
-            return None;
-        };
+        let new_version = app_manifest().update_available()?;
 
         let update_button = button(Image::new(self.images.icon_update_available()))
             .padding(0)

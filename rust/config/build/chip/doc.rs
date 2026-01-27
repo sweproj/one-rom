@@ -2,21 +2,21 @@
 //
 // MIT License
 
-use super::validation::{ControlLineType, RomType, RomTypesConfig};
+use super::validation::{ControlLineType, ChipType, ChipTypesConfig, ChipFunction};
 use std::collections::BTreeMap;
 
 /// Generate complete ROM types markdown documentation
-pub fn generate_rom_types_markdown(config: &RomTypesConfig) -> String {
+pub fn generate_chip_types_markdown(config: &ChipTypesConfig) -> String {
     let mut doc = String::new();
 
     // Header
-    doc.push_str(r#"# ROM Type Specifications
+    doc.push_str(r#"# Chip Type Specifications
 
-This document provides detailed specifications for the different ROM types One ROM supports, and aims to support in future, including pinouts, control lines, and programming requirements.
+This document provides detailed specifications for the different Chip types One ROM supports, and aims to support in future, including pinouts, control lines, and programming requirements.
 
-The document is auto-generated from the [json/rom-types.json](/rust/config/json/rom-types.json) configuration file.  That file was created by researching datasheets for the various ROM types.
+The document is auto-generated from the [json/rom-types.json](/rust/config/json/rom-types.json) configuration file.  That file was created by researching datasheets for the various Chip types.
 
-Some of the pin names have been modified from the datasheet values for consistency beween ROM types:
+Some of the pin names have been modified from the datasheet values for consistency beween Chip types:
 
 - /OE on 2704/2408 is called Program, but serves as /OE when in read mode.  Other 27xx ROMs use /OE for that pin, hence the /OE name is used here. 
 - Similarly /CE on 2704/2708 ROMs is called /CS, but is called /CE for consistency with other ROM types.
@@ -33,6 +33,7 @@ There are also some other inconsistencies between types:
 - [28-pin Mask ROM Family (23xxx)](#28-pin-mask-rom-family-23xx)
 - [24-pin EPROM Family (27xx)](#24-pin-eprom-family-27xx)
 - [28-pin EPROM Family (2764 and 27xxx)](#28-pin-eprom-family-27xx)
+- [RAM Chips](#ram-chips)
 - [Pin Function Comparison](#pin-function-comparison)
 - [Detailed Pinouts](#detailed-pinouts)
 
@@ -78,6 +79,15 @@ There are also some other inconsistencies between types:
         doc.push('\n');
     }
 
+    if let Some(rams) = families.get("ram_chips") {
+        doc.push_str(&generate_family_comparison_table(
+            "RAM Chips",
+            rams,
+            config,
+        ));
+        doc.push('\n');
+    }
+
     // Pin comparison tables
     doc.push_str("## Pin Function Comparison\n\n");
     doc.push_str(&generate_pin_comparison_table_24pin(config));
@@ -87,9 +97,9 @@ There are also some other inconsistencies between types:
 
     // Detailed pinout tables
     doc.push_str("## Detailed Pinouts\n\n");
-    let sorted_roms = get_sorted_rom_types(config);
-    for (type_name, rom_type) in sorted_roms {
-        doc.push_str(&generate_detailed_pinout(type_name, rom_type));
+    let sorted_roms = get_sorted_chip_types(config);
+    for (type_name, chip_type) in sorted_roms {
+        doc.push_str(&generate_detailed_pinout(type_name, chip_type));
         doc.push('\n');
     }
 
@@ -97,27 +107,29 @@ There are also some other inconsistencies between types:
 }
 
 /// Group ROM types by family (mask/eprom and pin count)
-fn group_by_family(config: &RomTypesConfig) -> BTreeMap<&'static str, Vec<(&String, &RomType)>> {
-    let mut families: BTreeMap<&'static str, Vec<(&String, &RomType)>> = BTreeMap::new();
+fn group_by_family(config: &ChipTypesConfig) -> BTreeMap<&'static str, Vec<(&String, &ChipType)>> {
+    let mut families: BTreeMap<&'static str, Vec<(&String, &ChipType)>> = BTreeMap::new();
 
-    for (type_name, rom_type) in &config.rom_types {
-        let key = if type_name.starts_with("23") {
-            if rom_type.pins == 24 {
+    for (type_name, chip_type) in &config.chip_types {
+        let key = if type_name.starts_with("23") && chip_type.function == ChipFunction::Rom {
+            if chip_type.pins == 24 {
                 "mask_24pin"
             } else {
                 "mask_28pin"
             }
-        } else if type_name.starts_with("27") {
-            if rom_type.pins == 24 {
+        } else if type_name.starts_with("27") && chip_type.function == ChipFunction::Rom {
+            if chip_type.pins == 24 {
                 "eprom_24pin"
             } else {
                 "eprom_28pin"
             }
+        } else if chip_type.function == ChipFunction::Ram {
+            "ram_chips"
         } else {
             continue;
         };
 
-        families.entry(key).or_default().push((type_name, rom_type));
+        families.entry(key).or_default().push((type_name, chip_type));
     }
 
     // Sort each family by size
@@ -131,25 +143,25 @@ fn group_by_family(config: &RomTypesConfig) -> BTreeMap<&'static str, Vec<(&Stri
 /// Generate comparison table for a ROM family
 fn generate_family_comparison_table(
     title: &str,
-    roms: &[(&String, &RomType)],
-    _config: &RomTypesConfig,
+    roms: &[(&String, &ChipType)],
+    _config: &ChipTypesConfig,
 ) -> String {
     let mut table = String::new();
 
     table.push_str(&format!("## {}\n\n", title));
-    table.push_str("| ROM Type | Size | Address Lines | Control Lines | Programming |\n");
+    table.push_str("| Chip Type | Size | Address Lines | Control Lines | Programming |\n");
     table.push_str("|----------|------|---------------|---------------|-------------|\n");
 
-    for (type_name, rom_type) in roms {
-        let size_str = format_size(rom_type.size);
+    for (type_name, chip_type) in roms {
+        let size_str = format_size(chip_type.size);
         let addr_lines = format!(
             "{} (A0-A{})",
-            rom_type.address.len(),
-            rom_type.address.len() - 1
+            chip_type.address.len(),
+            chip_type.address.len() - 1
         );
 
-        let control_str = format_control_lines(rom_type);
-        let prog_str = format_programming_pins(rom_type);
+        let control_str = format_control_lines(chip_type);
+        let prog_str = format_programming_pins(chip_type);
 
         table.push_str(&format!(
             "| {} | {} | {} | {} | {} |\n",
@@ -161,12 +173,12 @@ fn generate_family_comparison_table(
 }
 
 /// Generate 24-pin package pin comparison table
-fn generate_pin_comparison_table_24pin(config: &RomTypesConfig) -> String {
+fn generate_pin_comparison_table_24pin(config: &ChipTypesConfig) -> String {
     let mut table = String::new();
 
     // Get all 24-pin ROMs sorted by size
     let mut roms_24pin: Vec<_> = config
-        .rom_types
+        .chip_types
         .iter()
         .filter(|(_, rom)| rom.pins == 24)
         .collect();
@@ -193,8 +205,8 @@ fn generate_pin_comparison_table_24pin(config: &RomTypesConfig) -> String {
     // Generate row for each pin
     for pin in 1..=24 {
         table.push_str(&format!("| {} |", pin));
-        for (_, rom_type) in &roms_24pin {
-            let function = get_pin_function(pin, rom_type);
+        for (_, chip_type) in &roms_24pin {
+            let function = get_pin_function(pin, chip_type);
             table.push_str(&format!(" {} |", function));
         }
         table.push('\n');
@@ -204,12 +216,12 @@ fn generate_pin_comparison_table_24pin(config: &RomTypesConfig) -> String {
 }
 
 /// Generate 28-pin package pin comparison table
-fn generate_pin_comparison_table_28pin(config: &RomTypesConfig) -> String {
+fn generate_pin_comparison_table_28pin(config: &ChipTypesConfig) -> String {
     let mut table = String::new();
 
     // Get all 28-pin ROMs sorted by size
     let mut roms_28pin: Vec<_> = config
-        .rom_types
+        .chip_types
         .iter()
         .filter(|(_, rom)| rom.pins == 28)
         .collect();
@@ -236,8 +248,8 @@ fn generate_pin_comparison_table_28pin(config: &RomTypesConfig) -> String {
     // Generate row for each pin
     for pin in 1..=28 {
         table.push_str(&format!("| {} |", pin));
-        for (_, rom_type) in &roms_28pin {
-            let function = get_pin_function(pin, rom_type);
+        for (_, chip_type) in &roms_28pin {
+            let function = get_pin_function(pin, chip_type);
             table.push_str(&format!(" {} |", function));
         }
         table.push('\n');
@@ -247,15 +259,15 @@ fn generate_pin_comparison_table_28pin(config: &RomTypesConfig) -> String {
 }
 
 /// Generate detailed pinout for a single ROM type
-fn generate_detailed_pinout(type_name: &str, rom_type: &RomType) -> String {
+fn generate_detailed_pinout(type_name: &str, chip_type: &ChipType) -> String {
     let mut doc = String::new();
 
-    doc.push_str(&format!("### {} - {}\n\n", type_name, rom_type.description));
-    doc.push_str(&format!("**Package:** {}-pin DIP  \n", rom_type.pins));
-    doc.push_str(&format!("**Capacity:** {} bytes  \n", rom_type.size));
+    doc.push_str(&format!("### {} - {}\n\n", type_name, chip_type.description));
+    doc.push_str(&format!("**Package:** {}-pin DIP  \n", chip_type.pins));
+    doc.push_str(&format!("**Capacity:** {} bytes  \n", chip_type.size));
 
     // Control line summary
-    let control_summary = format_control_lines_detailed(rom_type);
+    let control_summary = format_control_lines_detailed(chip_type);
     doc.push_str(&format!("**Control:** {}  \n\n", control_summary));
 
     // Pin table
@@ -263,23 +275,23 @@ fn generate_detailed_pinout(type_name: &str, rom_type: &RomType) -> String {
     doc.push_str("|----------|------|-------|\n");
 
     // Address lines
-    let addr_pins: Vec<String> = rom_type.address.iter().map(|p| p.to_string()).collect();
+    let addr_pins: Vec<String> = chip_type.address.iter().map(|p| p.to_string()).collect();
     doc.push_str(&format!(
         "| Address (A0-A{}) | {} | {} address lines |\n",
-        rom_type.address.len() - 1,
+        chip_type.address.len() - 1,
         addr_pins.join(","),
-        rom_type.address.len()
+        chip_type.address.len()
     ));
 
     // Data lines
-    let data_pins: Vec<String> = rom_type.data.iter().map(|p| p.to_string()).collect();
+    let data_pins: Vec<String> = chip_type.data.iter().map(|p| p.to_string()).collect();
     doc.push_str(&format!(
         "| Data (D0-D7) | {} | 8 data lines |\n",
         data_pins.join(",")
     ));
 
     // Control lines
-    let mut control_lines: Vec<_> = rom_type.control.iter().collect();
+    let mut control_lines: Vec<_> = chip_type.control.iter().collect();
     control_lines.sort_by_key(|(name, _)| *name);
 
     for (name, control) in control_lines {
@@ -296,7 +308,7 @@ fn generate_detailed_pinout(type_name: &str, rom_type: &RomType) -> String {
     }
 
     // Programming pins
-    if let Some(ref prog) = rom_type.programming {
+    if let Some(ref prog) = chip_type.programming {
         if let Some(ref vpp) = prog.vpp {
             doc.push_str(&format!(
                 "| VPP | {} | {} during read |\n",
@@ -321,7 +333,7 @@ fn generate_detailed_pinout(type_name: &str, rom_type: &RomType) -> String {
     }
 
     // Power pins
-    if let Some(ref power_pins) = rom_type.power {
+    if let Some(ref power_pins) = chip_type.power {
         for power_pin in power_pins {
             doc.push_str(&format!(
                 "| {} | {} | {} |\n",
@@ -335,11 +347,11 @@ fn generate_detailed_pinout(type_name: &str, rom_type: &RomType) -> String {
 
 // Helper functions
 
-fn get_sorted_rom_types(config: &RomTypesConfig) -> Vec<(&String, &RomType)> {
-    let mut types: Vec<_> = config.rom_types.iter().collect();
-    types.sort_by_key(|(name, rom_type)| {
+fn get_sorted_chip_types(config: &ChipTypesConfig) -> Vec<(&String, &ChipType)> {
+    let mut types: Vec<_> = config.chip_types.iter().collect();
+    types.sort_by_key(|(name, chip_type)| {
         let family = if name.starts_with("23") { 0 } else { 1 };
-        (family, rom_type.size, *name)
+        (family, chip_type.size, *name)
     });
     types
 }
@@ -352,9 +364,9 @@ fn format_size(bytes: usize) -> String {
     }
 }
 
-fn format_control_lines(rom_type: &RomType) -> String {
+fn format_control_lines(chip_type: &ChipType) -> String {
     let mut lines = Vec::new();
-    let mut control_vec: Vec<_> = rom_type.control.iter().collect();
+    let mut control_vec: Vec<_> = chip_type.control.iter().collect();
     control_vec.sort_by_key(|(name, _)| *name);
 
     for (name, control) in control_vec {
@@ -377,13 +389,13 @@ fn format_control_lines(rom_type: &RomType) -> String {
     }
 }
 
-fn format_control_lines_detailed(rom_type: &RomType) -> String {
-    let count = rom_type.control.len();
+fn format_control_lines_detailed(chip_type: &ChipType) -> String {
+    let count = chip_type.control.len();
     if count == 0 {
         return "None".to_string();
     }
 
-    let has_configurable = rom_type
+    let has_configurable = chip_type
         .control
         .values()
         .any(|c| c.line_type == ControlLineType::Configurable);
@@ -395,7 +407,7 @@ fn format_control_lines_detailed(rom_type: &RomType) -> String {
             if count > 1 { "s" } else { "" }
         )
     } else {
-        let names: Vec<_> = rom_type
+        let names: Vec<_> = chip_type
             .control
             .keys()
             .map(|n| format!("/{}", n.to_uppercase()))
@@ -404,8 +416,8 @@ fn format_control_lines_detailed(rom_type: &RomType) -> String {
     }
 }
 
-fn format_programming_pins(rom_type: &RomType) -> String {
-    if let Some(ref prog) = rom_type.programming {
+fn format_programming_pins(chip_type: &ChipType) -> String {
+    if let Some(ref prog) = chip_type.programming {
         let mut parts = Vec::new();
 
         if let Some(ref vpp) = prog.vpp {
@@ -444,21 +456,21 @@ fn format_read_state(state: &str) -> String {
     }
 }
 
-fn get_pin_function(pin: u8, rom_type: &RomType) -> String {
+fn get_pin_function(pin: u8, chip_type: &ChipType) -> String {
     let mut functions = Vec::new();
 
     // Check address lines
-    if let Some(pos) = rom_type.address.iter().position(|&p| p == pin) {
+    if let Some(pos) = chip_type.address.iter().position(|&p| p == pin) {
         return format!("A{}", pos);
     }
 
     // Check data lines
-    if let Some(pos) = rom_type.data.iter().position(|&p| p == pin) {
+    if let Some(pos) = chip_type.data.iter().position(|&p| p == pin) {
         return format!("D{}", pos);
     }
 
     // Check control lines
-    for (name, control) in &rom_type.control {
+    for (name, control) in &chip_type.control {
         if control.pin == pin {
             let prefix = match control.line_type {
                 ControlLineType::FixedActiveLow => "/",
@@ -470,7 +482,7 @@ fn get_pin_function(pin: u8, rom_type: &RomType) -> String {
 
     // Check programming pins
     #[allow(clippy::collapsible_if)]
-    if let Some(ref prog) = rom_type.programming {
+    if let Some(ref prog) = chip_type.programming {
         if let Some(ref vpp) = prog.vpp {
             if vpp.pin == pin {
                 functions.push("VPP".to_string());
@@ -493,7 +505,7 @@ fn get_pin_function(pin: u8, rom_type: &RomType) -> String {
     }
 
     // Check power pins
-    if let Some(ref power_pins) = rom_type.power {
+    if let Some(ref power_pins) = chip_type.power {
         for power_pin in power_pins {
             if power_pin.pin == pin {
                 return power_pin.name.clone();

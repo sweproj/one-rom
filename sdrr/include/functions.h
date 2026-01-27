@@ -22,6 +22,7 @@ extern int main(void);
 extern uint32_t check_sel_pins(uint32_t *sel_mask);
 #if defined(BOOT_LOGGING)
 extern void log_init();
+extern void log_roms(const onerom_metadata_header_t *metadata);
 extern void do_log(const char *, ...);
 #endif // BOOT_LOGGING
 #if defined(MAIN_LOOP_LOGGING) || defined(DEBUG_LOGGING)
@@ -45,8 +46,8 @@ void vbus_connect_handler(void);
 extern void setup_clock(void);
 extern void setup_gpio(void);
 extern void setup_mco(void);
-extern uint32_t setup_sel_pins(uint32_t *sel_mask, uint32_t *flip_bits);
-extern uint32_t get_sel_value(uint32_t sel_mask, uint32_t flip_bits);
+extern uint32_t setup_sel_pins(uint64_t *sel_mask, uint64_t *flip_bits);
+extern uint64_t get_sel_value(uint64_t sel_mask, uint64_t flip_bits);
 extern void disable_sel_pins(void);
 extern void setup_status_led(void);
 extern void blink_pattern(uint32_t on_time, uint32_t off_time, uint8_t repeats);
@@ -61,6 +62,12 @@ extern void platform_logging(void);
 void dfu(void);
 #endif // STM32F4
 
+// pio.c
+extern void pio(
+    const sdrr_info_t *info,
+    const sdrr_rom_set_t *set,
+    uint32_t rom_table_addr
+);
 // piorom.c
 #if defined(RP235X)
 extern void piorom(

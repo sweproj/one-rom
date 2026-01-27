@@ -1,4 +1,4 @@
-/* Reserve space for the sdrr_runtime_info structure at start of RAM */
+/* Reserve space for the sdrr_runtime_info structure at the end of RAM */
 _sdrr_runtime_info_flash = LOADADDR(.sdrr_runtime_info);
 .sdrr_runtime_info : AT(_flash_main_firmware_end)
 {

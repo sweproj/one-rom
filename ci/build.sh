@@ -19,7 +19,7 @@
 #   ci/blacklist-config.txt     - Configs to skip building (one per line)
 #   ci/size-incompatible.txt    - Config+MCU combinations that don't fit in flash
 #   ci/tests.txt                - Specific option combinations to test
-#   config/*.mk                 - Individual config files to build
+#   old-config/*.mk                 - Individual config files to build
 #
 # Output structure:
 #   builds/ci/                  - CI builds
@@ -241,13 +241,13 @@ is_blacklisted() {
 }
 
 #
-# Discover all available config files in config/ directory
+# Discover all available config files in old-config/ directory
 # Returns: Array of config names (without .mk extension)
 #
 discover_configs() {
     local configs=()
     
-    # Find .mk files in config/ (top level only)
+    # Find .mk files in old-config/ (top level only)
     for mk_file in "${PROJECT_ROOT}/config"/*.mk; do
         if [[ -f "$mk_file" ]]; then
             local config_name=$(basename "$mk_file" .mk)
@@ -255,9 +255,9 @@ discover_configs() {
         fi
     done
     
-    # Find .mk files in config/third-party/
-    if [[ -d "${PROJECT_ROOT}/config/third-party" ]]; then
-        for mk_file in "${PROJECT_ROOT}/config/third-party"/*.mk; do
+    # Find .mk files in old-config/third-party/
+    if [[ -d "${PROJECT_ROOT}/old-config/third-party" ]]; then
+        for mk_file in "${PROJECT_ROOT}/old-config/third-party"/*.mk; do
             if [[ -f "$mk_file" ]]; then
                 local config_name="third-party/$(basename "$mk_file" .mk)"
                 configs+=("$config_name")
@@ -266,7 +266,7 @@ discover_configs() {
     fi
     
     if [[ ${#configs[@]} -eq 0 ]]; then
-        echo "ERROR: No config files found in ${PROJECT_ROOT}/config/"
+        echo "ERROR: No config files found in ${PROJECT_ROOT}/old-config/"
         exit 1
     fi
     
@@ -275,7 +275,7 @@ discover_configs() {
 
 #
 # Load test combinations from tests.txt file
-# Returns: Lines in format "test_name:MCU=variant,VAR1=val1,CONFIG=config/file.mk"
+# Returns: Lines in format "test_name:MCU=variant,VAR1=val1,CONFIG=old-config/file.mk"
 #
 load_tests() {
     local tests=()
@@ -306,7 +306,7 @@ load_tests() {
 build_combination() {
     local mcu_line="$1"
     local config="$2"
-    local config_file="config/${config}.mk"
+    local config_file="old-config/${config}.mk"
     
     # Parse MCU variant line
     mapfile -t parsed < <(parse_mcu_variant "$mcu_line")
@@ -366,7 +366,7 @@ build_combination() {
 
 #
 # Execute a single test combination
-# Args: test_line (format: "test_name:MCU=variant,VAR1=val1,CONFIG=config/file.mk")
+# Args: test_line (format: "test_name:MCU=variant,VAR1=val1,CONFIG=old-config/file.mk")
 # Returns: 0 on success, 1 on failure
 #
 execute_test() {
@@ -847,7 +847,7 @@ generate_manifest() {
         local hw_rev=$(basename "$hw_rev_dir")
         
         # Read hardware config JSON if it exists
-        local hw_config_file="${PROJECT_ROOT}/rust/config/json/${hw_rev}.json"
+        local hw_config_file="${PROJECT_ROOT}/rust/old-config/json/${hw_rev}.json"
         if [[ -f "$hw_config_file" ]]; then
             local description=$(jq -r '.description // ""' "$hw_config_file")
             local usb_support=$(jq -r '.mcu.usb.present // false' "$hw_config_file")
@@ -870,8 +870,8 @@ generate_manifest() {
     local first_config=true
 
     while IFS= read -r config_file; do
-        # Get path relative to config/ directory and strip .mk
-        local rel_path="${config_file#${PROJECT_ROOT}/config/}"
+        # Get path relative to old-config/ directory and strip .mk
+        local rel_path="${config_file#${PROJECT_ROOT}/old-config/}"
         local config_name="${rel_path%.mk}"
         local description=$(extract_config_description "$config_file")
         

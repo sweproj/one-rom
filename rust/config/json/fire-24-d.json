@@ -3,10 +3,11 @@
     "alt": [
         "p24-d"
     ],
-    "rom": {
+    "chip": {
         "pins": {
             "quantity": 24
-        }
+        },
+        "bit_modes": ["8"]
     },
     "mcu": {
         "family": "rp2350",

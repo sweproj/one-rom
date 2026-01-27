@@ -29,8 +29,9 @@ typedef struct {
     sdrr_mcu_port_t cs_port;    // Chip select/enable lines
     sdrr_mcu_port_t sel_port;   // Image select jumpers
     sdrr_mcu_port_t status_port; // Status LED
-    uint8_t rom_pins;           // Number of pins this ROM is emulating 
-    uint8_t reserved1[2];
+    uint8_t chip_pins;           // Number of pins this chip is emulating 
+    uint8_t bit_modes_t;        // Supported bit modes
+    uint8_t reserved1[1];
 
     // 8 data lines
     // Offset: 8
@@ -95,10 +96,31 @@ typedef struct {
     // Offset: 60
     // 4x1 byte = 4 byte
     uint8_t status;
-    uint8_t reserved5[3];
+    uint8_t reserved5[2];
 
-    // Length: 64
+    // As of 0.6.2 - if it contains a 1, this structure is 256 bytes in size,
+    // and the fields that follow are present.  As sdrr_pins_t is built into
+    // the firmware, it does not bother to check for this.  From 0.6.2
+    // sdrr_pins_t is always extended, hence this is set to 1.  It is used,
+    // however, by sdrr-fw-parser and sdrr-info to detect the presence of the
+    // extended pin attributes (although it can infer its presence from the
+    // firmware version as well).
+    uint8_t extended;
+
+    // Length: 256, extended from 64 in 0.6.2
+
+    // Additional data pins for 16-bit mode, in addition to the first 8 data pins.
+    uint8_t data2[8];
+
+    // Additional address pins, for > 64KB ROMs, in addition to the first 16 
+    // address pins.
+    uint8_t addr2[16];
+
+    // Set by sdrr_gen to 0
+    uint8_t reserved6[168];
+
 } sdrr_pins_t;
+_Static_assert(sizeof(sdrr_pins_t) == 256, "sdrr_pins_t must be 256 bytes");
 
 // Forward declarations
 struct onerom_metadata_header_t;
@@ -125,6 +147,9 @@ typedef struct {
     // Padding to make 256 bytes long
     uint8_t _post[244];
 } sdrr_extra_info_t;
+#if !defined(TEST_BUILD)
+_Static_assert(sizeof(sdrr_extra_info_t) == 256, "sdrr_extra_info_t must be 256 bytes");
+#endif // !TEST_BUILD
 
 // Main SDRR information data structure
 typedef struct {
@@ -236,6 +261,9 @@ typedef struct {
 
     // Length: 64
 } sdrr_info_t;
+#if !defined(TEST_BUILD)
+_Static_assert(sizeof(sdrr_info_t) == 64, "sdrr_info_t must be 64 bytes");
+#endif // !TEST_BUILD
 
 // ROM image sizes by type (F1 family)
 #define ROM_IMAGE_SIZE_2316  2048
@@ -249,37 +277,6 @@ typedef struct {
 
 // ROM image size for sets of more than 1 ROM image
 #define ROM_SET_IMAGE_SIZE  65536
-
-// ROM type enumeration
-typedef enum {
-    ROM_TYPE_2316,
-    ROM_TYPE_2332,
-    ROM_TYPE_2364,
-    ROM_TYPE_23128,
-    ROM_TYPE_23256,
-    ROM_TYPE_23512,
-    ROM_TYPE_2704,
-    ROM_TYPE_2708,
-    ROM_TYPE_2716,
-    ROM_TYPE_2732,
-    ROM_TYPE_2764,
-    ROM_TYPE_27128,
-    ROM_TYPE_27256,
-    ROM_TYPE_27512,
-    ROM_TYPE_231024,
-    ROM_TYPE_27C010,
-    ROM_TYPE_27C020,
-    ROM_TYPE_27C040,
-    ROM_TYPE_27C080,
-    ROM_TYPE_27C400,
-} sdrr_rom_type_t;
-
-// CS state enumeration
-typedef enum {
-    CS_ACTIVE_LOW,
-    CS_ACTIVE_HIGH,
-    CS_NOT_USED,
-} sdrr_cs_state_t;
 
 // ROM serving algorithm
 typedef enum {
@@ -528,10 +525,13 @@ typedef struct sdrr_runtime_info_t {
     uint16_t sysclk_mhz;
 
     // Use PIO serving mode on Fire
+    // Changed in 0.6.2 from uint8_t (PIO = 1) to fire_serve_modes_t
     // Offset: 34
-    uint8_t fire_pio_mode;
+    fire_serve_modes_t fire_serve_mode;
 
-    uint8_t pad[1];
+    // Bit mode - v0.6.2
+    // Offset: 35
+    bit_modes_t bit_mode;
 
     // Length = 36 bytes
 } sdrr_runtime_info_t;

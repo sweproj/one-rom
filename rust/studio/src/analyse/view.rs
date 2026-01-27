@@ -20,14 +20,14 @@ use crate::studio::RuntimeInfo;
 use crate::style::Style;
 
 /// Default analysis content text
-pub const ANALYSIS_TEXT_DEFAULT: &'static str = "No firmware analysed";
+pub const ANALYSIS_TEXT_DEFAULT: &str = "No firmware analysed";
 
 // Button names
-const DEVICE_BUTTON_NAME: &'static str = "Device";
-const FILE_BUTTON_NAME: &'static str = "File";
-const SOURCE_DEVICE_BUTTON_NAME: &'static str = "Detect Device";
-const SOURCE_FILE_BUTTON_NAME: &'static str = "Select File";
-const FLASH_BUTTON_NAME: &'static str = "Flash";
+const DEVICE_BUTTON_NAME: &str = "Device";
+const FILE_BUTTON_NAME: &str = "File";
+const SOURCE_DEVICE_BUTTON_NAME: &str = "Detect Device";
+const SOURCE_FILE_BUTTON_NAME: &str = "Select File";
+const FLASH_BUTTON_NAME: &str = "Flash";
 
 /// Main analyse tab view
 pub fn view<'a>(

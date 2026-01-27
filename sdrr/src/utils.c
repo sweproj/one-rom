@@ -16,117 +16,103 @@ extern uint32_t _sdrr_runtime_info_start;
 extern uint32_t _ram_rom_image_start[];
 // Logging function to output various debug information via RTT
 void log_init(void) {
-    return;
-    LOG("%s", log_divider);
-    LOG("%s v%d.%d.%d (build %d) - %s", product, sdrr_info.major_version, sdrr_info.minor_version, sdrr_info.patch_version, sdrr_info.build_number, project_url);
+    LOG(log_divider);
+    LOG("%s v%d.%d.%d.%d %s", product, sdrr_info.major_version, sdrr_info.minor_version, sdrr_info.patch_version, sdrr_info.build_number, project_url);
     LOG("%s %s", copyright, author);
-    LOG("Build date: %s", sdrr_info.build_date);
-    LOG("Git commit: %s", sdrr_info.commit);
+#if defined(DEBUG_BUILD)
+    LOG("Built: %s (DEBUG)", sdrr_info.build_date);
+#else // !DEBUG_BUILD
+    LOG("Built: %s", sdrr_info.build_date);
+#endif // DEBUG_BUILD
+    LOG("Commit: %s", sdrr_info.commit);
 
+    LOG("ROM: %d pin", sdrr_info.pins->chip_pins);
+    LOG("USB: %s", sdrr_info.extra->usb_dfu ? "Y" : "N");
+
+    // This refers to dropping in DFU/BOOTSEL mode when all the image select
+    // jumpers are closed, and is disabled by default.
     if (sdrr_info.bootloader_capable) {
-        LOG("Bootloader: %s", enabled);
+        LOG("Sel boot: %s", enabled);
     } else {
-        LOG("Bootloader: %s", disabled);
+        DEBUG("Sel boot: %s", disabled);
     }
 
     if (sdrr_info.status_led_enabled) {
-        LOG("Status LED: enabled - PB%d", sdrr_info.pins->status);
+        DEBUG("LED: enabled - P%s:%d",
+            port_names[sdrr_info.pins->status_port],
+            sdrr_info.pins->status);
     } else {
-        LOG("Status LED: disabled");
+        DEBUG("LED: disabled");
     }
 
-    DEBUG("sdrr_info located at: 0x%08X", (uint32_t)&sdrr_info);
-    DEBUG("sdrr_extra_info located at: 0x%08X", (uint32_t)sdrr_info.extra);
-    DEBUG("RAM ROM table located at: 0x%08X", (uint32_t)&_ram_rom_image_start);
-    DEBUG("sdrr_runtime_info located at: 0x%08X", (uint32_t)sdrr_info.extra->runtime_info);
-    DEBUG("sdrr_runtime_info cross check: 0x%08X", (uint32_t)&sdrr_runtime_info);
-    DEBUG("RTT control block located at: 0x%08X", (uint32_t)sdrr_info.extra->rtt);
+    DEBUG("sdrr_info: 0x%08X", (uint32_t)&sdrr_info);
+    DEBUG("sdrr_extra_info: 0x%08X", (uint32_t)sdrr_info.extra);
+    DEBUG("RAM ROM table: 0x%08X", (uint32_t)&_ram_rom_image_start);
+    DEBUG("sdrr_runtime_info: 0x%08X", (uint32_t)sdrr_info.extra->runtime_info);
+    DEBUG("RTT CB: 0x%08X", (uint32_t)sdrr_info.extra->rtt);
 
-    DEBUG("-----");
-    DEBUG("Runtime Ice Freq: 0x%04X", sdrr_runtime_info.ice_freq);
-    DEBUG("Runtime Fire Freq: 0x%04X", sdrr_runtime_info.fire_freq);
-    DEBUG("Runtime Overclock Enabled: 0x%02X", sdrr_runtime_info.overclock_enabled);
-    DEBUG("Runtime Status LED Enabled: 0x%02X", sdrr_runtime_info.status_led_enabled);
-    DEBUG("Runtime SWD Enabled: 0x%02X", sdrr_runtime_info.swd_enabled);
-    DEBUG("Runtime PIO mode: 0x%02X", sdrr_runtime_info.fire_pio_mode);
+    DEBUG(log_divider);
+    DEBUG("RT Ice Freq: 0x%04X", sdrr_runtime_info.ice_freq);
+    DEBUG("RT Fire Freq: 0x%04X", sdrr_runtime_info.fire_freq);
+    DEBUG("RT Overclock Enabled: 0x%02X", sdrr_runtime_info.overclock_enabled);
+    DEBUG("RT Status LED Enabled: 0x%02X", sdrr_runtime_info.status_led_enabled);
+    DEBUG("RT SWD Enabled: 0x%02X", sdrr_runtime_info.swd_enabled);
+    DEBUG("RT PIO mode: %s", sdrr_runtime_info.fire_serve_mode == FIRE_SERVE_PIO ? "Y" : "N");
 
+    LOG(log_divider);
     platform_logging();
 
 #if defined(C_MAIN_LOOP)
     LOG("C main loop: enabled");
 #endif // C_MAIN_LOOP
 
-    LOG("USB DFU enabled: %d", sdrr_info.extra->usb_dfu);
-
-    LOG("%s", log_divider);
-    LOG("Pin Configuration ...");
-    
-    // Port assignments
-    const char *port_names[] = {"NONE", "A", "B", "C", "D", "0"};
-    
-    LOG("ROM emulation: %d pin ROM", sdrr_info.pins->rom_pins);
+    DEBUG(log_divider);
     
     // Data pins
-    LOG("Data pins D[0-7]: P%s:%d,%d,%d,%d,%d,%d,%d,%d", 
+    DEBUG("D[0-7]: P%s:%d,%d,%d,%d,%d,%d,%d,%d", 
         port_names[sdrr_info.pins->data_port],
         sdrr_info.pins->data[0], sdrr_info.pins->data[1], sdrr_info.pins->data[2], sdrr_info.pins->data[3],
         sdrr_info.pins->data[4], sdrr_info.pins->data[5], sdrr_info.pins->data[6], sdrr_info.pins->data[7]);
+    if (sdrr_info.pins->data2[0] != 0xFF) {
+        DEBUG("D[8-15]: P%s:%d,%d,%d,%d,%d,%d,%d,%d", 
+            port_names[sdrr_info.pins->data_port],
+            sdrr_info.pins->data2[0], sdrr_info.pins->data2[1], sdrr_info.pins->data2[2], sdrr_info.pins->data2[3],
+            sdrr_info.pins->data2[4], sdrr_info.pins->data2[5], sdrr_info.pins->data2[6], sdrr_info.pins->data2[7]);
+    }
     
     // Address pins
-    LOG("Addr pins A[0-15]: P%s:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", 
+    DEBUG("A[0-15]: P%s:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", 
         port_names[sdrr_info.pins->addr_port],
         sdrr_info.pins->addr[0], sdrr_info.pins->addr[1], sdrr_info.pins->addr[2], sdrr_info.pins->addr[3],
         sdrr_info.pins->addr[4], sdrr_info.pins->addr[5], sdrr_info.pins->addr[6], sdrr_info.pins->addr[7],
         sdrr_info.pins->addr[8], sdrr_info.pins->addr[9], sdrr_info.pins->addr[10], sdrr_info.pins->addr[11],
         sdrr_info.pins->addr[12], sdrr_info.pins->addr[13], sdrr_info.pins->addr[14], sdrr_info.pins->addr[15]);
-    
+    if (sdrr_info.pins->addr2[0] != 0xFF) {
+        DEBUG("A[16-31]: P%s:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", 
+            port_names[sdrr_info.pins->addr_port],
+            sdrr_info.pins->addr2[0], sdrr_info.pins->addr2[1], sdrr_info.pins->addr2[2], sdrr_info.pins->addr2[3],
+            sdrr_info.pins->addr2[4], sdrr_info.pins->addr2[5], sdrr_info.pins->addr2[6], sdrr_info.pins->addr2[7],
+            sdrr_info.pins->addr2[8], sdrr_info.pins->addr2[9], sdrr_info.pins->addr2[10], sdrr_info.pins->addr2[11],
+            sdrr_info.pins->addr2[12], sdrr_info.pins->addr2[13], sdrr_info.pins->addr2[14], sdrr_info.pins->addr2[15]);
+    }
+        
     // Chip select pins
-    LOG("CS pins: P%s:%d,%d,%d X1: P%s:%d X2: P%s:%d", 
+    DEBUG("CS: P%s:%d,%d,%d,%d,%d X1: P%s:%d X2: P%s:%d", 
         port_names[sdrr_info.pins->cs_port], sdrr_info.pins->cs1, sdrr_info.pins->cs2, sdrr_info.pins->cs3,
+        sdrr_info.pins->ce, sdrr_info.pins->oe,
         port_names[sdrr_info.pins->cs_port], sdrr_info.pins->x1, port_names[sdrr_info.pins->cs_port], sdrr_info.pins->x2);
     
     // Select and status pins
-    LOG("Sel pins: P%s:%d,%d,%d,%d", port_names[sdrr_info.pins->sel_port], 
+    DEBUG("Sel: P%s:%d,%d,%d,%d,%d,%d,%d", port_names[sdrr_info.pins->sel_port], 
         sdrr_info.pins->sel[0], sdrr_info.pins->sel[1], 
-        sdrr_info.pins->sel[2], sdrr_info.pins->sel[3]);
-    LOG("Status LED pin: P%s:%d", port_names[sdrr_info.pins->status_port], sdrr_info.pins->status);
-
-    LOG("%s", log_divider);
-    LOG("ROM info ...");
-    LOG("# of ROM sets: %d", sdrr_info.metadata_header->rom_set_count);
-
-    // Need to cope with two different sizes of sdrr_rom_set_t structure
-    uint8_t extra_info = sdrr_info.metadata_header->rom_sets[0].extra_info;
-    size_t stride = (extra_info == 1) ? sizeof(sdrr_rom_set_t) : 16;
-    uint8_t *base = (uint8_t *)sdrr_info.metadata_header->rom_sets;
-
-    for (uint8_t ii = 0; ii < sdrr_info.metadata_header->rom_set_count; ii++) {
-        const sdrr_rom_set_t *set = (const sdrr_rom_set_t *)(base + (stride * ii));
-
-        LOG("Set #%d: %d ROM(s), size: %d bytes", ii, set->rom_count, set->size);
-        
-        for (uint8_t jj = 0; jj < set->rom_count; jj++) {
-            const char *rom_type_str;
-            const sdrr_rom_info_t *rom = set->roms[jj];
-            switch (rom->rom_type) {
-                case ROM_TYPE_2364:
-                    rom_type_str = r2364;
-                    break;
-                case ROM_TYPE_2332:
-                    rom_type_str = r2332;
-                    break;
-                case ROM_TYPE_2316:
-                    rom_type_str = r2316;
-                    break;
-                default:
-                    rom_type_str = unknown;
-                    break;
-            }
-
-            LOG("  ROM #%d: %s, %s",
-                jj, rom->filename,
-                rom_type_str);
-        }
+        sdrr_info.pins->sel[2], sdrr_info.pins->sel[3],
+        sdrr_info.pins->sel[4], sdrr_info.pins->sel[5],
+        sdrr_info.pins->sel[6]);
+    DEBUG("LED pin: P%s:%d", port_names[sdrr_info.pins->status_port], sdrr_info.pins->status);
+    if (sdrr_info.extra->usb_dfu) {
+        DEBUG("VBUS: P%s:%d", 
+            port_names[sdrr_info.extra->usb_port],
+            sdrr_info.extra->vbus_pin);
     }
 
 #if !defined(EXECUTE_FROM_RAM)
@@ -135,9 +121,44 @@ void log_init(void) {
     LOG("Execute from: %s", ram);
 #endif // EXECUTE_FROM_RAM
 
-    LOG("%s", log_divider);
-    LOG("Running ...");
+    LOG(log_divider);
 }
+
+void log_roms(const onerom_metadata_header_t *metadata_header) {
+
+    uint8_t extra_info = metadata_header->rom_sets[0].extra_info;
+#if defined(DEBUG_LOGGING)
+    if (extra_info == 1) {
+        DEBUG("ROM sets: v0.6.0+");
+    } else {
+        DEBUG("ROM sets: pre-v0.6.0");
+    }
+#endif // DEBUG_LOGGING
+
+    LOG("# of ROM sets: %d", metadata_header->rom_set_count);
+
+    // Need to cope with two different sizes of sdrr_rom_set_t structure
+    size_t stride = (extra_info == 1) ? sizeof(sdrr_rom_set_t) : 16;
+    uint8_t *base = (uint8_t *)metadata_header->rom_sets;
+
+    for (uint8_t ii = 0; ii < metadata_header->rom_set_count; ii++) {
+        const sdrr_rom_set_t *set = (const sdrr_rom_set_t *)(base + (stride * ii));
+
+        LOG("Set #%d: %d ROM(s), size: %d bytes", ii, set->rom_count, set->size);
+        
+#if defined(DEBUG_LOGGING)
+        for (uint8_t jj = 0; jj < set->rom_count; jj++) {
+            const sdrr_rom_info_t *rom = set->roms[jj];
+            const char *rom_type_str = chip_type_strings[rom->rom_type];
+
+            DEBUG("  Chip #%d: %s, %s",
+                jj, rom->filename,
+                rom_type_str);
+        }
+#endif // DEBUG_LOGGING
+    }
+}
+
 #endif // BOOT_LOGGING
 
 #if defined(BOOT_LOGGING)

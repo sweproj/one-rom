@@ -23,6 +23,11 @@
 // - PIO1 SM0 technically uses different criteria to re-arm than PIO1 SM1, and
 //   PIO2 SM2 (EITHER /CE or /W going inactive, vs just /W going inactive).
 //   It might be possible for this to cause a problem.
+//
+// - For the data IO handler, a single cycle test would be to keep 001 in Y
+//   and test X against that (i.e. /CE /OE active, /W inactive).  This avoids
+//   the need for JMP pin, and also the need to flip the sense of /W.
+//   Hopefully can rationalise this with the ROM alg.
 
 // # Introduction
 //
@@ -818,14 +823,6 @@ void pioram(
 
     ram_table_addr = (uint32_t)_ram_rom_image_start;
 
-#if defined(DEBUG_BUILD) && (DEBUG_BUILD == 1)
-    // Clear 64KB RAM table
-    uint8_t *ram_table_ptr = (uint8_t *)ram_table_addr;
-    for (int ii = 0; ii < 65536; ii++) {
-        ram_table_ptr[ii] = 0x03;
-    }
-#endif // DEBUG_BUILD
-
     pioram_config_t config = {
         .read_cs_base_pin = 10,     // /OE + /CE, fire-24-d
         .num_read_cs_pins = 2,
@@ -866,7 +863,7 @@ void pioram(
     
     // Start PIOs
     pioram_start_pios();
-    DEBUG("PIO RAM serving started");
+    DEBUG("PIOs started");
     DEBUG("%s", log_divider);
 
 #define PIO_DEBUG_LOOP 1

@@ -11,7 +11,7 @@ const VALID_DATA_LINE_COUNTS: &[usize] = &[8, 16];
 const MIN_PIN_NUMBER: u8 = 1;
 const VALID_PIN_COUNTS: &[u8] = &[24, 28, 32, 40];
 const VALID_READ_STATES: &[&str] = &["vcc", "high", "low", "chip_select", "x", "word_size"];
-const VALID_CONTROL_LINES: &[&str] = &["cs1", "cs2", "cs3", "ce", "oe", "byte"];
+const VALID_CONTROL_LINES: &[&str] = &["cs1", "cs2", "cs3", "ce", "oe", "byte", "write"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -52,9 +52,20 @@ pub struct PowerPin {
     pub voltage: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Copy, PartialEq, Eq)]
+pub enum ChipFunction {
+    #[serde(rename = "ROM")]
+    Rom,
+    #[serde(rename = "RAM")]
+    Ram,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RomType {
+pub struct ChipType {
     pub description: String,
+    pub aliases: Option<Vec<String>>,
+    pub function: ChipFunction,
+    pub bit_modes: Vec<u8>,
     pub pins: u8,
     pub size: usize,
     pub address: Vec<u8>,
@@ -69,51 +80,51 @@ pub struct RomType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RomTypesConfig {
-    pub rom_types: BTreeMap<String, RomType>,
+pub struct ChipTypesConfig {
+    pub chip_types: BTreeMap<String, ChipType>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationError {
     JsonParseError(String),
     InvalidPinNumber {
-        rom_type: String,
+        chip_type: String,
         pin: u8,
         max: u8,
     },
     AddressSizeMismatch {
-        rom_type: String,
+        chip_type: String,
         address_lines: usize,
         expected_size: usize,
         actual_size: usize,
     },
     InvalidDataLineCount {
-        rom_type: String,
+        chip_type: String,
         count: usize,
     },
     DuplicatePin {
-        rom_type: String,
+        chip_type: String,
         pin: u8,
     },
     InvalidReadState {
-        rom_type: String,
+        chip_type: String,
         pin_name: String,
         state: String,
     },
     InvalidPackagePinCount {
-        rom_type: String,
+        chip_type: String,
         pins: u8,
     },
     TooManyAddressLines {
-        rom_type: String,
+        chip_type: String,
         count: usize,
     },
     IncompatibleControlLines {
-        rom_type: String,
+        chip_type: String,
         combination: String,
     },
     UnknownControlLine {
-        rom_type: String,
+        chip_type: String,
         line_name: String,
     },
 }
@@ -124,15 +135,15 @@ impl fmt::Display for ValidationError {
             ValidationError::JsonParseError(msg) => {
                 write!(f, "JSON parse error: {}", msg)
             }
-            ValidationError::InvalidPinNumber { rom_type, pin, max } => {
+            ValidationError::InvalidPinNumber { chip_type, pin, max } => {
                 write!(
                     f,
                     "ROM type '{}': pin {} is out of range (valid: {}-{})",
-                    rom_type, pin, MIN_PIN_NUMBER, max
+                    chip_type, pin, MIN_PIN_NUMBER, max
                 )
             }
             ValidationError::AddressSizeMismatch {
-                rom_type,
+                chip_type,
                 address_lines,
                 expected_size,
                 actual_size,
@@ -140,68 +151,68 @@ impl fmt::Display for ValidationError {
                 write!(
                     f,
                     "ROM type '{}': {} address lines should give {} bytes, but size is {}",
-                    rom_type, address_lines, expected_size, actual_size
+                    chip_type, address_lines, expected_size, actual_size
                 )
             }
 
-            ValidationError::InvalidDataLineCount { rom_type, count } => {
+            ValidationError::InvalidDataLineCount { chip_type, count } => {
                 write!(
                     f,
                     "ROM type '{}': must have one of the valid data line counts {:?}, found {}",
-                    rom_type, VALID_DATA_LINE_COUNTS, count
+                    chip_type, VALID_DATA_LINE_COUNTS, count
                 )
             }
-            ValidationError::DuplicatePin { rom_type, pin } => {
+            ValidationError::DuplicatePin { chip_type, pin } => {
                 write!(
                     f,
                     "ROM type '{}': pin {} is used multiple times",
-                    rom_type, pin
+                    chip_type, pin
                 )
             }
             ValidationError::InvalidReadState {
-                rom_type,
+                chip_type,
                 pin_name,
                 state,
             } => {
                 write!(
                     f,
                     "ROM type '{}': invalid read state '{}' for pin '{}' (valid: {:?})",
-                    rom_type, state, pin_name, VALID_READ_STATES
+                    chip_type, state, pin_name, VALID_READ_STATES
                 )
             }
-            ValidationError::InvalidPackagePinCount { rom_type, pins } => {
+            ValidationError::InvalidPackagePinCount { chip_type, pins } => {
                 write!(
                     f,
                     "ROM type '{}': invalid pin count {} (valid: {:?})",
-                    rom_type, pins, VALID_PIN_COUNTS
+                    chip_type, pins, VALID_PIN_COUNTS
                 )
             }
-            ValidationError::TooManyAddressLines { rom_type, count } => {
+            ValidationError::TooManyAddressLines { chip_type, count } => {
                 write!(
                     f,
                     "ROM type '{}': {} address lines exceeds maximum of {}",
-                    rom_type, count, MAX_ADDRESS_LINES
+                    chip_type, count, MAX_ADDRESS_LINES
                 )
             }
             ValidationError::IncompatibleControlLines {
-                rom_type,
+                chip_type,
                 combination,
             } => {
                 write!(
                     f,
                     "ROM type '{}': incompatible chip select line combination: {}.\nCS1/2/3 cannot be used with CE/OE.",
-                    rom_type, combination
+                    chip_type, combination
                 )
             }
             ValidationError::UnknownControlLine {
-                rom_type,
+                chip_type,
                 line_name,
             } => {
                 let valid_lines = VALID_CONTROL_LINES.join(", ");
                 write!(
                     f,
                     "ROM type '{}': unrecognised control line name '{}'.\nValid names are: {valid_lines}",
-                    rom_type, line_name
+                    chip_type, line_name
                 )
             }
         }
@@ -210,9 +221,9 @@ impl fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-impl RomTypesConfig {
+impl ChipTypesConfig {
     pub fn from_json(json: &str) -> Result<Self, ValidationError> {
-        let config: RomTypesConfig = serde_json::from_str(json)
+        let config: ChipTypesConfig = serde_json::from_str(json)
             .map_err(|e| ValidationError::JsonParseError(e.to_string()))?;
 
         config.validate()?;
@@ -221,25 +232,25 @@ impl RomTypesConfig {
     }
 
     pub fn validate(&self) -> Result<(), ValidationError> {
-        for (type_name, rom_type) in &self.rom_types {
-            rom_type.validate(type_name)?;
+        for (type_name, chip_type) in &self.chip_types {
+            chip_type.validate(type_name)?;
         }
         Ok(())
     }
 }
 
-impl RomType {
+impl ChipType {
     pub fn validate(&self, type_name: &str) -> Result<(), ValidationError> {
         if !VALID_PIN_COUNTS.contains(&self.pins) {
             return Err(ValidationError::InvalidPackagePinCount {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 pins: self.pins,
             });
         }
 
         if self.address.len() > MAX_ADDRESS_LINES {
             return Err(ValidationError::TooManyAddressLines {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 count: self.address.len(),
             });
         }
@@ -247,7 +258,7 @@ impl RomType {
         let expected_size = 1usize << self.address.len();
         if expected_size != self.size {
             return Err(ValidationError::AddressSizeMismatch {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 address_lines: self.address.len(),
                 expected_size,
                 actual_size: self.size,
@@ -256,7 +267,7 @@ impl RomType {
 
         if !VALID_DATA_LINE_COUNTS.contains(&self.data.len()) {
             return Err(ValidationError::InvalidDataLineCount {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 count: self.data.len(),
             });
         }
@@ -318,7 +329,7 @@ impl RomType {
             // Check for unrecognised chip select line names.
             if !VALID_CONTROL_LINES.contains(&line_name.as_str()) {
                 return Err(ValidationError::UnknownControlLine {
-                    rom_type: type_name.to_string(),
+                    chip_type: type_name.to_string(),
                     line_name: line_name.to_string(),
                 });
             }
@@ -328,7 +339,7 @@ impl RomType {
             if line_name == "ce" || line_name == "oe" {
                 if self.control[line_name].line_type != ControlLineType::FixedActiveLow {
                     return Err(ValidationError::IncompatibleControlLines {
-                        rom_type: type_name.to_string(),
+                        chip_type: type_name.to_string(),
                         combination: format!("{} must be of type 'fixed_active_low'", line_name),
                     });
                 }
@@ -341,7 +352,7 @@ impl RomType {
             && (cs_lines.contains(&"ce") || cs_lines.contains(&"oe"))
         {
             return Err(ValidationError::IncompatibleControlLines {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 combination: format!("{:?}", cs_lines),
             });
         }
@@ -352,7 +363,7 @@ impl RomType {
     fn validate_pin_number(&self, type_name: &str, pin: u8) -> Result<(), ValidationError> {
         if pin < MIN_PIN_NUMBER || pin > self.pins {
             return Err(ValidationError::InvalidPinNumber {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 pin,
                 max: self.pins,
             });
@@ -368,7 +379,7 @@ impl RomType {
     ) -> Result<(), ValidationError> {
         if used_pins.contains(&pin) {
             return Err(ValidationError::DuplicatePin {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 pin,
             });
         }
@@ -384,7 +395,7 @@ impl RomType {
     ) -> Result<(), ValidationError> {
         if !VALID_READ_STATES.contains(&state) {
             return Err(ValidationError::InvalidReadState {
-                rom_type: type_name.to_string(),
+                chip_type: type_name.to_string(),
                 pin_name: pin_name.to_string(),
                 state: state.to_string(),
             });

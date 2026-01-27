@@ -12,13 +12,14 @@ builds/
 test/build
 hw-config/user/*
 !hw-config/user/README.md
-config/user/*
-!config/user/README.md
-config/docker/*
-!config/docker/README.md
+old-config/user/*
+!old-config/user/README.md
+old-config/docker/*
+!old-config/docker/README.md
 images/user/*
 !images/user/README.md
-rom-config/user
+onerom-config/user/*
+!onerom-config/user/README.md
 sdrr-pcb/panels/*
 !sdrr-pcb/panels/README.md
 
