@@ -4629,6 +4629,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "onerom-config"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b0febd2788850741a85420f820bb56d26f75f8ed9d790f6aa4fa333cb5d3985"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "onerom-database"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4662,10 +4673,32 @@ dependencies = [
  "env_logger",
  "hex",
  "log",
- "onerom-config",
- "onerom-gen",
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest",
- "sdrr-fw-parser",
+ "sdrr-fw-parser 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+ "smol",
+ "zip 6.0.0",
+]
+
+[[package]]
+name = "onerom-fw"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b2ad328d42b186765a18b45a6ca4c29d89d9ae1dbaf4e4f0097e1c0da1ef0a9"
+dependencies = [
+ "base64 0.22.1",
+ "bytes",
+ "clap",
+ "env_logger",
+ "hex",
+ "log",
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reqwest",
+ "sdrr-fw-parser 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "smol",
@@ -4676,7 +4709,19 @@ dependencies = [
 name = "onerom-gen"
 version = "0.4.0"
 dependencies = [
- "onerom-config",
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "onerom-gen"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "740e1354da910c021b29173ac77bf2c066bbea5a5be2efbbfe71380d3c337387"
+dependencies = [
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -4749,9 +4794,9 @@ dependencies = [
  "hex",
  "iced",
  "log",
- "onerom-config",
- "onerom-fw",
- "onerom-gen",
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-fw 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "open",
  "picoboot",
  "probe-rs",
@@ -4759,7 +4804,7 @@ dependencies = [
  "resvg",
  "rfd",
  "schemars",
- "sdrr-fw-parser",
+ "sdrr-fw-parser 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 1.0.27",
  "serde",
  "serde_json",
@@ -6001,7 +6046,7 @@ dependencies = [
 name = "schema-gen"
 version = "0.1.3"
 dependencies = [
- "onerom-gen",
+ "onerom-gen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -6111,8 +6156,23 @@ dependencies = [
  "deku 0.19.1",
  "esp-println",
  "log",
- "onerom-config",
- "onerom-gen",
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "static_assertions",
+]
+
+[[package]]
+name = "sdrr-fw-parser"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "412ffddb696ee35e770204b18004026f4d3d78433e29514340029df4aecb06dc"
+dependencies = [
+ "airfrog-rpc",
+ "deku 0.19.1",
+ "log",
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "static_assertions",
 ]
@@ -6124,8 +6184,8 @@ dependencies = [
  "anyhow",
  "bytes",
  "clap",
- "onerom-config",
- "onerom-gen",
+ "onerom-config 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "onerom-gen 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest",
  "strum",
  "thiserror 2.0.17",
@@ -6141,7 +6201,7 @@ dependencies = [
  "chrono",
  "clap",
  "goblin",
- "sdrr-fw-parser",
+ "sdrr-fw-parser 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "smol",
 ]
 
