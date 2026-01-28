@@ -28,6 +28,12 @@
 //   and test X against that (i.e. /CE /OE active, /W inactive).  This avoids
 //   the need for JMP pin, and also the need to flip the sense of /W.
 //   Hopefully can rationalise this with the ROM alg.
+//
+// - From the HM6116 datasheet "If the /CS low transition occurs
+//   simultaneously with the /WE low transition or after the /WE transition,
+//   output remains in a high impedance state".  So ignore /OE if /CE and /WE
+//   go low at the same time, or /CE after /WE.  This probably complicated the
+//   algorithm.
 
 // # Introduction
 //
