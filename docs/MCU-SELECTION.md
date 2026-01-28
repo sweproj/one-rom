@@ -1,18 +1,20 @@
 # MCU Selection
 
-Your most important choice is between a Raspbery Pi RP2350-based One ROM Fire 🔥, or an STM32F4-based One ROM Ice ❄️.  Both have roughly equivalent support in the firmware.
+Your most important choice is between a Raspbery Pi RP2350-based One ROM Fire 🔥, or an STM32F4-based One ROM Ice ❄️.
 
 | Feature | Fire 🔥 RP2350 | Ice ❄️ STM32F4 |
 |---------|--------|---------|
-| **Firmware** | Support just added but already mostly complete | More mature firmware |
-| **Price Each (5 units)** | $9 | $6.50 |
-| **Price Each (20 units)** | $4.50 | $3.25 |
-| **Performance** | Roughly per STM32, shows more overclocking headroom | Roughly per RP2350, but has slight edge |
-| **Image Select Jumpers** | 3 | 5 |
+| **Firmware** | Fully supported | Fully supported |
+| **Price Each (5 units)** | $8 | $6.50 |
+| **Price Each (20 units)** | $4.00 | $3.25 |
+| **Performance** | Higher | Lower |
+| **Image Select Jumpers** | 4 | 4 |
 | **Bank/Set Pins** | 2 | 2 |
 | **Flash Size** | 2MB | 128KB-1MB |
 | **Physical Size** | 2316/2332/2364 footprint | Same |
-| **Future Enhancements** | May utilize dual cores for additional features in future updates | Expected to be supported for foreseeable future |
+| **Future Enhancements** | Expected | Supported for foreseeable future |
+| **SRAM Emulation** | Supported | Not supported |
+
 
 Notes:
 - **Price**: Approximate Assembled price, each, from JLCPCB, August 2025, not including tax and shipping.
@@ -21,14 +23,18 @@ Notes:
 - **Storage Impact**: Flash size impacts ROM image storage capacity and multi-ROM set usage
 - **Support**: Both boards are expected to be supported long-term
 - **Price Trend**: RP2350 is more expensive in small quantities but prices converge at larger volumes
+- **Performance**: RP2350 offers higher performance, due its parallel IO state machines (PIOs)
+- **SRAM Emulation**: As of writing, only supported on Fire 24
 
 ## Which One Should **You** Choose?
 
-It's too early to say.  Why not try both and see which you prefer?
+I now recommend Fire (RP2350-based) boards over Ice, as they contain all the features of Ice boards, can be produed at a similar cost, and have more headroom for future enhancements, particularly as have PIO state machines.
+
+I will keep supporting both boards for the foreseeable future - I have a large personal stock of Ice boards I want to continue to use.
 
 ## RP2350
 
-The One ROM Pico uses the RP2350 MCU, A4 stepping or later.  This is now (August 2025) used by default by JLC's PCB assembly service.
+The One ROM Pico uses the RP2350 MCU, A4 stepping or later.  This is now (August 2025) used by default by JLC's PCB assembly service.  They also (January 2026) offer RP2354 (both A and B) in the A4 stepping.
 
 See [RP2350](docs/RP2350.md) for more details about the RP2350 support, including some earlier performance results.
 
@@ -37,8 +43,6 @@ See [RP2350](docs/RP2350.md) for more details about the RP2350 support, includin
 The One ROM STM uses the STM32F4 family of MCUs.  This section aims to help you choose the right one for your needs.
 
 All performance figures in this document are based on testing genuine STM32 parts.  For a discussion of clones, see [STM32-Clones](/docs/STM32-CLONES.md).
-
-If you'd like an unsupported STM32 variant supported, please raise an issue via GitHub or [add it yourself](docs/STM32-SELECTION.md#supporting-other-variants) and submit a PR.
 
 ### Supported Microcontrollers
 

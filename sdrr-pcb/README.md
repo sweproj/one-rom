@@ -7,19 +7,21 @@ Contains SDRR PCB design files.  These are organised into two directories:
 
 ## Recommended Revisions
 
-Last Updated 2026-01-01.
+Last Updated 28th January 2026.
+
+I recommend Fire over Ice boards for most users.  See [MCU-SELECTION.md](../docs/MCU-SELECTION.md) for a comparison between Fire and Ice capabilities.
 
 ### Fire (RP2350)
 
-The current recommended 24 pin hardware revision is [fire-24-d](./verified/fire-24-d/README.md).  This is a combined Pro (SWD) and USB version, with 4 image select jumpers (v0.6.1 onwards).  It supports PIO and CPU serving algorithms.  This is recommended over revisions A (Pro only) and B (USB only).
+The current recommended 24 pin hardware revision is [fire-24-d](./verified/fire-24-d/README.md).  This is a combined Pro (SWD) and micro USB version, with 4 image select jumpers (v0.6.1 onwards).  It supports PIO and CPU serving algorithms.  This is recommended over revisions A (Pro only) and B (USB only).
 
-The current recommended 28 pin hardware revision is [fire-28-a3](./verified/fire-28-a3/README.md).  This is a combined Pro (SWD) and USB version, with 2 image select pins.  (The 28 pin version does not have X pins.)  It supports PIO and CPU serving algorithms.  The incorrect SWD CLK/DIO silkscreen in A2 has been corrected in this revision.
+The current recommended 28 pin hardware revision is [fire-28-a3](./verified/fire-28-a3/README.md).  This is a combined Pro (SWD) and USB-C version, with 2 image select pins.  (The 28 pin version does not have X pins.)  It supports PIO and CPU serving algorithms.  The incorrect SWD CLK/DIO silkscreen in A2 has been corrected in this revision.
 
 ### Ice (STM32F4)
 
 The current recommended 24 pin hardware revision is [ice-24-j](./verified/ice-24-j/README.md).  This is a combined Pro (SWD) and USB version, with 4 image select pins (v0.6.1 onwards) and 2 X (special function) pins.  It supports both SWD programming and USB programming.
 
-There is no recommended 28 pin Ice version at this time.  (Revision A does exist, but is not recommended and support may have been removed from the latest firware revisions.)
+There is no recommended 28 pin Ice version.  (Revision A does exist, but is not recommended and support may have been removed from the latest firware revisions.)
 
 ## Notes on Fabrication
 
